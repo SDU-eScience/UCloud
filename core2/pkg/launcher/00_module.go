@@ -576,50 +576,6 @@ func LaunchAccountingAudit(args []string) {
 	}
 }
 
-func LaunchAccountingRepair(args []string) {
-	if len(args) == 0 {
-		panic("accounting-repair requires duplicates, findings, or reflow")
-	}
-
-	flags := flag.NewFlagSet("accounting-repair "+args[0], flag.ExitOnError)
-	apply := flags.Bool("apply", false, "apply changes; the default is a read-only dry run")
-	provider := flags.String("provider", "", "product provider for reflow")
-	category := flags.String("category", "", "product category for reflow")
-	usageSource := flags.String("usage-source", "", "reflow source: no-scopes, all-scoped, or mixed")
-	if err := flags.Parse(args[1:]); err != nil {
-		panic(err)
-	}
-
-	if !cfg.Parse("/etc/ucloud") {
-		return
-	}
-	dbConfig := cfg.Configuration.Database
-	if *apply {
-		db.Database = db.Connect(dbConfig.Username, dbConfig.Password, dbConfig.Host.Address, dbConfig.Host.Port, dbConfig.Database, dbConfig.Ssl)
-	} else {
-		db.Database = db.ConnectReadOnly(dbConfig.Username, dbConfig.Password, dbConfig.Host.Address, dbConfig.Host.Port, dbConfig.Database, dbConfig.Ssl)
-	}
-	defer db.Database.Connection.Close()
-
-	var output []byte
-	switch args[0] {
-	case "duplicates":
-		output = acc.RepairAccountingDuplicates(*apply)
-	case "findings":
-		output = acc.RepairAccountingFindings(*apply)
-	case "reflow":
-		if *provider == "" || *category == "" || *usageSource == "" {
-			panic("reflow requires --provider, --category, and --usage-source")
-		}
-		output = acc.RepairAccountingBucketReflow(*provider, *category, *usageSource, *apply)
-	default:
-		panic(fmt.Sprintf("unknown accounting repair %q", args[0]))
-	}
-	if _, err := os.Stdout.Write(output); err != nil {
-		panic(err)
-	}
-}
-
 func launchMetricsServer() {
 	go func() {
 		handler := promhttp.Handler()

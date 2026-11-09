@@ -7,7 +7,6 @@ import (
 	"slices"
 	"time"
 
-	"gopkg.in/yaml.v3"
 	db "ucloud.dk/shared/pkg/database"
 )
 
@@ -102,20 +101,7 @@ type findingsRepairReport struct {
 	Blockers           []string `yaml:"blockers,omitempty"`
 }
 
-func RepairAccountingFindings(apply bool) []byte {
-	report := db.NewTx(func(tx *db.Transaction) findingsRepairReport {
-		accountingRepairTransactionMode(tx, apply)
-		return accountingRepairFindingsTx(tx, apply)
-	})
-	encoded, err := yaml.Marshal(report)
-	if err != nil {
-		panic(err)
-	}
-	return encoded
-}
-
-func accountingRepairFindingsTx(tx *db.Transaction, apply bool) findingsRepairReport {
-
+func accountingRepairFindingsTx(tx *db.Transaction) findingsRepairReport {
 	nowRow, ok := db.Get[struct{ Now time.Time }](
 		tx,
 		"select transaction_timestamp() as now",
@@ -144,10 +130,6 @@ func accountingRepairFindingsTx(tx *db.Transaction, apply bool) findingsRepairRe
 	if result.Blocked {
 		return result
 	}
-	if !apply {
-		return result
-	}
-
 	allocationIds := make([]int64, 0, len(result.AllocationDeletions))
 	for _, deletion := range result.AllocationDeletions {
 		allocationIds = append(allocationIds, deletion.Id)

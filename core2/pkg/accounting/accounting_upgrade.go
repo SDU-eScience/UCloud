@@ -95,23 +95,6 @@ type accountingUpgradeBundle struct {
 	Build           map[string]string
 }
 
-func accountingRepairTransactionMode(tx *db.Transaction, apply bool) {
-	if !apply {
-		db.Exec(
-			tx,
-			"set transaction isolation level repeatable read, read only",
-			db.Params{},
-		)
-		return
-	}
-	db.Exec(
-		tx,
-		"set transaction isolation level serializable",
-		db.Params{},
-	)
-	accountingUpgradeLockTables(tx)
-}
-
 func accountingUpgradeLockTables(tx *db.Transaction) {
 	db.Exec(
 		tx,
@@ -250,11 +233,11 @@ func AccountingUpgrade(tx *db.Transaction) {
 	bundle.Before = accountingUpgradeCapture(tx, now.Now, true)
 	bundle.Phase = "approved cycle and duplicate repairs"
 	accountingUpgradeCycles(tx, &bundle)
-	bundle.Duplicates = accountingRepairDuplicatesTx(tx, true)
+	bundle.Duplicates = accountingRepairDuplicatesTx(tx)
 	bundle.Blockers = append(bundle.Blockers, bundle.Duplicates.Blockers...)
 	accountingUpgradeCheck(tx, &bundle)
 	bundle.Phase = "approved findings repairs"
-	bundle.Repairs = accountingRepairFindingsTx(tx, true)
+	bundle.Repairs = accountingRepairFindingsTx(tx)
 	bundle.Blockers = append(bundle.Blockers, bundle.Repairs.Blockers...)
 	accountingUpgradeCheck(tx, &bundle)
 	bundle.Phase = "derived flow"
@@ -819,7 +802,7 @@ func accountingUpgradeFlow(tx *db.Transaction, bundle *accountingUpgradeBundle) 
 		for _, wallet := range bucket.WalletsById {
 			lInternalMarkSignificantUpdate(bucket, bundle.CapturedAt, wallet)
 		}
-		persistAccountingReflow(tx, bucket, nil, accountingReflowNoScopes, bundle.CapturedAt)
+		accountingUpgradePersistFlow(tx, bucket)
 	}
 }
 

@@ -15,11 +15,6 @@ func main() {
 		launcher.LaunchAccountingAudit(os.Args[index+1:])
 		return
 	}
-	if index := slices.Index(os.Args, "accounting-repair"); index >= 0 {
-		util.DeploymentName = "Core/Accounting repair"
-		launcher.LaunchAccountingRepair(os.Args[index+1:])
-		return
-	}
 	if slices.Contains(os.Args, "accounting-snapshot") {
 		util.DeploymentName = "Core/Accounting snapshot"
 		launcher.LaunchAccountingSnapshot()

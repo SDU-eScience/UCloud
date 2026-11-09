@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"slices"
 
-	"gopkg.in/yaml.v3"
 	db "ucloud.dk/shared/pkg/database"
 )
 
@@ -52,20 +51,7 @@ type duplicateRepairGroupTarget struct {
 	AssociatedWallet int64
 }
 
-func RepairAccountingDuplicates(apply bool) []byte {
-	report := db.NewTx(func(tx *db.Transaction) duplicateRepairReport {
-		accountingRepairTransactionMode(tx, apply)
-		return accountingRepairDuplicatesTx(tx, apply)
-	})
-	encoded, err := yaml.Marshal(report)
-	if err != nil {
-		panic(err)
-	}
-	return encoded
-}
-
-func accountingRepairDuplicatesTx(tx *db.Transaction, apply bool) duplicateRepairReport {
-
+func accountingRepairDuplicatesTx(tx *db.Transaction) duplicateRepairReport {
 	walletRows := db.Select[duplicateRepairWalletRow](
 		tx,
 		`
@@ -89,22 +75,7 @@ func accountingRepairDuplicatesTx(tx *db.Transaction, apply bool) duplicateRepai
 	result := planDuplicateRepair(walletRows, groupRows)
 	result.AllocationCountBefore = len(allocationIdsBefore)
 	result.AllocationCountAfter = len(allocationIdsBefore)
-	plannedOldGroupIds := make([]int64, 0, len(result.Groups))
-	for _, change := range result.Groups {
-		plannedOldGroupIds = append(plannedOldGroupIds, change.RemoveId)
-	}
-	if len(plannedOldGroupIds) > 0 {
-		moved, _ := db.Get[struct{ Count int }](
-			tx,
-			`
-					select count(*) as count from accounting.wallet_allocations_v2
-					where associated_allocation_group = any(cast(:ids as int8[]))
-				`,
-			db.Params{"ids": plannedOldGroupIds},
-		)
-		result.AllocationsMoved = moved.Count
-	}
-	if result.Blocked || !apply {
+	if result.Blocked {
 		return result
 	}
 

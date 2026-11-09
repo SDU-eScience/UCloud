@@ -684,14 +684,8 @@ func compareAccountingAuditScopes(
 	}
 	for id, item := range newItems {
 		if _, exists := oldItems[id]; !exists {
-			severity := "high"
-			reason := "scoped usage baseline was added"
-			if item.Key == accountingUnscopedRepairKey {
-				severity = "info"
-				reason = "mixed reflow added the reserved unscoped baseline"
-			}
 			wallet := auditWalletForChange(item.WalletId, beforeWallets, afterWallets)
-			appendAccountingAuditChange(result, auditChangeForWallet(wallet, severity, "scope", item.Key, "existence", "absent", "present", reason))
+			appendAccountingAuditChange(result, auditChangeForWallet(wallet, "high", "scope", item.Key, "existence", "absent", "present", "scoped usage baseline was added"))
 		}
 	}
 }
