@@ -93,7 +93,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
 
                 browser.setColumns({
                     [ContainerSize.LARGE]: [{ name: "Application" }, { name: "Submitted by", columnWidth: 180 }, { name: "Last updated", columnWidth: 150 }, { name: "Comments", columnWidth: 150 }],
-                    [ContainerSize.SMALL]: [{name: "Application" }, {name: "Submitted by", columnWidth: 120}, {name: "Last updated", columnWidth: 120}],
+                    [ContainerSize.SMALL]: [{name: "Application" }, {name: "Submitted by", columnWidth: 100}, {name: "Last updated", columnWidth: 120}],
                     [ContainerSize.TINY]: [{name: "Application"}, {name: "Submitted by", columnWidth: 120}],
                 });
 
@@ -110,8 +110,6 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     browser.searchQuery = query;
                     fetchGrants();
                 });
-
-
 
 
                 avatarState.subscribe(() => {
@@ -202,7 +200,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 browser.on("renderStat1", (app, stat, row, size) => {
                     stat.style.justifyContent = "left";
                     const promise = SimpleAvatarComponentCache.appendTo(stat, app.createdBy, `Submitted by ${app.createdBy}`);
-                    if (size > ContainerSize.TINY) {
+                    if (size > ContainerSize.SMALL) {
                         promise.then(wrapper => {
                             const div = divText(app.createdBy);
                             div.style.marginTop = div.style.marginBottom = "auto";
