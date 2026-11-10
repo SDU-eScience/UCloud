@@ -28,39 +28,39 @@ The ResourceBrowser-component has a series of operations that must be defined, a
 | Name                                                              | Required                        |
 |-------------------------------------------------------------------|---------------------------------|
 | [unmount](#unmount)                                               | No. Handled by ResourceBrowser. |
-| [rowSelectionUpdated](#rowselectionupdated)                       | Optional                        |
+| [rowSelectionUpdated](#rowselectionupdated)                       | No                              |
 | [beforeShortcut](#beforeshortcut)                                 | No. Handled by ResourceBrowser. |
-| [unhandledShortcut](#unhandledshortcut)                           | Required                        |
-| [startRenderPage](#startrenderpage)                               | Optional                        |
+| [unhandledShortcut](#unhandledshortcut)                           | Yes                             |
+| [startRenderPage](#startrenderpage)                               | No                              |
 | [renderTitle](#rendertitle)                                       | Yes                             |
 | [renderStat1](#renderstat1)                                       | No                              |
 | [renderStat2](#renderstat2)                                       | No                              |
 | [renderStat3](#renderstat3)                                       | No                              |
 | [renderStat4](#renderstat4)                                       | No                              |
-| [endRenderPage](#endrenderpage)                                   | Optional                        |
-| [skipOpen](#skipopen)                                             | Optional                        |
-| [open](#open)                                                     | Required                        |
-| [refresh](#refresh)                                               | Optional                        |
-| [wantToFetchNextPage](#wanttofetchnextpage)                       | Required                        |
-| [search](#search)                                                 | Optional                        |
-| [onSearchHidden](#onsearchhidden)                                 | Optional                        |
-| [copy](#copy)                                                     | Optional                        |
-| [move](#move)                                                     | Optional                        |
-| [starClicked](#starclicked)                                       | Optional                        |
-| [renderEmptyPage](#renderemptypage)                               | Required                        |
-| [fetchOperations](#fetchoperations)                               | Required                        |
-| [fetchOperationsCallback](#fetchoperationscallback)               | Required                        |
-| [fetchBrowserFeatures](#fetchbrowserfeatures)                     | Optional                        |
-| [validDropTarget](#validdroptarget)                               | Optional                        |
-| [renderDropIndicator](#renderdropindicator)                       | Optional                        |
-| [generateBreadcrumbs](#generatebreadcrumbs)                       | Optional                        |
-| [generateTabCompletionEntries](#generatetabcompletionentries)     | Optional                        |
-| [renderLocationBar](#renderlocationbar)                           | Optional                        |
-| [pathToEntry](#pathtoentry)                                       | Required                        |
-| [nameOfEntry](#nameofentry)                                       | Optional                        |
-| [sort](#sort)                                                     | Optional                        |
-| [fetchFilters](#fetchfilters)                                     | Optional                        |
-| [renderUtilityControls](#renderutilitycontrols)                   | Optional                        |
+| [endRenderPage](#endrenderpage)                                   | No                              |
+| [skipOpen](#skipopen)                                             | No                              |
+| [open](#open)                                                     | Yes                             |
+| [refresh](#refresh)                                               | No                              |
+| [wantToFetchNextPage](#wanttofetchnextpage)                       | Yes                             |
+| [search](#search)                                                 | No                              |
+| [onSearchHidden](#onsearchhidden)                                 | No                              |
+| [copy](#copy)                                                     | No                              |
+| [move](#move)                                                     | No                              |
+| [starClicked](#starclicked)                                       | No                              |
+| [renderEmptyPage](#renderemptypage)                               | Yes                             |
+| [fetchOperations](#fetchoperations)                               | Yes                             |
+| [fetchOperationsCallback](#fetchoperationscallback)               | Yes                             |
+| [fetchBrowserFeatures](#fetchbrowserfeatures)                     | No                              |
+| [validDropTarget](#validdroptarget)                               | No                              |
+| [renderDropIndicator](#renderdropindicator)                       | No                              |
+| [generateBreadcrumbs](#generatebreadcrumbs)                       | No                              |
+| [generateTabCompletionEntries](#generatetabcompletionentries)     | No                              |
+| [renderLocationBar](#renderlocationbar)                           | No                              |
+| [pathToEntry](#pathtoentry)                                       | Yes                             |
+| [nameOfEntry](#nameofentry)                                       | No                              |
+| [sort](#sort)                                                     | No                              |
+| [fetchFilters](#fetchfilters)                                     | No                              |
+| [renderUtilityControls](#renderutilitycontrols)                   | No                              |
 
 ### unmount
 
