@@ -14,16 +14,9 @@ flowchart RL
         end
     end
 ```
-## Introduction
+## UCloud description
 
-<!-- Already covered in introduction.md? -->
-The UCloud frontend is one of the ways of communicating with the UCloud platform for the end user.  Its purpose is to provide a user friendly, intuitive web-interface. It is not intended for automating actions. Instead, see <TODO-UClient>
-
-The UI acts as a centralised point, that can communicate with different connected providers to make use of the features available, taking in to account what features are not.
-
-Managing of drives, files, runs, and other resources are available to the user through the interface, with the resource's relevant actions.
-
-The implementation is in the folder [`/frontend-web/webclient/`](https://github.com/SDU-eScience/UCloud/tree/master/frontend-web/webclient/).
+See [introduction](../../overview/introduction.md#introduction)
 
 ## Technologies
 
@@ -41,7 +34,7 @@ The UCloud frontend is found in the [`frontend-web/webclient`](https://github.co
 
 ### Running the UI
 
-For a local dev environment, the `launcher`-tool, available in the root folder of the repository, can be run, which will automatically initialize and start the environment.
+For a local dev environment, the `launcher`-tool, available in the root folder of the repository, can be run, which will prompt the user to initialize and start the environment.
 The UI will be available at `ucloud.localhost.direct` and will use the local environment as the backend. An admin user will be generated with the following login info:
 
 - Username: user
@@ -60,7 +53,7 @@ Logins for these can be provided upon request.
 
 Note for `production` case: If logging in requires Wayf, see [this section](#production-backend-with-a-wayf-user).
 
-Some editors will only run type checking on open files and not the entire project. To have the compiler type check the frontend, run `npm run watch`.
+Some editors will only run type checking on open files and not the entire project. To have the compiler type check the frontend, run `npm run watch`. If the frontend is running using the `launcher`, open a shell to the frontend using the `launcher` and run the command there instead.
 
 ## On adding NPM packages
 
@@ -74,7 +67,7 @@ When creating a new component that needs its own route-path, the approach to fol
 
 If frontend authentication is required for accessing the component, the component should be wrapped in the function `requireAuth`, like so:
 
-```jsx
+```tsx
 <Route 
     path={AppRoutes.dev.pathForAuthenticatedComponent()}
     element={React.createElement(requireAuth(MyNewComponent))} 

@@ -54,9 +54,9 @@ The UCloud platform uses multiple fonts for different purposes:
 
 ## Merchandise
 
-Two teddy bear plushies are available to lend for employees at the eScience Center for work-related events. <!--Maybe just events in general, I shouldn't decide, I don't own them. Need them for a birthday party? Why not.-->
+A teddy bear plushies are available to lend for employees at the eScience Center for work-related events. <!-- Maybe just events in general, I shouldn't decide, I don't own them. Need them for a birthday party? Why not.-->
 
-<img src="./simple_teddy.webp">
+<!-- <img src="./simple_teddy.webp"> GONE! STOLEN! -->
 <img src="./christmas_teddy.webp">
 
 T-shirts have been made with expos and conferences in mind, and can be purchased for anyone needing one for an upcoming expo/conference. (See introduction on how to insert image)
