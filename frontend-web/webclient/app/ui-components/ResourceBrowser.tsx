@@ -331,7 +331,6 @@ interface ResourceBrowserListenerMap<T> {
     "renderDropIndicator": (selectedEntries: T[], currentTarget: string | null) => void;
 
     "generateBreadcrumbs": (path: string) => ({title: string, absolutePath: string}[]) | "custom-rendering";
-    "locationBarVisibilityUpdated": (visible: boolean) => void;
 
     "generateTabCompletionEntries": (prompt: string, shouldFetch: boolean, lastSelectedIndex: number) => string[] | Promise<void>;
     "renderLocationBar": (prompt: string) => {rendered: string, normalized: string};
@@ -1918,7 +1917,6 @@ export class ResourceBrowser<T> {
             this.header.classList.remove("show-location-bar");
         }
 
-        this.dispatchMessage("locationBarVisibilityUpdated", fn => fn(visible));
     }
 
     isLocationBarVisible(): boolean {
@@ -2848,7 +2846,6 @@ export class ResourceBrowser<T> {
         skipOpen: () => false,
         rowSelectionUpdated: doNothing,
         unmount: doNothing,
-        locationBarVisibilityUpdated: doNothing,
         sort: doNothing,
         startRenderPage: doNothing,
         endRenderPage: doNothing,

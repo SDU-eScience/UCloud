@@ -52,16 +52,15 @@ The ResourceBrowser-component has a series of operations that must be defined, a
 | [fetchOperationsCallback](#fetchoperationscallback)               | Required                        |
 | [fetchBrowserFeatures](#fetchbrowserfeatures)                     | Optional                        |
 | [validDropTarget](#validdroptarget)                               | Optional                        |
-| [renderDropIndicator](#renderdropindicator)                       | <TODO>                          |
-| [generateBreadcrumbs](#generatebreadcrumbs)                       | <TODO>                          |
-| [locationBarVisibilityUpdated](#locationbarvisibilityupdated)     | <TODO>                          |
+| [renderDropIndicator](#renderdropindicator)                       | Optional                        |
+| [generateBreadcrumbs](#generatebreadcrumbs)                       | Optional                        |
 | [generateTabCompletionEntries](#generatetabcompletionentries)     | Optional                        |
 | [renderLocationBar](#renderlocationbar)                           | Optional                        |
 | [pathToEntry](#pathtoentry)                                       | Required                        |
 | [nameOfEntry](#nameofentry)                                       | Optional                        |
-| [sort](#sort)                                                     | <TODO>                          |
-| [fetchFilters](#fetchfilters)                                     | <TODO>                          |
-| [renderUtilityControls](#renderutilitycontrols)                   | <TODO>                          |
+| [sort](#sort)                                                     | Optional                        |
+| [fetchFilters](#fetchfilters)                                     | Optional                        |
+| [renderUtilityControls](#renderutilitycontrols)                   | Optional                        |
 
 ### unmount
 
@@ -133,7 +132,7 @@ A callback, called after the final row has been rendered. Can be used to make ba
 
 `(oldPath: string, path: string, resource?: T) => boolean;`
 
-A check called before `open` to allow skipping calling open. Returns a boolean. | 
+A check called before `open` to allow skipping calling open on the resource, if any. Example use is double clicking on a temporary resource, that is being created but not yet exists. Navigating to this resource would be impossible.
 
 ### open 
 
@@ -217,19 +216,13 @@ Returns true if the hovered entry is a valid target, e.g. folder when dragging f
 
 `(selectedEntries: T[], currentTarget: string | null) => void;`
 
-<TODO>
+Handler for how to render the drop indicator. The Resource Browser mounts an HTMLElement that can be filled with info for the drag indicator, like amount which files are being dragged.
 
 ### generateBreadcrumbs
 
 `(path: string) => ({title: string, absolutePath: string}[]) | custom-rendering;`
 
-<TODO>
-
-### locationBarVisibilityUpdated
-
-`(visible: boolean) => void;`
-
-<TODO>
+Passes the current path to generate breadcrumbs to be rendered in the locationbar. Can either return a list of titles to be rendered, and absolute path to be used with navigation, if applicable. The parent component could also manage rendering own its own. In that case, the method must return the string "custom-rendering".
 
 ### generateTabCompletionEntries
 
