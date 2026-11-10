@@ -236,7 +236,7 @@ func TestJobCreateWithProviderProduct(t *testing.T) {
 		"job", "create",
 		"--app", "terminal-almalinux",
 		"--product", productStr,
-		//"--folder", "/6/",
+		"--folder", "/5/",
 		"--workspace", "test-workspace",
 		"--name", "test-job",
 	}
@@ -839,7 +839,6 @@ func waitForJobState(t *testing.T, jobId string, state orcapi.JobState, timeout 
 }
 
 func TestJobShell(t *testing.T) {
-	t.Skip("Since it takes a while.")
 	jobId := createTestJob(t, "test-job-shell")
 	waitForJobState(t, jobId, orcapi.JobStateRunning, 5*time.Minute)
 
@@ -856,7 +855,7 @@ func TestJobShell(t *testing.T) {
 		_ = w.Close()
 	}()
 
-	input := []string{"job", "shell", jobId, "--provider", "k8s"}
+	input := []string{"job", "shell", jobId}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)

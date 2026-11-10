@@ -73,18 +73,17 @@ type JobLogsCommand struct {
 }
 
 type JobShellCommand struct {
-	JobID    string `positional:"job-id" usage:"Job ID"`
-	Rank     int    `flag:"rank" usage:"Rank" default:"0"`
-	Provider string `flag:"provider" usage:"Provider"`
-	Browser  bool   `flag:"browser" usage:"Browser to use"`
+	JobID   string `positional:"job-id" usage:"Job ID"`
+	Rank    int    `flag:"rank" usage:"Rank" default:"0"`
+	Browser bool   `flag:"browser" usage:"Browser to use"`
 }
 
 // open primary interface to the job, if one eixst (web or VNC in a browser)
 type JobOpenCommand struct {
-	JobID    string `positional:"job-id" usage:"Job ID"`
-	Provider string `flag:"provider" usage:"Provider"`
-	Creator  bool   `flag:"creator" usage:"Open the job creator page"`
-	Version  string `flag:"version" usage:"Version" default:"1.0"`
+	JobID   string `positional:"job-id" usage:"Job ID"`
+	Creator bool   `flag:"creator" usage:"Open the job creator page" visibility:"hidden"`
+	Version string `flag:"version" usage:"Specify the version of the application to open"`
+	Name    string `flag:"name" usage:"opens dynamic interface by name"`
 }
 
 type JobAttachCommand struct {
@@ -320,7 +319,8 @@ func (c JobListCommand) Execute() error {
 
 // looks up an application by its name (e.g. "terminal-ubuntu").
 // The name may include a version suffix (e.g. "terminal-ubuntu:1.0.1"); when
-// omitted the newest version of the application is returned.
+//
+//	omitted, the newest version of the application is returned.
 func findApp(appName string) (*orcapi.Application, error) {
 	if appName == "" {
 		return nil, fmt.Errorf("no application specified, use --app <name>")
@@ -699,14 +699,11 @@ func (c JobOpenCommand) Execute() error {
 	if c.Creator {
 		return shared.OpenCreatorInterface(c.JobID, c.Version)
 	}
-	return shared.JobOpenInterface(c.JobID, c.Provider)
+	return shared.JobOpenInterface(c.JobID)
 }
 
 func (c JobShellCommand) Execute() error {
-	if c.Provider == "" {
-		return fmt.Errorf("this command requires a provider, use --provider <name>")
-	}
-	return shared.JobShell(c.JobID, c.Provider, c.Rank, c.Browser)
+	return shared.JobShell(c.JobID, c.Rank, c.Browser)
 }
 
 func (c JobLogsCommand) Execute() error {
