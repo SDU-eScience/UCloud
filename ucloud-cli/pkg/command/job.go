@@ -319,8 +319,7 @@ func (c JobListCommand) Execute() error {
 
 // looks up an application by its name (e.g. "terminal-ubuntu").
 // The name may include a version suffix (e.g. "terminal-ubuntu:1.0.1"); when
-//
-//	omitted, the newest version of the application is returned.
+// omitted, the newest version of the application is returned.
 func findApp(appName string) (*orcapi.Application, error) {
 	if appName == "" {
 		return nil, fmt.Errorf("no application specified, use --app <name>")

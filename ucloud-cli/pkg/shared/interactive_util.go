@@ -119,10 +119,6 @@ func JobShell(jobId string, rank int, browser bool) error {
 	if err != nil {
 		return err
 	}
-	if browser {
-		OpenBrowser(session.Session.RedirectClientTo)
-		return nil
-	}
 	return OpenWebsocketShellSession(session, usernameHint, origin, job.Specification.Product.Provider)
 }
 
