@@ -59,6 +59,13 @@ jobs:
           export UCLOUD_GO_CACHE_DIR=$HOME/go-cache 
           ./launcher test
 
+      - name: Run CLI tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ucloud-cli
+          go test ./pkg/ucloud_cli/ -v -count=1 -timeout 30m
+
       - name: Fix log permissions
         if: always()
         run: |

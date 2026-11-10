@@ -6,11 +6,10 @@ import (
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 	"ucloud.dk/ucloud_cli/pkg/shared"
 )
-
-var TestEnvCreated = false
 
 func SetTestEnv() {
 	devServerUrl := "https://ucloud.localhost.direct"
@@ -95,14 +94,18 @@ func allocateRoot(grantId string) error {
 	if httpErr.AsError() != nil {
 		return fmt.Errorf("failed to allocate test workspace: %s", httpErr.Why)
 	}
-	err := createGrant(grantId, computeProduct.Category.Name)
+	err := createGrantForPersonalWorkspace(grantId, computeProduct.Category.Name)
+	if err != nil {
+		return err
+	}
+	err = createGrantForNewWorkspace(grantId, computeProduct.Category.Name, "test-workspace")
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func createTestGrant(grantGiverId string, computeName string) accapi.GrantDocument {
+func createTestGrant(grantGiverId string, computeName string, recipient accapi.Recipient) accapi.GrantDocument {
 	provider := "k8s"
 	grant := accapi.GrantDocument{
 		AllocationRequests: []accapi.AllocationRequest{
@@ -137,10 +140,7 @@ func createTestGrant(grantGiverId string, computeName string) accapi.GrantDocume
 				Provider:   provider,
 			},
 		},
-		Recipient: accapi.Recipient{
-			Title: util.OptValue("test-workspace"),
-			Type:  accapi.RecipientTypeNewProject,
-		},
+		Recipient: recipient,
 		Form: accapi.Form{
 			AnswerForms: []accapi.AnswerForm{
 				{
@@ -167,10 +167,13 @@ func createTestGrant(grantGiverId string, computeName string) accapi.GrantDocume
 	return grant
 }
 
-func createGrant(grantId string, computeName string) error {
+func createGrantForPersonalWorkspace(grantId string, computeName string) error {
 	grant, httpErr := accapi.GrantsSubmitRevision.Invoke(accapi.GrantsSubmitRevisionRequest{
-		Comment:  "Submitted the application",
-		Revision: createTestGrant(grantId, computeName),
+		Comment: "Submitted the application",
+		Revision: createTestGrant(grantId, computeName, accapi.Recipient{
+			Type:     accapi.RecipientTypePersonalWorkspace,
+			Username: util.OptValue("user"),
+		}),
 	})
 	if httpErr.AsError() != nil {
 		return fmt.Errorf("failed to create grants: %s", httpErr.Why)
@@ -182,15 +185,35 @@ func createGrant(grantId string, computeName string) error {
 	if httpErr.AsError() != nil {
 		return fmt.Errorf("failed to update grants: %s", httpErr.Why)
 	}
-	fmt.Printf("Successfully created grants %v\n", grant)
+	fmt.Println("Successfully approved grant for Personal workspace")
+
 	return nil
 }
 
-func CreateTestWorkspace() error {
-	if TestEnvCreated {
-		return nil
+func createGrantForNewWorkspace(grantId string, computeName string, newWorkspaceName string) error {
+	grant, httpErr := accapi.GrantsSubmitRevision.Invoke(accapi.GrantsSubmitRevisionRequest{
+		Comment: "Submitted the application",
+		Revision: createTestGrant(grantId, computeName, accapi.Recipient{
+			Title: util.OptValue(newWorkspaceName),
+			Type:  accapi.RecipientTypeNewProject,
+		}),
+	})
+	if httpErr.AsError() != nil {
+		return fmt.Errorf("failed to create grants: %s", httpErr.Why)
 	}
+	_, httpErr = accapi.GrantsUpdateState.Invoke(accapi.GrantsUpdateStateRequest{
+		ApplicationId: grant.Id,
+		NewState:      accapi.GrantApplicationStateApproved,
+	})
+	if httpErr.AsError() != nil {
+		return fmt.Errorf("failed to update grants: %s", httpErr.Why)
+	}
+	fmt.Printf("Successfully approved grant for %s\n", newWorkspaceName)
+	return nil
 
+}
+
+func CreateAllocationsForTesting() error {
 	shared.InitializeUCloudClient()
 
 	rootWs, err := shared.FindWorkspaceByName("provider-k8s")
@@ -210,13 +233,13 @@ func CreateTestWorkspace() error {
 			return nil
 		}
 	}
-	// allocate root resources and create test-workspace
+	// allocate root resources and getting grants for
+	// test-workspace and personal workspace
 	allocateErr := allocateRoot(rootWs.Id)
 
 	if allocateErr != nil {
 		return allocateErr
 	}
-	TestEnvCreated = true
 	return nil
 }
 
@@ -231,13 +254,46 @@ func CleanupTestWorkspace() error {
 	return nil
 }
 
+func CleanupTestJobs() error {
+	ws, err := shared.FindWorkspaceByName("test-workspace")
+	if err != nil {
+		return err
+	}
+	shared.SetActiveWorkspace(ws.Id)
+
+	page, httpErr := orcapi.JobsBrowse.Invoke(orcapi.JobsBrowseRequest{
+		ItemsPerPage: 100,
+	})
+	if httpErr.AsError() != nil {
+		return fmt.Errorf("failed to browse jobs: %s", httpErr.Why)
+	}
+
+	ids := make([]fndapi.FindByStringId, 0)
+	for _, job := range page.Items {
+		if !job.Status.State.IsFinal() {
+			ids = append(ids, fndapi.FindByStringId{Id: job.Id})
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	_, httpErr = orcapi.JobsTerminate.Invoke(fndapi.BulkRequest[fndapi.FindByStringId]{Items: ids})
+	if httpErr.AsError() != nil {
+		return fmt.Errorf("failed to terminate leftover jobs: %s", httpErr.Why)
+	}
+
+	fmt.Printf("Terminated %d leftover job(s) from earlier runs\n", len(ids))
+	return nil
+}
+
 func isAlreadyConnected() bool {
 	shared.TestMode = true
 	cfg, err := shared.ReadConfig()
 	if err != nil {
 		return false
 	}
-	if cfg.TokenRef == "" {
+	if cfg.Environments[cfg.DefaultEnvironment].TokenRef == "" {
 		SetTestEnv()
 		return false
 	}
