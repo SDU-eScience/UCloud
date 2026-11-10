@@ -34,7 +34,7 @@ flowchart LR
     end
 ```
 
-### RenderRows
+### `renderRows`
 
 Instead of rendering every item in the viewed page, the Resource Browser uses a similar approach to `react-window`, that is, based on the available space, initialize as many entries that can be visible at any time, plus an additional buffer, in the container. When rendering rows, the rows are reset, and placed relative to their sorting. Each page (See [Page](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/app/UCloud/index.ts#L41)) entry is checked if it is in view, and if so, renders using the prepered ro checked if it is in view, and if so, renders them using the prepared rows. 
 
@@ -47,8 +47,6 @@ The title is the name of the entry, a locally unique identifier. This could be t
 The `renderTitle` or `renderStat{i}` methods largely share the same arguments, with `renderTitle` having an additional `dims: RenderDimensions`-argument. 
 
 `renderStat1: (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;`
-
-<TODO-ALREADY-DESCRIBED-QUESTION-MARK>
 
 When rendering a stat in the row, the entry, part of the row, specifically the relevant `stat` or `title`-element and the container width breakpoint of the resource browser. With the container width provided, the implementation of the rendering of the stat can be handled differently, swapping positions for `stat`-entries or render them differently. JobBrowse swaps the stats for smaller screens and renders "Created by" using only the avatar-image without the name, like so:
 

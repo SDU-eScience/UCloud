@@ -98,11 +98,15 @@ Called before rendering of the first element.
 
 Called when rendering each row. Used for rendering a locally unique ID for the row.
 
+For more on how to use, see [`renderRows`](./about.md#renderrows)
+
 ### renderStat1 
 
 `(entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;`
 
 Called when rendering each row. Used for rendering the first `stat` in the row. While optional, at least one stat is expected. 
+
+For more on how to use, see [`renderRows`](./about.md#renderrows)
 
 ### renderStat2 
 
@@ -110,17 +114,23 @@ Called when rendering each row. Used for rendering the first `stat` in the row. 
 
 Called when rendering each row. Used for rendering the second `stat` in the row.
 
+For more on how to use, see [`renderRows`](./about.md#renderrows)
+
 ### renderStat3 
 
 `(entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;`
 
 Called when rendering each row. Used for rendering the third `stat` in the row.
 
+For more on how to use, see [`renderRows`](./about.md#renderrows)
+
 ### renderStat4 
 
 `(entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;`
 
 Called when rendering each row. Used for rendering the fourth `stat` in the row.
+
+For more on how to use, see [`renderRows`](./about.md#renderrows)
 
 ### endRenderPage 
 
