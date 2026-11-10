@@ -264,4 +264,4 @@ Returns the filters for the browser. This is dynamic, as some filters should onl
 
 `(container: HTMLElement) => void;`
 
-<TODO>
+Renders and additional optional controls next to the location bar. Currently used by FileBrowse to render the `Show hidden files` filter, using less vertical space.
