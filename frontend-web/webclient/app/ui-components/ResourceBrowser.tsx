@@ -721,7 +721,6 @@ export class ResourceBrowser<T> {
             this.scrolling.style.overflowY = "auto";
         }
 
-
         const brandingUnsubscribe = providerBrandingStore.subscribe(() => {
             this.renderRows();
         });

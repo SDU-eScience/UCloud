@@ -14,17 +14,14 @@ See [`Use`](./use.md) for a how-to with implementing a component that uses the R
 
 The ResourceBrowser-component is, as mentioned, written in TypeScript. The component is a class that handles setting up the HTML-elements the Resource Browser adds and removes resource entries from directly, as opposed to React that keeps a shadow DOM to guage whether updates need to happen. Instead of running checks for differences, different parts of the Resource Browser are targeted for updates when needed, like the rows, operations or filters.
 
-The setup of the ResourceBrowser happens in three steps:
+The setup of the ResourceBrowser happens in two steps:
 
-<TODO-NO-LONGER-TRUE>
+1. `constructor`
+2. `init`
 
-- Constructor
-- Init
-- Mount
+With the Resource Browser instantiated, `init` is called. `init` takes a callback as an argument, that is responsible for defining the hooks into the Resource Browser:
 
-With the Resource Browser instantiated, `init` is called. `init` takes a callback as an argument, that is responsible for defining the hooks into the Resource Browser. 
-
-It is here the custom parts of the Resource Browser is defined. How `open`, `wantToFetchNextPage`, `fetchOperations`, etc. should behave when called.
+It is here the custom parts of the Resource Browser is defined, including how `open`, `wantToFetchNextPage`, `fetchOperations`, etc. should behave when called. This is defined using `browserInstance.on(method-key, callback)`. Variables local to the resource browser can be defined inside this scope as well, like `FileBrowse` that defines local caches, used for the currently viewed files.
 
 ```mermaid
 flowchart LR

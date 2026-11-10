@@ -4,7 +4,7 @@ UCloud has three different options for network calls, that components can use:
 
 - `callAPI`
 - `fetch`
-- WSFactory
+- `WSFactory#open`
 
 ```mermaid
 flowchart LR

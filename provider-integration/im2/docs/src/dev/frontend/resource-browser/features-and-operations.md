@@ -4,64 +4,64 @@ The ResourceBrowser accepts a combination of `features` that allow and disallow 
 
 All of these are optional.
 
-| *Name*                          | *Description*                                                                                                                                      |
-|---------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
-| dragToSelect                    | Enables drag to select with mouse.                                                                                                                 |
-| supportsMove                    | Whether the resource kind supports moving, e.g. files                                                                                              | 
-| supportsCopy                    | Whether the resource kind supports copying, e.g. files                                                                                             |
-| locationBar                     | If the component should show an editable location bar at the top                                                                                   |
-| showHeaderInEmbedded            | TODO                                                                                                                                               |
-| showStar                        | Whether or not to render a star on the left side of an entries' row. Used for "favoriting".                                                        |
-| renderSpinnerWhenLoading        | If the component should render the loading spinner on initial load.                                                                                | 
-| breadcrumbsSeparatedBySlashes   | The component can show breadcrumbs in the header. Enable to add slashes between, for instance for file paths.                                      | 
-| search                          | Is search enabled for the component                                                                                                                | 
-| filters                         | Are filters enabled for the component                                                                                                              | 
-| breadcrumbTitles                | Add the breadcrumb value to the html tags 'title' attribute.                                                                                       |
-| showColumnTitles                | Usually disabled for embedded resource-browsers, enables titles for columns. Required if sorting is allowed.                                       |
-| sorting                         | Enables sorting by column. Only works if `showColumnTitles` is also enabled. In addition, you must also set `sortById` on the appropriate columns. |
-| projectSwitcher                 | Adds a HTML-element to the header to allocate space for the project-switcher component.                                                            |
+| *Name*                        | *Description*                                                                                                          |
+|-------------------------------|------------------------------------------------------------------------------------------------------------------------|
+| dragToSelect                  | Enables drag to select with mouse.                                                                                     |
+| supportsMove                  | Whether the resource kind supports moving, e.g. files                                                                  | 
+| supportsCopy                  | Whether the resource kind supports copying, e.g. files                                                                 |
+| locationBar                   | If the component should show an editable location bar at the top                                                       |
+| showHeaderInEmbedded          | If `embedded` is set to true in `opts`, the header will be hidden by default. Use this value to override the behavior. |
+| showStar                      | Whether or not to render a star on the left side of an entries' row. Used for "favoriting".                            |
+| renderSpinnerWhenLoading      | If the component should render the loading spinner on initial load.                                                    | 
+| breadcrumbsSeparatedBySlashes | The component can show breadcrumbs in the header. Enable to add slashes between, for instance for file paths.          | 
+| search                        | Is search enabled for the component                                                                                    | 
+| filters                       | Are filters enabled for the component                                                                                  | 
+| breadcrumbTitles              | Add the breadcrumb value to the html tags 'title' attribute.                                                           |
+| showColumnTitles              | Usually disabled for embedded resource-browsers, enables titles for columns. Required if sorting is allowed.           |
+| sorting                       | Enables sorting by column. Only works if `showColumnTitles` is also enabled. In addition, you must also set `sortById` on the appropriate columns. |
+| projectSwitcher               | Adds a HTML-element to the header to allocate space for the project-switcher component.                                |
 
 ### Operations
 
 The ResourceBrowser-component has a series of operations that must be defined, and can be defined:
 
-| Name                         | Required                        |
-|------------------------------|---------------------------------|
-| [unmount](#unmount)                      | No. Handled by ResourceBrowser. |
-| [rowSelectionUpdated](#rowselectionupdated)          | Optional                        |
-| [beforeShortcut](#beforeshortcut)               | No. Handled by ResourceBrowser. |
-| [unhandledShortcut](#unhandledshortcut)            | Required                        |
-| [startRenderPage](#startrenderpage)              | Optional                        |
-| [renderTitle](#rendertitle)                  | Yes                             |
-| [renderStat1](#renderstat1)                  | No                              |
-| [renderStat2](#renderstat2)                  | No                              |
-| [renderStat3](#renderstat3)                  | No                              |
-| [renderStat4](#renderstat4)                  | No                              |
-| [endRenderPage](#endrenderpage)                | Optional                        |
-| [skipOpen](#skipopen)                     | Optional                        |
-| [open](#open)                         | Required                        |
-| [refresh](#refresh)                      | Optional                        |
-| [wantToFetchNextPage](#wanttofetchnextpage)          | Required                        |
-| [search](#search)                       | Optional                        |
-| [onSearchHidden](#onsearchhidden)               | Optional                        |
-| [copy](#copy)                         | Optional                        |
-| [move](#move)                         | Optional                        |
-| [starClicked](#starclicked)                  | Optional                        |
-| [renderEmptyPage](#renderemptypage)              | Required                        |
-| [fetchOperations](#fetchoperations)              | Required                        |
-| [fetchOperationsCallback](#fetchoperationscallback)      | Required                        |
-| [fetchBrowserFeatures](#fetchbrowserfeatures)         | Optional                        |
-| [validDropTarget](#validdroptarget)              | Optional                        |
-| [renderDropIndicator](#renderdropindicator)          | <TODO>                          |
-| [generateBreadcrumbs](#generatebreadcrumbs)          | <TODO>                          |
-| [locationBarVisibilityUpdated](#locationbarvisibilityupdated) | <TODO>                          |
-| [generateTabCompletionEntries](#generatetabcompletionentries) | Optional                        |
-| [renderLocationBar](#renderlocationbar)            | Optional                        |
-| [pathToEntry](#pathtoentry)                  | Required                        |
-| [nameOfEntry](#nameofentry)                  | Optional                        |
-| [sort](#sort)                         | <TODO>                          |
-| [fetchFilters](#fetchfilters)                 | <TODO>                          |
-| [renderUtilityControls](#renderutilitycontrols)        | <TODO>                          |
+| Name                                                              | Required                        |
+|-------------------------------------------------------------------|---------------------------------|
+| [unmount](#unmount)                                               | No. Handled by ResourceBrowser. |
+| [rowSelectionUpdated](#rowselectionupdated)                       | Optional                        |
+| [beforeShortcut](#beforeshortcut)                                 | No. Handled by ResourceBrowser. |
+| [unhandledShortcut](#unhandledshortcut)                           | Required                        |
+| [startRenderPage](#startrenderpage)                               | Optional                        |
+| [renderTitle](#rendertitle)                                       | Yes                             |
+| [renderStat1](#renderstat1)                                       | No                              |
+| [renderStat2](#renderstat2)                                       | No                              |
+| [renderStat3](#renderstat3)                                       | No                              |
+| [renderStat4](#renderstat4)                                       | No                              |
+| [endRenderPage](#endrenderpage)                                   | Optional                        |
+| [skipOpen](#skipopen)                                             | Optional                        |
+| [open](#open)                                                     | Required                        |
+| [refresh](#refresh)                                               | Optional                        |
+| [wantToFetchNextPage](#wanttofetchnextpage)                       | Required                        |
+| [search](#search)                                                 | Optional                        |
+| [onSearchHidden](#onsearchhidden)                                 | Optional                        |
+| [copy](#copy)                                                     | Optional                        |
+| [move](#move)                                                     | Optional                        |
+| [starClicked](#starclicked)                                       | Optional                        |
+| [renderEmptyPage](#renderemptypage)                               | Required                        |
+| [fetchOperations](#fetchoperations)                               | Required                        |
+| [fetchOperationsCallback](#fetchoperationscallback)               | Required                        |
+| [fetchBrowserFeatures](#fetchbrowserfeatures)                     | Optional                        |
+| [validDropTarget](#validdroptarget)                               | Optional                        |
+| [renderDropIndicator](#renderdropindicator)                       | <TODO>                          |
+| [generateBreadcrumbs](#generatebreadcrumbs)                       | <TODO>                          |
+| [locationBarVisibilityUpdated](#locationbarvisibilityupdated)     | <TODO>                          |
+| [generateTabCompletionEntries](#generatetabcompletionentries)     | Optional                        |
+| [renderLocationBar](#renderlocationbar)                           | Optional                        |
+| [pathToEntry](#pathtoentry)                                       | Required                        |
+| [nameOfEntry](#nameofentry)                                       | Optional                        |
+| [sort](#sort)                                                     | <TODO>                          |
+| [fetchFilters](#fetchfilters)                                     | <TODO>                          |
+| [renderUtilityControls](#renderutilitycontrols)                   | <TODO>                          |
 
 ### unmount
 
