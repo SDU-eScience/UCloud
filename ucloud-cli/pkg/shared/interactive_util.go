@@ -64,7 +64,7 @@ type WsLogEvent struct {
 	Data      string `json:"data"`
 }
 
-func retrieveInteractiveSession(jobId string, rank int, openDefaultType JobOpenDefaultType) (*orcapi.OpenSessionWithProvider, error) {
+func retrieveInteractiveSession(jobId string, rank int, targetName string, openDefaultType JobOpenDefaultType) (*orcapi.OpenSessionWithProvider, error) {
 	sessionType := orcapi.InteractiveSessionTypeWeb
 	target := util.OptStringIfNotEmpty("")
 	switch openDefaultType {
@@ -73,7 +73,10 @@ func retrieveInteractiveSession(jobId string, rank int, openDefaultType JobOpenD
 	case JobOpenShellType:
 		sessionType = orcapi.InteractiveSessionTypeShell
 	case JobOpenCustomType:
-		target = util.OptStringIfNotEmpty("custom")
+		if targetName == "" {
+			return nil, fmt.Errorf("target name is required for custom type")
+		}
+		target = util.OptStringIfNotEmpty(targetName)
 	case JobOpenWebType:
 		sessionType = orcapi.InteractiveSessionTypeWeb
 	default:
@@ -96,7 +99,7 @@ func retrieveInteractiveSession(jobId string, rank int, openDefaultType JobOpenD
 	return &session.Responses[0], nil
 }
 
-func JobShell(jobId string, provider string, rank int, browser bool) error {
+func JobShell(jobId string, rank int, browser bool) error {
 	cfg := InitializeUCloudClient()
 	job, err := findJobById(jobId)
 	if err != nil {
@@ -108,11 +111,11 @@ func JobShell(jobId string, provider string, rank int, browser bool) error {
 	origin := cfg.Environments[cfg.DefaultEnvironment].URL
 	usernameHint := base64.StdEncoding.EncodeToString([]byte(cfg.Username))
 	if browser {
-		OpenBrowser(fmt.Sprintf("%s/app/applications/shell/%s/0?hide-frame", origin, jobId))
+		OpenBrowser(fmt.Sprintf("%s/app/applications/shell/%s/%d?hide-frame", origin, rank, jobId))
 		return nil
 	}
 
-	session, err := retrieveInteractiveSession(jobId, rank, JobOpenShellType)
+	session, err := retrieveInteractiveSession(jobId, rank, "", JobOpenShellType)
 	if err != nil {
 		return err
 	}
@@ -120,7 +123,7 @@ func JobShell(jobId string, provider string, rank int, browser bool) error {
 		OpenBrowser(session.Session.RedirectClientTo)
 		return nil
 	}
-	return OpenWebsocketShellSession(session, usernameHint, origin, provider)
+	return OpenWebsocketShellSession(session, usernameHint, origin, job.Specification.Product.Provider)
 }
 
 func OpenWebsocketShellSession(session *orcapi.OpenSessionWithProvider, usernameHint string, origin string, provider string) error {
@@ -131,7 +134,7 @@ func OpenWebsocketShellSession(session *orcapi.OpenSessionWithProvider, username
 	}
 	defer ws.Close()
 
-	callName := fmt.Sprintf("jobs.compute.%s.shell.open", provider)
+	callName := fmt.Sprintf("jobs.compute.%s.shell.open")
 	sendRequest := func(payload WsShellEvent) error {
 		msg, err := json.Marshal(WsShellRequest{
 			Call:     callName,
@@ -298,9 +301,26 @@ func JobLogs(jobId string, workspaceName, provider string, follow bool) error {
 		return err
 	}
 
+	const (
+		firstLogTimeout = 5 * time.Second
+		logIdleTimeout  = 500 * time.Millisecond
+	)
+
+	logsWaitUntil := time.Time{}
+	if !follow {
+		logsWaitUntil = time.Now().Add(firstLogTimeout)
+	}
+
 	for {
+		if !logsWaitUntil.IsZero() {
+			if err := ws.SetReadDeadline(logsWaitUntil); err != nil {
+				return err
+			}
+		}
+
 		var raw string
 		if err := websocket.Message.Receive(ws, &raw); err != nil {
+			// timed out waiting for (more) logs without --follow, or the connection closed
 			return nil
 		}
 
@@ -333,21 +353,29 @@ func JobLogs(jobId string, workspaceName, provider string, follow bool) error {
 			)
 		}
 
+		gotLogEntry := false
+
 		for _, log := range message.Log {
 			if log.Channel.Present {
 				// channel data currently not rendered
 				continue
 			}
 			if log.Stdout.Present {
+				gotLogEntry = true
 				_, _ = os.Stdout.WriteString(log.Stdout.Value)
 			}
 			if log.Stderr.Present {
+				gotLogEntry = true
 				_, _ = os.Stderr.WriteString(log.Stderr.Value)
 			}
 		}
 
-		if !follow && message.InitialJob.Present {
-			return nil
+		if !follow {
+			if gotLogEntry {
+				logsWaitUntil = time.Now().Add(logIdleTimeout)
+			} else if message.InitialJob.Present {
+				logsWaitUntil = time.Now().Add(firstLogTimeout)
+			}
 		}
 
 		if state := currentJobState(message); state != "" && orcapi.JobState(state).IsFinal() {
@@ -429,7 +457,7 @@ func currentJobState(message orcapi.JobsFollowMessage) string {
 
 func JobOpenWebLink(jobId string, provider string) error {
 	InitializeUCloudClient()
-	session, err := retrieveInteractiveSession(jobId, 0, JobOpenWebType)
+	session, err := retrieveInteractiveSession(jobId, 0, "", JobOpenWebType)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve session: %s", err)
 	}
@@ -439,7 +467,7 @@ func JobOpenWebLink(jobId string, provider string) error {
 
 func JobOpenVNCLink(jobId string, provider string) error {
 	InitializeUCloudClient()
-	session, err := retrieveInteractiveSession(jobId, 0, JobOpenVNCType)
+	session, err := retrieveInteractiveSession(jobId, 0, "", JobOpenVNCType)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve session: %s", err)
 	}
@@ -495,7 +523,7 @@ func OpenCreatorInterface(jobID string, version string) error {
 	return nil
 }
 
-func JobOpenInterface(jobId string, provider string) error {
+func JobOpenInterface(jobId string) error {
 	cfg := InitializeUCloudClient()
 	job, err := findJobById(jobId)
 	if err != nil {
@@ -510,7 +538,7 @@ func JobOpenInterface(jobId string, provider string) error {
 		return nil
 	}
 	// These are for shell, and dynamic types
-	session, err := retrieveInteractiveSession(jobId, 0, openDefaultType)
+	session, err := retrieveInteractiveSession(jobId, 0, "", openDefaultType)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve session: %s", err)
 	}
