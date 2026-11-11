@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v3"
 	db "ucloud.dk/shared/pkg/database"
 )
 
@@ -57,29 +56,6 @@ type snapshotReport struct {
 	Summary  snapshotSummary   `yaml:"summary"`
 	Findings []snapshotFinding `yaml:"findings"`
 	Buckets  []snapshotBucket  `yaml:"buckets"`
-}
-
-func AnalyzeSnapshot() []byte {
-	report := db.NewTx(func(tx *db.Transaction) snapshotReport {
-		db.Exec(
-			tx,
-			"set transaction isolation level repeatable read, read only",
-			db.Params{},
-		)
-		now, _ := db.Get[struct{ Now time.Time }](
-			tx,
-			"select transaction_timestamp() as now",
-			db.Params{},
-		)
-
-		return analyzeSnapshotFromTx(tx, now.Now)
-	})
-
-	encoded, err := yaml.Marshal(report)
-	if err != nil {
-		panic(err)
-	}
-	return encoded
 }
 
 func analyzeSnapshotFromTx(tx *db.Transaction, now time.Time) snapshotReport {

@@ -196,6 +196,10 @@ type internalWallet struct {
 	// non-capacity categories it is lifetime consumption and should only increase without an explicit correction.
 	LocalUsage int64
 
+	// LocalRetiredUsage is legacy retired local usage. The upgrade converts it into LocalUsage for non-capacity
+	// categories so retained retired charges remain a flow lower bound.
+	LocalRetiredUsage int64
+
 	// ScopedUsage contains absolute-report baselines keyed by the unmodified scope supplied by the API. Scope identity is
 	// wallet-local so the same key can be used independently in different product categories.
 	ScopedUsage map[string]*scopedUsage
@@ -575,8 +579,7 @@ func internalAllocateNoCommit(
 			parentWallet.ChildrenUsage[recipient] = currentUsage
 		}
 
-		lInternalAttemptActivation(b, now, allocation, false)
-		lInternalAttemptRetirement(b, now, allocation, false)
+		lInternalTransitionAllocationSet(b, now, false, []*internalAllocation{allocation})
 		lCheckAccountingOperation("allocate", b, now, map[AccWalletId]bool{recipient: true, parent: parent != internalGraphRoot}, nil)
 		return allocationId, nil
 	}
@@ -607,8 +610,7 @@ func internalCommitAllocation(b *internalBucket, now time.Time, allocId accAlloc
 	alloc, ok := b.AllocationsById[allocId]
 	if ok {
 		alloc.Committed = true
-		lInternalAttemptActivation(b, now, alloc, false)
-		lInternalAttemptRetirement(b, now, alloc, false)
+		lInternalTransitionAllocationSet(b, now, false, []*internalAllocation{alloc})
 		lCheckAccountingOperation(
 			"commit allocation",
 			b,
@@ -650,7 +652,7 @@ func lValidateUpdate(
 	if alloc.Retired {
 		return false, util.HttpErr(http.StatusForbidden, "You cannot update a retired allocation, it has already expired!")
 	}
-	if alloc.Start.Before(now) && !alloc.Start.Equal(proposedNewStart) {
+	if !now.Before(alloc.Start) && !alloc.Start.Equal(proposedNewStart) {
 		return false, util.HttpErr(http.StatusForbidden, "You cannot change the starting time of an allocation which has already started")
 	}
 	if proposedNewStart.After(proposedNewEnd) {
@@ -736,8 +738,7 @@ func internalUpdateAllocation(
 	iAlloc.End = proposedNewEnd
 	iAlloc.Quota = proposedNewQuota
 
-	lInternalAttemptActivation(b, now, iAlloc, true)
-	lInternalAttemptRetirement(b, now, iAlloc, true)
+	lInternalTransitionAllocationSet(b, now, true, []*internalAllocation{iAlloc})
 	lInternalReevaluate(b, now, iWallet, true)
 	lInternalMarkSignificantUpdate(b, now, iWallet)
 	lCheckAccountingOperation("update allocation", b, now, map[AccWalletId]bool{iWallet.Id: true, iParent.Id: true}, nil)
@@ -1658,13 +1659,24 @@ func lInternalSortAllocations(allocations []*internalAllocation) {
 // lInternalTransitionSortedAllocationSet transitions allocations ordered by end, start, and ID.
 func lInternalTransitionSortedAllocationSet(b *internalBucket, now time.Time, logTransitions bool, allocations []*internalAllocation) {
 	changedWallets := map[AccWalletId]bool{}
+	capacityRetirementUsage := map[accGroupId]int64{}
+	if b.IsCapacityBased() {
+		for _, alloc := range allocations {
+			if !alloc.Committed || alloc.Retired || now.Before(alloc.End) {
+				continue
+			}
+			wallet := b.WalletsById[alloc.BelongsTo]
+			group := wallet.AllocationsByParent[alloc.Parent]
+			capacityRetirementUsage[group.Id] = group.TreeUsage
+		}
+	}
 	previousDisableEvaluation := b.disableEvaluation
 	b.disableEvaluation = true
 	for _, alloc := range allocations {
 		wasActive := alloc.Active
 		wasRetired := alloc.Retired
 		lInternalAttemptActivation(b, now, alloc, logTransitions)
-		lInternalAttemptRetirement(b, now, alloc, logTransitions)
+		lInternalAttemptRetirement(b, now, alloc, logTransitions, capacityRetirementUsage)
 		if wasActive != alloc.Active || wasRetired != alloc.Retired {
 			changedWallets[alloc.BelongsTo] = true
 		}
@@ -1742,15 +1754,25 @@ func lInternalAttemptActivation(b *internalBucket, now time.Time, alloc *interna
 	}
 }
 
-func lInternalAttemptRetirement(b *internalBucket, now time.Time, alloc *internalAllocation, logRetirement bool) {
+func lInternalAttemptRetirement(
+	b *internalBucket,
+	now time.Time,
+	alloc *internalAllocation,
+	logRetirement bool,
+	capacityRetirementUsage map[accGroupId]int64,
+) {
 	if alloc.Committed && !alloc.Retired && !now.Before(alloc.End) {
 		wallet := b.WalletsById[alloc.BelongsTo]
 		group := wallet.AllocationsByParent[alloc.Parent]
 
-		// NOTE(Dan): This value will be wrong if the retired amount was ever reflown. This should obviously be avoided.
-		groupRetired := lInternalGroupTotalRetired(b, group)
-		toRetire := min(alloc.Quota, group.TreeUsage-groupRetired)
-		toRetire = max(0, toRetire)
+		var toRetire int64
+		if b.IsCapacityBased() {
+			toRetire = max(0, min(alloc.Quota, capacityRetirementUsage[group.Id]))
+			capacityRetirementUsage[group.Id] -= toRetire
+		} else {
+			groupRetired := lInternalGroupTotalRetired(b, group)
+			toRetire = max(0, min(alloc.Quota, group.TreeUsage-groupRetired))
+		}
 
 		alloc.Dirty = true
 		alloc.RetiredUsage = toRetire

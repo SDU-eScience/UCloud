@@ -7,10 +7,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
@@ -57,10 +55,19 @@ type accountingUpgradeMapping struct {
 	Rule           string
 }
 
-type accountingUpgradeProject struct {
-	Id     string
-	Title  string
-	Parent string
+type accountingUpgradeDiscard struct {
+	OriginalKey string
+	Key         string
+	Usage       int64
+	Rule        string
+	Reason      string
+}
+
+type accountingUpgradeRetiredLowerBound struct {
+	WalletId int64
+	Before   int64
+	After    int64
+	Reason   string
 }
 
 type accountingUpgradeCapacity struct {
@@ -72,27 +79,26 @@ type accountingUpgradeCapacity struct {
 }
 
 type accountingUpgradeBundle struct {
-	Version         string
-	RunId           string
-	CapturedAt      time.Time
-	InputHash       string
-	Status          string
-	Phase           string
-	Raw             map[string][]json.RawMessage
-	Projects        []accountingUpgradeProject
-	Mappings        []accountingUpgradeMapping
-	Cycles          findingsRepairPlan
-	Duplicates      duplicateRepairReport
-	Repairs         findingsRepairReport
-	Capacity        []accountingUpgradeCapacity
-	Before          AccountingAuditCapture
-	After           AccountingAuditCapture
-	Warnings        []string
-	Blockers        []string
-	DurationSeconds float64
-	Validation      map[string]bool
-	ArtifactVersion int
-	Build           map[string]string
+	Version            string
+	RunId              string
+	CapturedAt         time.Time
+	InputHash          string
+	Status             string
+	Phase              string
+	Raw                map[string][]json.RawMessage
+	Mappings           []accountingUpgradeMapping
+	Discarded          []accountingUpgradeDiscard
+	RetiredLowerBounds []accountingUpgradeRetiredLowerBound
+	Cycles             findingsRepairPlan
+	Duplicates         duplicateRepairReport
+	Repairs            findingsRepairReport
+	Capacity           []accountingUpgradeCapacity
+	Before             AccountingAuditCapture
+	After              AccountingAuditCapture
+	Warnings           []string
+	Blockers           []string
+	DurationSeconds    float64
+	Validation         map[string]bool
 }
 
 func accountingUpgradeLockTables(tx *db.Transaction) {
@@ -117,16 +123,12 @@ func accountingUpgradeDirectory() string {
 }
 
 func accountingUpgradeEncode(value any) []byte {
-	data, err := json.Marshal(value)
-	if err != nil {
-		panic(err)
-	}
 	var output bytes.Buffer
 	writer := gzip.NewWriter(&output)
-	if _, err = writer.Write(data); err != nil {
+	if err := json.NewEncoder(writer).Encode(value); err != nil {
 		panic(err)
 	}
-	if err = writer.Close(); err != nil {
+	if err := writer.Close(); err != nil {
 		panic(err)
 	}
 	return output.Bytes()
@@ -177,23 +179,17 @@ func accountingUpgradeCheck(tx *db.Transaction, bundle *accountingUpgradeBundle)
 func AccountingUpgrade(tx *db.Transaction) {
 	started := time.Now()
 	tx.NoDevResetThisIsNotAHackIPromise = true
-	bundle := accountingUpgradeBundle{Version: accountingUpgradeVersion, ArtifactVersion: 1, Status: "attempting", Phase: "capture", Build: map[string]string{}}
-	if info, ok := debug.ReadBuildInfo(); ok {
-		bundle.Build["goVersion"] = info.GoVersion
-		for _, setting := range info.Settings {
-			if setting.Key == "vcs.revision" || setting.Key == "vcs.modified" || setting.Key == "GOOS" || setting.Key == "GOARCH" {
-				bundle.Build[setting.Key] = setting.Value
-			}
-		}
-	}
+	bundle := accountingUpgradeBundle{Version: accountingUpgradeVersion, Status: "attempting", Phase: "capture"}
 	directory := ""
 	defer func() {
 		if failure := recover(); failure != nil {
 			bundle.Status = "blocked"
-			bundle.Blockers = append(bundle.Blockers, fmt.Sprint(failure))
+			message := fmt.Sprint(failure)
+			if message != strings.Join(bundle.Blockers, "; ") {
+				bundle.Blockers = append(bundle.Blockers, message)
+			}
 			if directory != "" {
 				accountingUpgradeWrite(directory, "failure.json.gz", accountingUpgradeEncode(bundle))
-				accountingUpgradeExport(bundle)
 			}
 			panic(failure)
 		}
@@ -220,11 +216,6 @@ func AccountingUpgrade(tx *db.Transaction) {
 	directory = filepath.Join(accountingUpgradeDirectory(), bundle.RunId)
 	accountingUpgradeWrite(directory, "source.json.gz", accountingUpgradeEncode(bundle.Raw))
 	log.Info("Accounting upgrade evidence: %s", directory)
-	bundle.Projects = db.Select[accountingUpgradeProject](
-		tx,
-		`select id, title, coalesce(parent, '') as parent from project.projects order by id`,
-		db.Params{},
-	)
 	accountingUpgradeValidateSource(&bundle)
 	accountingUpgradeCheck(tx, &bundle)
 	bundle.Phase = "scope mapping"
@@ -271,7 +262,8 @@ func AccountingUpgrade(tx *db.Transaction) {
 	bundle.Status = "validated"
 	bundle.DurationSeconds = time.Since(started).Seconds()
 	accountingUpgradeCheck(tx, &bundle)
-	accountingUpgradeWrite(directory, "candidate.json.gz", accountingUpgradeEncode(bundle))
+	candidate := accountingUpgradeEncode(bundle)
+	accountingUpgradeWrite(directory, "candidate.json.gz", candidate)
 	db.Exec(
 		tx,
 		`create table accounting.upgrade_runs (
@@ -283,7 +275,7 @@ func AccountingUpgrade(tx *db.Transaction) {
 	db.Exec(
 		tx,
 		`insert into accounting.upgrade_runs(version, run_id, captured_at, proof) values (:version, :run_id, :at, :proof)`,
-		db.Params{"version": accountingUpgradeVersion, "run_id": bundle.RunId, "at": now.Now, "proof": accountingUpgradeEncode(bundle)},
+		db.Params{"version": accountingUpgradeVersion, "run_id": bundle.RunId, "at": now.Now, "proof": candidate},
 	)
 	accountingUpgradeCheck(tx, &bundle)
 }
@@ -359,7 +351,11 @@ func accountingUpgradeRaw(tx *db.Transaction) map[string][]json.RawMessage {
 				provider.resource r
 				join accounting.products p on p.id = r.product
 				join accounting.product_categories pc on pc.id = p.category
-			where r.id::text in (select substring(key from '([0-9]+)$') from accounting.scoped_usage)
+			where r.id::text in (
+				select substring(key from '([0-9]+)$') from accounting.scoped_usage
+				union
+				select substring(key from chr(10) || '([0-9]+)-') from accounting.scoped_usage
+			)
 			order by r.id
 		`},
 	}
@@ -376,6 +372,49 @@ func accountingUpgradeRaw(tx *db.Transaction) map[string][]json.RawMessage {
 		}
 	}
 	return result
+}
+
+const (
+	accountingUpgradeTargetAmbiguous       = "ambiguous"
+	accountingUpgradeTargetMissingResource = "missing-resource"
+	accountingUpgradeTargetNoWallet        = "no-wallet"
+)
+
+func accountingUpgradeRetiredScope(key string) (string, string) {
+	if _, err := time.Parse(time.RFC3339, key); err == nil {
+		return "retired-product-discard", "fully retired timestamp-keyed product"
+	}
+	const hippoPrefix = "hippo-hippo-ess-"
+	if value, ok := strings.CutPrefix(key, hippoPrefix); ok {
+		if _, err := strconv.ParseInt(value, 10, 64); err == nil {
+			return "retired-product-discard", "fully retired hippo-ess product"
+		}
+	}
+	return "", ""
+}
+
+func accountingUpgradeIsRetiredResourceKey(key string) bool {
+	if value, ok := strings.CutPrefix(key, "job-"); ok {
+		_, err := strconv.ParseInt(value, 10, 64)
+		return err == nil
+	}
+	_, err := strconv.ParseInt(key, 10, 64)
+	return err == nil
+}
+
+func accountingUpgradeResourceTimestampId(key string) (int64, bool) {
+	index := strings.IndexByte(key, '-')
+	if index <= 0 {
+		return 0, false
+	}
+	resourceId, err := strconv.ParseInt(key[:index], 10, 64)
+	if err != nil || resourceId <= 0 {
+		return 0, false
+	}
+	if _, err = time.Parse(time.RFC3339, key[index+1:]); err != nil {
+		return 0, false
+	}
+	return resourceId, true
 }
 
 func accountingUpgradeScopes(tx *db.Transaction, bundle *accountingUpgradeBundle) {
@@ -396,7 +435,12 @@ func accountingUpgradeScopes(tx *db.Transaction, bundle *accountingUpgradeBundle
 			provider.resource r
 			join accounting.products p on p.id = r.product
 			join accounting.product_categories pc on pc.id = p.category
-		where r.id::text in (select substring(key from '([0-9]+)$') from accounting.scoped_usage) order by r.id`,
+		where r.id::text in (
+			select substring(key from '([0-9]+)$') from accounting.scoped_usage
+			union
+			select substring(key from chr(10) || '([0-9]+)-') from accounting.scoped_usage
+		)
+		order by r.id`,
 		db.Params{},
 	)
 	byResource := map[int64]accountingUpgradeResource{}
@@ -467,8 +511,41 @@ func accountingUpgradeScopes(tx *db.Transaction, bundle *accountingUpgradeBundle
 			bundle.Blockers = append(bundle.Blockers, fmt.Sprintf("scope %q has no retained wallet identity", originalKey))
 			continue
 		}
-		selected, key := accountingUpgradeScopeTarget(scope.Key, candidates, byResource)
+		if rule, reason := accountingUpgradeRetiredScope(scope.Key); rule != "" {
+			bundle.Discarded = append(bundle.Discarded, accountingUpgradeDiscard{
+				OriginalKey: originalKey,
+				Key:         scope.Key,
+				Usage:       scope.Usage,
+				Rule:        rule,
+				Reason:      reason,
+			})
+			continue
+		}
+
+		selected, key, targetReason := accountingUpgradeScopeTarget(scope.Key, candidates, byResource)
 		if selected == 0 {
+			if accountingUpgradeIsRetiredResourceKey(scope.Key) {
+				switch targetReason {
+				case accountingUpgradeTargetMissingResource:
+					bundle.Discarded = append(bundle.Discarded, accountingUpgradeDiscard{
+						OriginalKey: originalKey,
+						Key:         scope.Key,
+						Usage:       scope.Usage,
+						Rule:        "retired-resource-discard",
+						Reason:      "resource is no longer retained",
+					})
+					continue
+				case accountingUpgradeTargetNoWallet:
+					bundle.Discarded = append(bundle.Discarded, accountingUpgradeDiscard{
+						OriginalKey: originalKey,
+						Key:         scope.Key,
+						Usage:       scope.Usage,
+						Rule:        "orphaned-resource-discard",
+						Reason:      "resource has no retained wallet",
+					})
+					continue
+				}
+			}
 			bundle.Blockers = append(bundle.Blockers, fmt.Sprintf("scope %q cannot be assigned to one product wallet", originalKey))
 			continue
 		}
@@ -529,7 +606,7 @@ func accountingUpgradeScopes(tx *db.Transaction, bundle *accountingUpgradeBundle
 	)
 }
 
-func accountingUpgradeScopeTarget(key string, candidates []accountingUpgradeWallet, resources map[int64]accountingUpgradeResource) (int64, string) {
+func accountingUpgradeScopeTarget(key string, candidates []accountingUpgradeWallet, resources map[int64]accountingUpgradeResource) (int64, string, string) {
 	if strings.HasPrefix(key, "inference-") {
 		matches := []accountingUpgradeWallet{}
 		for _, wallet := range candidates {
@@ -538,17 +615,25 @@ func accountingUpgradeScopeTarget(key string, candidates []accountingUpgradeWall
 			}
 		}
 		if len(matches) == 1 {
-			return matches[0].Id, key
+			return matches[0].Id, key, ""
 		}
-		return 0, key
+		return 0, key, accountingUpgradeTargetAmbiguous
 	}
+
 	resourceId := int64(0)
+	resourceTimestamp := false
 	explicitProvider := ""
 	if value, ok := strings.CutPrefix(key, "job-"); ok {
 		resourceId, _ = strconv.ParseInt(value, 10, 64)
 	}
 	if value, ok := strings.CutPrefix(key, "repository-"); ok {
 		resourceId, _ = strconv.ParseInt(value, 10, 64)
+	}
+	if resourceId == 0 {
+		if id, ok := accountingUpgradeResourceTimestampId(key); ok {
+			resourceId = id
+			resourceTimestamp = true
+		}
 	}
 	if resourceId == 0 {
 		resourceId, _ = strconv.ParseInt(key, 10, 64)
@@ -578,13 +663,30 @@ func accountingUpgradeScopeTarget(key string, candidates []accountingUpgradeWall
 				matches = append(matches, wallet)
 			}
 		}
+		if len(matches) > 1 {
+			exact := []accountingUpgradeWallet{}
+			for _, wallet := range matches {
+				if wallet.Provider == resource.Provider {
+					exact = append(exact, wallet)
+				}
+			}
+			if len(exact) == 1 {
+				matches = exact
+			}
+		}
 		if len(matches) == 1 {
-			if key == strconv.FormatInt(resourceId, 10) && resource.ProductType == "COMPUTE" {
+			if !resourceTimestamp && key == strconv.FormatInt(resourceId, 10) && resource.ProductType == "COMPUTE" {
 				key = "job-" + key
 			}
-			return matches[0].Id, key
+			return matches[0].Id, key, ""
 		}
-		return 0, key
+		if len(matches) == 0 {
+			return 0, key, accountingUpgradeTargetNoWallet
+		}
+		return 0, key, accountingUpgradeTargetAmbiguous
+	}
+	if resourceTimestamp {
+		return 0, key, accountingUpgradeTargetMissingResource
 	}
 	productType := ""
 	if strings.HasPrefix(key, "job-") {
@@ -603,9 +705,12 @@ func accountingUpgradeScopeTarget(key string, candidates []accountingUpgradeWall
 		candidates = filtered
 	}
 	if len(candidates) == 1 {
-		return candidates[0].Id, key
+		return candidates[0].Id, key, ""
 	}
-	return 0, key
+	if resourceId != 0 {
+		return 0, key, accountingUpgradeTargetMissingResource
+	}
+	return 0, key, accountingUpgradeTargetAmbiguous
 }
 
 func accountingUpgradeCycles(tx *db.Transaction, bundle *accountingUpgradeBundle) {
@@ -711,9 +816,14 @@ func accountingUpgradeFlow(tx *db.Transaction, bundle *accountingUpgradeBundle) 
 		bucket.suppressNotifications = true
 		for _, wallet := range bucket.WalletsById {
 			for _, group := range wallet.AllocationsByParent {
-				group.TreeUsage = 0
-				if !bucket.IsCapacityBased() {
-					group.TreeUsage = lInternalGroupTotalRetired(bucket, group)
+				if bucket.IsCapacityBased() {
+					group.TreeUsage = 0
+				} else {
+					retired := lInternalGroupTotalRetired(bucket, group)
+					group.TreeUsage = max(group.TreeUsage, retired)
+					if quota := lInternalGroupTotalQuotaContributing(bucket, group); quota >= retired {
+						group.TreeUsage = min(group.TreeUsage, quota)
+					}
 				}
 				if parent := bucket.WalletsById[group.ParentWallet]; parent != nil {
 					parent.ChildrenUsage[wallet.Id] = group.TreeUsage
@@ -752,6 +862,25 @@ func accountingUpgradeFlow(tx *db.Transaction, bundle *accountingUpgradeBundle) 
 			lInternalTransitionAllocations(bucket, bundle.CapturedAt, false)
 			lInternalRerouteCapacityUsage(bucket, bundle.CapturedAt)
 		} else {
+			for _, wallet := range bucket.WalletsById {
+				before := wallet.LocalUsage
+				childrenUsage := int64(0)
+				for _, usage := range wallet.ChildrenUsage {
+					childrenUsage += usage
+				}
+				lowerBound := lInternalWalletTotalPropagatedUsage(bucket, wallet) - childrenUsage
+				wallet.LocalUsage = max(wallet.LocalUsage, lowerBound)
+				wallet.LocalRetiredUsage = 0
+				if wallet.LocalUsage != before {
+					bundle.RetiredLowerBounds = append(bundle.RetiredLowerBounds, accountingUpgradeRetiredLowerBound{
+						WalletId: int64(wallet.Id),
+						Before:   before,
+						After:    wallet.LocalUsage,
+						Reason:   "retired allocation charges not represented by child flow",
+					})
+				}
+			}
+
 			pending := map[AccWalletId]int{}
 			queue := []AccWalletId{}
 			for id, wallet := range bucket.WalletsById {
@@ -804,54 +933,4 @@ func accountingUpgradeFlow(tx *db.Transaction, bundle *accountingUpgradeBundle) 
 		}
 		accountingUpgradePersistFlow(tx, bucket)
 	}
-}
-
-func AccountingUpgradeExport() {
-	proof := db.NewTx(func(tx *db.Transaction) []byte {
-		row, _ := db.Get[struct{ Exists bool }](
-			tx,
-			`select to_regclass('accounting.upgrade_runs') is not null as exists`,
-			db.Params{},
-		)
-		if !row.Exists {
-			_, completed := db.Get[struct{ Id string }](
-				tx,
-				`select id from completed_migrations where id = :version`,
-				db.Params{"version": accountingUpgradeVersion},
-			)
-			if completed {
-				panic("accountingV6 completed without an automatic-upgrade proof; restore the pre-upgrade dataset")
-			}
-			return nil
-		}
-		stored, ok := db.Get[struct{ Proof []byte }](
-			tx,
-			`select proof from accounting.upgrade_runs where version = :version`,
-			db.Params{"version": accountingUpgradeVersion},
-		)
-		if !ok {
-			panic("accounting upgrade completion proof is missing")
-		}
-		return stored.Proof
-	})
-	if len(proof) == 0 {
-		return
-	}
-	reader, err := gzip.NewReader(bytes.NewReader(proof))
-	if err != nil {
-		panic(err)
-	}
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		panic(err)
-	}
-	if err = reader.Close(); err != nil {
-		panic(err)
-	}
-	var bundle accountingUpgradeBundle
-	if err = json.Unmarshal(data, &bundle); err != nil {
-		panic(err)
-	}
-	bundle.Status = "committed"
-	accountingUpgradeExport(bundle)
 }

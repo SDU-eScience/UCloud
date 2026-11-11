@@ -10,16 +10,6 @@ import (
 
 func main() {
 	util.DeploymentName = "Core"
-	if index := slices.Index(os.Args, "accounting-audit"); index >= 0 {
-		util.DeploymentName = "Core/Accounting audit"
-		launcher.LaunchAccountingAudit(os.Args[index+1:])
-		return
-	}
-	if slices.Contains(os.Args, "accounting-snapshot") {
-		util.DeploymentName = "Core/Accounting snapshot"
-		launcher.LaunchAccountingSnapshot()
-		return
-	}
 	if slices.Contains(os.Args, "migrate") {
 		util.DeploymentName = "Core/Migrate"
 		launcher.LaunchMigrationsOnly()

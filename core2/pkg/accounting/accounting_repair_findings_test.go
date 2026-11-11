@@ -185,3 +185,81 @@ func TestPlanFindingsRepairNormalizesRetirementState(t *testing.T) {
 		t.Errorf("periodic retirement update = %+v", update)
 	}
 }
+
+func TestAccountingFindingsRepairRetirementBatch(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		frequency string
+		product   string
+		capacity  bool
+	}{
+		{name: "capacity", frequency: "ONCE", product: "STORAGE", capacity: true},
+		{name: "consumption", frequency: "PERIODIC_HOUR", product: "COMPUTE"},
+		{name: "inference", frequency: "ONCE", product: "INFERENCE"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			now := time.Date(2026, time.November, 10, 12, 0, 0, 0, time.UTC)
+			groups := []findingsRepairGroupRow{
+				{Id: 10, AssociatedWallet: 1, TreeUsage: 150},
+				{Id: 11, AssociatedWallet: 2, TreeUsage: 70},
+			}
+			allocations := []findingsRepairAllocationRow{
+				{Id: 20, GroupId: 10, Quota: 100, Retired: true, RetiredUsage: 40, RetiredQuota: 100},
+				{Id: 21, GroupId: 10, Quota: 100},
+				{Id: 22, GroupId: 10, Quota: 100},
+				{Id: 23, GroupId: 11, Quota: 100, Retired: true, RetiredUsage: 30, RetiredQuota: 100},
+				{Id: 24, GroupId: 11, Quota: 100},
+			}
+			for index := range allocations {
+				allocation := &allocations[index]
+				allocation.AccountingFrequency = tc.frequency
+				allocation.ProductType = tc.product
+				allocation.AllocationStartTime = now.Add(-2 * time.Hour)
+				allocation.AllocationEndTime = now
+				if allocation.Retired {
+					allocation.AllocationStartTime = now.Add(-4 * time.Hour)
+					allocation.AllocationEndTime = now.Add(-3 * time.Hour)
+					if !tc.capacity {
+						allocation.Quota = allocation.RetiredUsage
+					}
+				}
+			}
+			allocations[1].AllocationStartTime = now.Add(-time.Hour)
+
+			plan := planFindingsRepair(groups, allocations, now)
+			if len(plan.AllocationUpdates) != 3 {
+				t.Fatalf("allocation updates = %+v, want three newly retired allocations", plan.AllocationUpdates)
+			}
+			wantUsage := map[int64]int64{21: 50, 22: 100, 24: 70}
+			if !tc.capacity {
+				wantUsage[21] = 10
+				wantUsage[24] = 40
+			}
+			for _, update := range plan.AllocationUpdates {
+				want, ok := wantUsage[update.Id]
+				if !ok {
+					t.Fatalf("repair rewrote historical allocation %d", update.Id)
+				}
+				wantQuota := int64(100)
+				if !tc.capacity {
+					wantQuota = want
+				}
+				if !update.Retired || update.RetiredUsage != want || update.Quota != wantQuota || update.RetiredQuota != 100 {
+					t.Errorf("allocation %d retirement = %+v, want usage/quota/original %d/%d/100", update.Id, update, want, wantQuota)
+				}
+				for index := range allocations {
+					allocation := &allocations[index]
+					if allocation.Id == update.Id {
+						allocation.Retired = update.Retired
+						allocation.RetiredUsage = update.RetiredUsage
+						allocation.RetiredQuota = update.RetiredQuota
+						allocation.Quota = update.Quota
+					}
+				}
+			}
+			if repeated := planFindingsRepair(groups, allocations, now); len(repeated.AllocationUpdates) != 0 {
+				t.Fatalf("repeated repair changed retired allocations: %+v", repeated.AllocationUpdates)
+			}
+		})
+	}
+}

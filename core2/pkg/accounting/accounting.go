@@ -513,6 +513,7 @@ func accountingLoadFromTx(tx *db.Transaction, now time.Time, onLoadError func(st
 			CatName                 string
 			CatProvider             string
 			LocalUsage              int64
+			LocalRetiredUsage       int64
 			WasLocked               bool
 			LastSignificantUpdateAt time.Time
 		}](
@@ -521,7 +522,7 @@ func accountingLoadFromTx(tx *db.Transaction, now time.Time, onLoadError func(st
 				select
 					w.id, w.wallet_owner, 
 					pc.category as cat_name, pc.provider as cat_provider,
-					w.local_usage, w.was_locked, w.last_significant_update_at
+					w.local_usage, w.local_retired_usage, w.was_locked, w.last_significant_update_at
 				from
 					accounting.wallets_v2 w
 					join accounting.product_categories pc on w.product_category = pc.id
@@ -550,6 +551,7 @@ func accountingLoadFromTx(tx *db.Transaction, now time.Time, onLoadError func(st
 				Id:                    AccWalletId(row.Id),
 				OwnedBy:               accOwnerId(row.WalletOwner),
 				LocalUsage:            row.LocalUsage,
+				LocalRetiredUsage:     row.LocalRetiredUsage,
 				ScopedUsage:           make(map[string]*scopedUsage),
 				AllocationsByParent:   make(map[AccWalletId]*internalGroup),
 				ChildrenUsage:         make(map[AccWalletId]int64),
@@ -793,6 +795,7 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 		}
 		handlersToTrigger := map[accGrantId]internalOnPersistHandler{}
 		for _, b := range buckets {
+			var committedAllocations []*internalAllocation
 			for _, allocation := range b.AllocationsById {
 				if allocation.Committed || !allocation.GrantedIn.Present {
 					continue
@@ -805,10 +808,10 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 				allocation.Dirty = true
 				wallet := b.WalletsById[allocation.BelongsTo]
 				wallet.AllocationsByParent[allocation.Parent].Dirty = true
-				lInternalAttemptActivation(b, now, allocation, false)
-				lInternalAttemptRetirement(b, now, allocation, false)
+				committedAllocations = append(committedAllocations, allocation)
 				handlersToTrigger[allocation.GrantedIn.Value] = handler
 			}
+			lInternalTransitionAllocationSet(b, now, false, committedAllocations)
 		}
 
 		ownerRequest := struct {

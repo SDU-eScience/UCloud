@@ -97,6 +97,16 @@ func accountingUpgradeValidateSource(bundle *accountingUpgradeBundle) {
 }
 
 func accountingUpgradeValidateFacts(bundle *accountingUpgradeBundle) {
+	retiredLowerBounds := map[int64]int64{}
+	for _, lowerBound := range bundle.RetiredLowerBounds {
+		if lowerBound.After < lowerBound.Before {
+			bundle.Blockers = append(bundle.Blockers, fmt.Sprintf("retired lower bound reduced wallet %d usage", lowerBound.WalletId))
+		}
+		if lowerBound.Reason == "" {
+			bundle.Blockers = append(bundle.Blockers, fmt.Sprintf("retired lower bound for wallet %d has no reason", lowerBound.WalletId))
+		}
+		retiredLowerBounds[lowerBound.WalletId] = lowerBound.After
+	}
 	wallets := []duplicateRepairWalletRow{}
 	for _, raw := range bundle.Raw["wallets"] {
 		var row struct {
@@ -107,6 +117,9 @@ func accountingUpgradeValidateFacts(bundle *accountingUpgradeBundle) {
 		}
 		if err := json.Unmarshal(raw, &row); err != nil {
 			panic(err)
+		}
+		if value, ok := retiredLowerBounds[row.Id]; ok {
+			row.Usage = value
 		}
 		wallets = append(wallets, duplicateRepairWalletRow{Id: row.Id, WalletOwner: row.Owner, ProductCategory: row.Category, LocalUsage: row.Usage})
 	}
@@ -195,9 +208,28 @@ func accountingUpgradeValidateFacts(bundle *accountingUpgradeBundle) {
 		bundle.Blockers = append(bundle.Blockers, fmt.Sprintf("allocation %d disappeared without an approved cycle rule", id))
 	}
 	baselines := map[string]int64{}
+	mappedKeys := map[string]bool{}
 	for _, mapping := range bundle.Mappings {
+		if mappedKeys[mapping.OriginalKey] {
+			bundle.Blockers = append(bundle.Blockers, fmt.Sprintf("scope %q has multiple mappings", mapping.OriginalKey))
+		}
+		mappedKeys[mapping.OriginalKey] = true
 		key := fmt.Sprintf("%d\n%s", mapping.WalletId, mapping.Key)
 		baselines[key] = max(baselines[key], mapping.Usage)
+	}
+	discardedKeys := map[string]bool{}
+	for _, discard := range bundle.Discarded {
+		if discard.OriginalKey == "" || discard.Key == "" {
+			bundle.Blockers = append(bundle.Blockers, "discarded scope has no recorded identity")
+			continue
+		}
+		if discard.Rule == "" || discard.Reason == "" {
+			bundle.Blockers = append(bundle.Blockers, fmt.Sprintf("discarded scope %q has no recorded rule", discard.OriginalKey))
+		}
+		if mappedKeys[discard.OriginalKey] || discardedKeys[discard.OriginalKey] {
+			bundle.Blockers = append(bundle.Blockers, fmt.Sprintf("scope %q is both mapped and discarded", discard.OriginalKey))
+		}
+		discardedKeys[discard.OriginalKey] = true
 	}
 	for _, scope := range bundle.After.Scopes {
 		key := fmt.Sprintf("%d\n%s", scope.WalletId, scope.Key)
@@ -210,8 +242,8 @@ func accountingUpgradeValidateFacts(bundle *accountingUpgradeBundle) {
 	for key := range baselines {
 		bundle.Blockers = append(bundle.Blockers, fmt.Sprintf("scope baseline %q disappeared", key))
 	}
-	if len(bundle.Mappings) != len(bundle.Raw["scopes"]) {
-		bundle.Blockers = append(bundle.Blockers, "not every original scope has a recorded mapping")
+	if len(bundle.Mappings)+len(bundle.Discarded) != len(bundle.Raw["scopes"]) {
+		bundle.Blockers = append(bundle.Blockers, "not every original scope has a recorded mapping or discard")
 	}
 	if len(bundle.Blockers) == 0 {
 		bundle.Validation = map[string]bool{
@@ -220,6 +252,7 @@ func accountingUpgradeValidateFacts(bundle *accountingUpgradeBundle) {
 			"allocationFactsPreserved":   true,
 			"scopeBaselinesPreserved":    true,
 			"scopeRowsAccounted":         true,
+			"retiredScopesAccounted":     true,
 			"normalReaderFlowInvariants": true,
 		}
 	}

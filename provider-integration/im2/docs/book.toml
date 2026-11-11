@@ -10,11 +10,11 @@ title = "UCloud"
 [output.html]
 default-theme = "light"
 preferred-dark-theme = "dark"
-additional-js = ["mermaid-init.js"]
+additional-js = ["mermaid-init.js", "math-init.js"]
+additional-css = ["math.css"]
 
 [output.html.print]
 enable = false
 
 [build]
 create-missing = false
-

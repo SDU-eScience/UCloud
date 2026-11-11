@@ -1,0 +1,7 @@
+KaTeX 0.19.1
+License: MIT
+Project: https://katex.org/
+Source: https://registry.npmjs.org/katex/-/katex-0.19.1.tgz
+Package integrity: sha512-jG8uKntjSEcm2EpQOh0XturpPuuC9r3Sq5HLHdsFdWZT27E672SF19QEi+of0/YeOy15lDgRhKvr5614uRrEfA==
+
+Bundled files: dist/katex.min.js, dist/katex.min.css, dist/fonts, and LICENSE.

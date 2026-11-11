@@ -496,11 +496,13 @@ func planFindingsRepair(groups []findingsRepairGroupRow, allocations []findingsR
 	}
 
 	groupTreeUsage := map[int64]int64{}
+	capacityRetirementUsage := map[int64]int64{}
 	for _, group := range groups {
 		if deletedGroups[group.Id] {
 			continue
 		}
 		groupTreeUsage[group.Id] = max(0, group.TreeUsage)
+		capacityRetirementUsage[group.Id] = groupTreeUsage[group.Id]
 	}
 
 	remaining := make([]findingsRepairAllocationRow, 0, len(allocations))
@@ -591,6 +593,9 @@ func planFindingsRepair(groups []findingsRepairGroupRow, allocations []findingsR
 		if order := a.AllocationEndTime.Compare(b.AllocationEndTime); order != 0 {
 			return order
 		}
+		if order := a.AllocationStartTime.Compare(b.AllocationStartTime); order != 0 {
+			return order
+		}
 		return cmp.Compare(a.Id, b.Id)
 	})
 	for index := range remaining {
@@ -598,10 +603,16 @@ func planFindingsRepair(groups []findingsRepairGroupRow, allocations []findingsR
 		if allocation.Retired || now.Before(allocation.AllocationEndTime) {
 			continue
 		}
-		groupRetired := retiredUsageByGroup[allocation.GroupId]
-		toRetire := min(allocation.Quota, groupTreeUsage[allocation.GroupId]-groupRetired)
-		toRetire = max(0, toRetire)
-		retiredUsageByGroup[allocation.GroupId] += toRetire - allocation.RetiredUsage
+		capacity := allocation.AccountingFrequency == "ONCE" && allocation.ProductType != "INFERENCE"
+		var toRetire int64
+		if capacity {
+			toRetire = max(0, min(allocation.Quota, capacityRetirementUsage[allocation.GroupId]))
+			capacityRetirementUsage[allocation.GroupId] -= toRetire
+		} else {
+			groupRetired := retiredUsageByGroup[allocation.GroupId]
+			toRetire = max(0, min(allocation.Quota, groupTreeUsage[allocation.GroupId]-groupRetired))
+			retiredUsageByGroup[allocation.GroupId] += toRetire - allocation.RetiredUsage
+		}
 		appendFindingsLifecycleChange(&result, allocation.Id, "retired", allocation.Retired, true, "exclusive end passed")
 		appendFindingsLifecycleChange(&result, allocation.Id, "retired_usage", allocation.RetiredUsage, toRetire, "exclusive end passed")
 		appendFindingsLifecycleChange(&result, allocation.Id, "retired_quota", allocation.RetiredQuota, allocation.Quota, "exclusive end passed")
@@ -609,7 +620,7 @@ func planFindingsRepair(groups []findingsRepairGroupRow, allocations []findingsR
 		allocation.RetiredUsage = toRetire
 		allocation.RetiredQuota = allocation.Quota
 		changedAllocations[allocation.Id] = true
-		if allocation.AccountingFrequency != "ONCE" || allocation.ProductType == "INFERENCE" {
+		if !capacity {
 			appendFindingsLifecycleChange(&result, allocation.Id, "quota", allocation.Quota, toRetire, "periodic allocation retired")
 			allocation.Quota = toRetire
 		}

@@ -751,7 +751,7 @@ func TestChildUsesAllCheckParent(t *testing.T) {
 func TestUpdateAllocation(t *testing.T) {
 	e := newEnv(t, timeCategory)
 	e.AllocateEx(0, 0, 1_000, 10, "project", "provider")
-	allocId := e.AllocateEx(0, 0, 10_000, 10, "child", "project")
+	allocId := e.AllocateEx(0, 1, 10_000, 10, "child", "project")
 
 	parent := e.Owner("project")
 
@@ -759,7 +759,7 @@ func TestUpdateAllocation(t *testing.T) {
 
 	// Pre changes assert
 
-	e.ExpectAllocationValues(t, iAlloc, 10, 0, 10_000)
+	e.ExpectAllocationValues(t, iAlloc, 10, 1, 10_000)
 
 	// All good tests
 
@@ -779,7 +779,7 @@ func TestUpdateAllocation(t *testing.T) {
 
 	iAlloc = e.Bucket.AllocationsById[allocId]
 
-	e.ExpectAllocationValues(t, iAlloc, 5000, 0, 10_000)
+	e.ExpectAllocationValues(t, iAlloc, 5000, 1, 10_000)
 
 	newStart := e.Tm(30)
 	err = e.UpdateAllocation(
