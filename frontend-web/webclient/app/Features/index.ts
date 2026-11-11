@@ -89,8 +89,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "file-browser-status-bar": {
         feature: Feature.FILE_BROWSER_STATUS_BAR,
-        showWithoutFlag: allDevEnvironments,
-        showWithFlag: allEnvironments,
+        showWithoutFlag: allEnvironments,
     },
 
     "container-repositories": {
