@@ -171,6 +171,7 @@ export const Button: React.FunctionComponent<ButtonProps> = props => {
         data-size={sizeName}
         style={inlineStyles}
         disabled={props.disabled}
+        aria-label={props.ariaLabel}
         type={props.type as any}
         {...extractEventHandlers(props)}
         {...extractDataTags(props)}

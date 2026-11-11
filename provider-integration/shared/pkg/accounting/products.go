@@ -141,21 +141,24 @@ type AccountingFrequency string
 
 const (
 	AccountingFrequencyOnce           AccountingFrequency = "ONCE"
+	AccountingFrequencyPeriodicSecond AccountingFrequency = "PERIODIC_SECOND"
 	AccountingFrequencyPeriodicMinute AccountingFrequency = "PERIODIC_MINUTE"
 	AccountingFrequencyPeriodicHour   AccountingFrequency = "PERIODIC_HOUR"
 	AccountingFrequencyPeriodicDay    AccountingFrequency = "PERIODIC_DAY"
 )
 
-func (f AccountingFrequency) ToMinutes() int64 {
+func (f AccountingFrequency) ToSeconds() int64 {
 	switch f {
 	case AccountingFrequencyOnce:
 		return 1
-	case AccountingFrequencyPeriodicMinute:
+	case AccountingFrequencyPeriodicSecond:
 		return 1
-	case AccountingFrequencyPeriodicHour:
+	case AccountingFrequencyPeriodicMinute:
 		return 60
+	case AccountingFrequencyPeriodicHour:
+		return 60 * 60
 	case AccountingFrequencyPeriodicDay:
-		return 60 * 24
+		return 60 * 60 * 24
 	default:
 		log.Printf("Invalid accounting frequency passed: '%v'\n", f)
 		return 1
@@ -166,6 +169,8 @@ func (f AccountingFrequency) IsPeriodic() bool {
 	switch f {
 	case AccountingFrequencyOnce:
 		return false
+	case AccountingFrequencyPeriodicSecond:
+		return true
 	case AccountingFrequencyPeriodicMinute:
 		return true
 	case AccountingFrequencyPeriodicHour:

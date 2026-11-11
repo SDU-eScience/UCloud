@@ -95,9 +95,8 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
 
                 browser.setColumns({
                     [ContainerSize.LARGE]: [{ name: "Application" }, { name: "Submitted by", columnWidth: 180 }, { name: "Last updated", columnWidth: 150 }, { name: "Comments", columnWidth: 150 }],
-                    [ContainerSize.MEDIUM]: [{name: "Application"}, {name: "Submitted by", columnWidth: 200}, {name: "Last updated", columnWidth: 100}, {name: "", columnWidth: 0}],
-                    [ContainerSize.SMALL]: [{name: "Application"}, {name: "Submitted by", columnWidth: 40}, {name: "Last updated", columnWidth: 100}, {name: "", columnWidth: 0}],
-                    [ContainerSize.TINY]: [{name: "Application"}, {name: "Submitted by", columnWidth: 40}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}],
+                    [ContainerSize.SMALL]: [{name: "Application" }, {name: "Submitted by", columnWidth: 100}, {name: "Last updated", columnWidth: 120}],
+                    [ContainerSize.TINY]: [{name: "Application"}, {name: "Submitted by", columnWidth: 120}],
                 });
 
                 browser.on("open", (_, newPath, resource) => {
@@ -113,8 +112,6 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     browser.searchQuery = query;
                     fetchGrants();
                 });
-
-
 
 
                 avatarState.subscribe(() => {
@@ -160,20 +157,17 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     status.style.height = "24px";
                     title.append(status);
 
-                    let subtitle: string = "";
                     let grantTitle = app.createdBy;
                     {
                         const recipient = app.currentRevision.document.recipient;
                         const projectTitle = app.status.projectTitle ?? "Unknown title";
                         switch (recipient.type) {
                             case "existingProject": {
-                                subtitle = "Extension";
                                 grantTitle = projectTitle;
                                 break;
                             }
 
                             case "newProject": {
-                                subtitle = "New project";
                                 grantTitle = recipient.title;
                                 break;
                             }
@@ -207,7 +201,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
 
                 browser.on("renderStat1", (app, stat, row, size) => {
                     stat.style.justifyContent = "left";
-                    const promise = SimpleAvatarComponentCache.appendTo(stat, app.createdBy, `Created by ${app.createdBy}`);
+                    const promise = SimpleAvatarComponentCache.appendTo(stat, app.createdBy, `Submitted by ${app.createdBy}`);
                     if (size > ContainerSize.SMALL) {
                         promise.then(wrapper => {
                             const div = divText(app.createdBy);
@@ -218,6 +212,8 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                             wrapper.append(div);
                             wrapper.style.display = "flex";
                         });
+                    } else {
+                        stat.style.justifyContent = "center";
                     }
                 });
 

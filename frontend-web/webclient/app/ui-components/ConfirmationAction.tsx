@@ -3,7 +3,7 @@ import {Button} from "@/ui-components/index";
 import {useCallback, useLayoutEffect, useRef} from "react";
 import {ButtonClass, ButtonProps} from "@/ui-components/Button";
 import Icon, {IconName} from "@/ui-components/Icon";
-import {doNothing} from "@/UtilityFunctions";
+import {doNothing, inDevEnvironment} from "@/UtilityFunctions";
 import {selectContrastColor, selectHoverColor, ThemeColor} from "@/ui-components/theme";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {divHtml} from "@/Utilities/HTMLUtilities";
@@ -261,6 +261,15 @@ const actionDelay = 1000;
 const holdToConfirmTime = 1000;
 const shakeDelta = 100;
 const tickRate = 50;
+const instantConfirmationKey = "instantConfirmation";
+
+function isInstantConfirmation(event?: unknown): boolean {
+    if (!inDevEnvironment()) return false;
+    if (typeof localStorage !== "undefined" && localStorage.getItem(instantConfirmationKey) === "true") return true;
+    if (!event || typeof event !== "object" || !("altKey" in event)) return false;
+    const {altKey, ctrlKey, shiftKey} = event as {altKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean};
+    return !!altKey && !!ctrlKey && !!shiftKey;
+}
 
 export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     actionText?: string,
@@ -317,13 +326,24 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         }
     }, [buttonRef.current]);
 
-    const start = useCallback(() => {
+    const start = useCallback((event?: React.MouseEvent<HTMLButtonElement> | React.TouchEvent<HTMLButtonElement>) => {
         const button = buttonRef.current;
         if (!button || disabledRef.current) return;
         if (button.classList.contains("process")) return;
         if (timeout.current !== -1) {
             clearTimeout(timeout.current);
             timeout.current = -1;
+        }
+
+        if (isInstantConfirmation(event)) {
+            wasReset.current = true;
+            timer.current = holdToConfirmTime;
+            startedMap[tempStartedKey] = false;
+            button.classList.add("success");
+            window.setTimeout(() => {
+                if (props.onAction) props.onAction(props.actionKey);
+            }, 0);
+            return;
         }
 
         if (button.classList.contains("success")) {
@@ -335,7 +355,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         button.classList.add("process");
         startedMap[tempStartedKey] = true;
         timeout.current = window.setTimeout(success, tickRate);
-    }, [buttonRef.current, success]);
+    }, [buttonRef.current, success, props.onAction, props.actionKey]);
 
     const end = useCallback(() => {
         const button = buttonRef.current;
@@ -459,6 +479,7 @@ export function ConfirmationButtonPlainHTML(
         button.setAttribute("data-no-text", (!actionText).toString());
         button.setAttribute("data-no-icon", (!icon).toString());
         button.setAttribute("data-align", opts.align ?? (actionText && icon ? "left" : "center"));
+        button.setAttribute("data-tag", "confirm-button");
         button.setAttribute("data-attached", "false");
         button.setAttribute("data-square", (!!opts.asSquare).toString());
         button.setAttribute("data-fullwidth", "false");
@@ -506,11 +527,19 @@ export function ConfirmationButtonPlainHTML(
         startedMap[TEMP_STARTED_KEY] = false;
     }
 
-    function start() {
+    function start(event?: MouseEvent | TouchEvent) {
         if (button.classList.contains("process")) return;
         if (timeout.id !== -1) {
             window.clearTimeout(timeout.id);
             timeout.id = -1;
+        }
+
+        if (isInstantConfirmation(event)) {
+            timer.time = holdToConfirmTime;
+            startedMap[TEMP_STARTED_KEY] = false;
+            button.classList.add("success");
+            window.setTimeout(() => action(), 0);
+            return;
         }
 
         button.classList.remove("success");

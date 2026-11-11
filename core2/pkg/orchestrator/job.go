@@ -1102,6 +1102,10 @@ func JobsExtendBulk(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobsExten
 			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", item.JobId)
 		}
 
+		if resc.Status.State.IsFinal() {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusConflict, "the job has already stopped and can no longer be extended (%v)", item.JobId)
+		}
+
 		app := resc.Status.ResolvedApplication
 		if !app.Present || !app.Value.Invocation.Tool.Tool.Present {
 			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusBadRequest, "the job application is unavailable")

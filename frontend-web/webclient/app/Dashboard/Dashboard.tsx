@@ -1,7 +1,7 @@
 import {MainContainer} from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
 import * as React from "react";
-import {Box, Button, Flex, Icon, Image, Link, Markdown, Text} from "@/ui-components";
+import {Box, Button, Flex, Icon, Image, Link, Markdown, Text, Truncate} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {APICallState, useCloudAPI} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
@@ -15,7 +15,7 @@ import {Connect} from "@/Providers/Connect";
 import {useProject} from "@/Project/cache";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import AppRoutes from "@/Routes";
-import {classConcat, injectStyle} from "@/Unstyled";
+import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
 import JobsBrowse from "@/Applications/Jobs/JobsBrowse";
 import {GrantApplicationBrowse} from "@/Grants/GrantApplicationBrowse";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
@@ -379,12 +379,10 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): React.Reac
                     )}
                     {!newsItem ? null :
                         <Box key={newsItem.id} mb={32}>
-                            <Spacer
-                                left={<Heading.h5>{newsItem.subtitle}</Heading.h5>}
-                                right={
-                                    <Heading.h5>{dateToString(newsItem.showFrom)}</Heading.h5>
-                                }
-                            />
+                            <div className={NewSubtitleAndDate.class}>
+                                <Truncate title={newsItem.subtitle} maxWidth={1}>{newsItem.subtitle}</Truncate>
+                                <Truncate>{dateToString(newsItem.showFrom)}</Truncate>
+                            </div>
 
                             <Box maxHeight={240} overflow={"auto"} pr={16}>
                                 <Markdown
@@ -433,6 +431,8 @@ function LinkBlock(props: {href?: string; children: React.ReactNode}) {
     </ExternalLink>;
 }
 
+const NewSubtitleAndDate = makeClassName("news-subtitle-and-date");
+
 const NewsClass = injectStyle("with-graphic", k => `
     ${k} {
         display: flex;
@@ -469,7 +469,13 @@ const NewsClass = injectStyle("with-graphic", k => `
         margin-bottom: 10px;
     }
 
-@media screen and (max-width: 1000px) {
+    ${k} ${NewSubtitleAndDate.dot} {
+        display: flex;
+        justify-content: space-between;
+    }
+
+
+@media (max-width: 1000px) {
     ${k} > img {
         display: none;
         width: 0px;
@@ -477,6 +483,12 @@ const NewsClass = injectStyle("with-graphic", k => `
 
     ${k} > div {
         width: 100%;
+    }
+}
+
+@media (max-width: 650px) {
+    ${k} ${NewSubtitleAndDate.dot} {
+        display: block;
     }
 }
 `);

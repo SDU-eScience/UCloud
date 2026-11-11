@@ -740,13 +740,18 @@ func retrieveProducts() []orc.FSSupport {
 }
 
 func loadStorageProducts() {
+	billingUnit := shared.ServiceConfig.FileSystem.BillingUnit
+	if billingUnit == "" {
+		billingUnit = cfg.BillingUnitGb
+	}
+
 	pc := apm.ProductCategory{
 		Name:        shared.ServiceConfig.FileSystem.Name,
 		Provider:    cfg.Provider.Id,
 		ProductType: apm.ProductTypeStorage,
 		AccountingUnit: apm.AccountingUnit{
-			Name:                   "GB",
-			NamePlural:             "GB",
+			Name:                   billingUnit,
+			NamePlural:             billingUnit,
 			FloatingPoint:          false,
 			DisplayFrequencySuffix: false,
 		},

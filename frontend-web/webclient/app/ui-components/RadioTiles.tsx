@@ -41,7 +41,7 @@ function RadioTile({labeled = true, ...props}: RadioTileProps): React.ReactNode 
 
             <div className={RadioTileIconClass}>
                 <Icon name={icon} color2={checked ? "textSecondary" : "primaryContrastAlt"} size={labeled ? "65%" : "85%"} />
-                <label htmlFor={label}>
+                <label htmlFor={id}>
                     {labeled ? label : undefined}
                 </label>
             </div>

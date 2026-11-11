@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	apm "ucloud.dk/shared/pkg/accounting"
@@ -23,6 +24,16 @@ import (
 
 //go:embed config/k8s/config.yaml
 var k8sProviderConfig []byte
+
+//go:embed config/k8s/config.ci.yaml
+var k8sProviderConfigCi []byte
+
+func k8sProviderConfigData() []byte {
+	if os.Getenv("UCLOUD_LAUNCHER_PROFILE") == "ci" {
+		return k8sProviderConfigCi
+	}
+	return k8sProviderConfig
+}
 
 //go:embed config/k8s/init.sh
 var k8sInitScript []byte
@@ -56,9 +67,21 @@ func ProviderK8s() {
 	imConfig := AddDirectory(provider, "config")
 	logDir := AddDirectory(provider, "logs")
 	k3sRegistriesConfig := ""
+	k3sResolvConf := ""
 	if provider.Enabled() {
 		k3sRegistriesConfig = filepath.Join(imConfig, "registries.yaml")
 		_ = os.WriteFile(k3sRegistriesConfig, k8sRegistriesConfig, 0644)
+
+		k3sResolvConf = filepath.Join(imConfig, "resolv.conf")
+		var resolvConf strings.Builder
+		for _, address := range ComposeHostDnsServers() {
+			resolvConf.WriteString("nameserver " + address + "\n")
+		}
+		if resolvConf.Len() == 0 {
+			k3sResolvConf = ""
+		} else {
+			_ = os.WriteFile(k3sResolvConf, []byte(resolvConf.String()), 0644)
+		}
 	}
 
 	volumes := []string{
@@ -222,7 +245,7 @@ func ProviderK8s() {
 				return err
 			}
 
-			providerConfig := bytes.Replace(k8sProviderConfig, []byte("<registry-auth-shared-secret>"), []byte(util.SecureToken()), 1)
+			providerConfig := bytes.Replace(k8sProviderConfigData(), []byte("<registry-auth-shared-secret>"), []byte(util.SecureToken()), 1)
 			providerConfig = bytes.Replace(providerConfig, []byte("<registry-shared-secret>"), []byte(util.SecureToken()), 1)
 			err = os.WriteFile(filepath.Join(imConfig, "config.yaml"), providerConfig, 0660)
 			if err != nil {
@@ -280,6 +303,10 @@ func ProviderK8s() {
 
 		restoreNodeState := `if [ -f /etc/ucloud/kube_ovn_node_init.sh ]; then sh /etc/ucloud/kube_ovn_node_init.sh boot; else mount --make-rshared / && mount --make-rshared /run && mount --make-rshared /var/run; mount --make-rshared /sys; fi; exec /bin/k3s "$@"`
 
+		k3sEnv := []string{
+			"K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml",
+			"K3S_KUBECONFIG_MODE=666",
+		}
 		k3sVolumes := []string{
 			Mount(k3sOutput, "/output"),
 			Mount(data, "/var/lib/rancher/k3s"),
@@ -297,20 +324,22 @@ func ProviderK8s() {
 			k3sVolumes = append(k3sVolumes, Mount(integratedApps, "/opt/integrated-applications"))
 		}
 
+		if k3sResolvConf != "" {
+			k3sEnv = append(k3sEnv, "K3S_RESOLV_CONF=/etc/k3s-resolv.conf")
+			k3sVolumes = append(k3sVolumes, Mount(k3sResolvConf, "/etc/k3s-resolv.conf"))
+		}
+
 		AddService(k3s, DockerComposeService{
-			Image:    "rancher/k3s:v1.35.2-k3s1",
-			Hostname: "im2k3",
-			Restart:  "always",
-			Environment: []string{
-				"K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml",
-				"K3S_KUBECONFIG_MODE=666",
-			},
-			Privileged: true,
-			Tmpfs:      []string{"/run", "/var/run"},
-			Entrypoint: []string{"sh", "-ec", restoreNodeState, "--"},
-			Command:    []string{"server", "--disable=traefik", "--flannel-backend=none", "--disable-kube-proxy"},
-			Volumes:    k3sVolumes,
-			Networks:   pinnedNetwork("172.18.0.7"),
+			Image:       "rancher/k3s:v1.35.2-k3s1",
+			Hostname:    "im2k3",
+			Restart:     "always",
+			Environment: k3sEnv,
+			Privileged:  true,
+			Tmpfs:       []string{"/run", "/var/run"},
+			Entrypoint:  []string{"sh", "-ec", restoreNodeState, "--"},
+			Command:     []string{"server", "--disable=traefik", "--flannel-backend=none", "--disable-kube-proxy"},
+			Volumes:     k3sVolumes,
+			Networks:    pinnedNetwork("172.18.0.7"),
 		})
 	}
 
@@ -323,10 +352,10 @@ func ProviderK8s() {
 			Feature:  FeatureProviderK8s,
 		}
 
-		data := AddVolume(postgres, "data")
+		data := AddVolume(postgres, PostgresVolumeSuffix)
 
 		AddService(postgres, DockerComposeService{
-			Image:       "postgres:17.0",
+			Image:       PostgresImage,
 			Hostname:    "k8s-postgres",
 			Restart:     "always",
 			Environment: []string{"POSTGRES_PASSWORD=postgrespassword"},

@@ -17,7 +17,7 @@ test("Login using password, logout", async ({page}) => {
 });
 
 test("While logged in, ensure docs link works", async ({page}) => {
-    await User.login(page, user);
+    await User.loginDirect(page, user);
     await Components.toggleUserMenu(page);
     const ucloudDocsPagePromise = page.waitForEvent("popup");
     await page.locator("div").filter({hasText: /(UCloud docs|Docs)$/}).click();
@@ -28,7 +28,7 @@ test("While logged in, ensure docs link works", async ({page}) => {
 });
 
 test("Ensure data protection link works", async ({page}) => {
-    await User.login(page, user);
+    await User.loginDirect(page, user);
     await Components.toggleUserMenu(page);
     const dataProtectionPagePromise = page.waitForEvent("popup");
     await page.getByText("SDU Data Protection").click();
@@ -52,13 +52,4 @@ test("Help button on login page", async ({page}) => {
     await User.toLoginPage(page);
     await page.locator("svg[data-component=icon-suggestion]").click();
     await expect(page.getByText("Need help?")).toBeVisible();
-});
-
-// Maybe useless. Do we have a default news story on local backends? // haha, no
-test.skip("News entry links to working entry", async ({page}) => {
-    await User.login(page, user);
-    await page.locator("a[href^='/app/news/detailed/']").click();
-    // If we have no default, then change to `toHaveCount(1)` instead.
-    await expect(page.getByText("News post not found")).toHaveCount(0);
-    // I did try adding testing if clicking tags work, but at that point, it seemed like I was testing whether link-tags works.
 });

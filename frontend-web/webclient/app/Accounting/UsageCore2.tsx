@@ -371,12 +371,13 @@ const UsagePage: React.FunctionComponent = () => {
         if (r == null) return value.toString();
 
         const unit = explainUnitEx(r.unitAndFrequency.unit, r.unitAndFrequency.frequency, null);
+        const defaultReference = unit.productType === "STORAGE" ? undefined : 1000;
         const balanceToString = (balance: number): string => {
             const normalizedBalance = balance * unit.balanceFactor;
             return balanceToStringFromUnit(null,
                 unit.name,
                 normalizedBalance,
-                {referenceBalance: 1000, removeUnitIfPossible: true});
+                {referenceBalance: defaultReference, removeUnitIfPossible: true});
         };
 
         return balanceToString(value);
@@ -543,8 +544,9 @@ const UsagePage: React.FunctionComponent = () => {
         const unit = explainUnitEx(r.unitAndFrequency.unit, r.unitAndFrequency.frequency, null);
         const balanceToString = (balance: number, remove?: boolean, reference?: number): string => {
             const normalizedBalance = balance * unit.balanceFactor;
+            const defaultReference = unit.productType === "STORAGE" ? undefined : 1000;
             return balanceToStringFromUnit(null, unit.name, normalizedBalance, {
-                referenceBalance: reference ?? 1000,
+                referenceBalance: reference ?? defaultReference,
                 removeUnitIfPossible: remove
             });
         };

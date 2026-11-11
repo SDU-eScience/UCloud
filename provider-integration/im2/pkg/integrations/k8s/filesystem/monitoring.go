@@ -194,10 +194,9 @@ func scanDrive(drive orc.Drive) {
 	if ctx.Err() != nil {
 		return
 	}
-	// NOTE(Dan): There are no configuration options on the product at the moment to change this to anything else.
-	sizeInGb := sizeToReport / 1000000000
+	sizeToReport = sizeToReport / ctrl.ProductCategoryAccountingUnitBytes(drive.Specification.Product.Category)
 
-	reportUsedStorage(drive, sizeInGb)
+	reportUsedStorage(drive, sizeToReport)
 
 	ctrl.DriveUpdateScannedAt(drive.Id)
 
@@ -206,15 +205,15 @@ func scanDrive(drive orc.Drive) {
 	}
 }
 
-func reportUsedStorage(drive orc.Drive, sizeInGb int64) {
-	request := storageUsageRequest(drive, sizeInGb)
+func reportUsedStorage(drive orc.Drive, size int64) {
+	request := storageUsageRequest(drive, size)
 	util.RetryOrPanic("report storage", func() (util.Empty, error) {
 		_, err := apm.ReportUsage.Invoke(request)
 		return util.EmptyValue, err.AsError()
 	})
 }
 
-func storageUsageRequest(drive orc.Drive, sizeInGb int64) fnd.BulkRequest[apm.ReportUsageRequest] {
+func storageUsageRequest(drive orc.Drive, size int64) fnd.BulkRequest[apm.ReportUsageRequest] {
 	return fnd.BulkRequest[apm.ReportUsageRequest]{
 		Items: []apm.ReportUsageRequest{
 			{
@@ -224,7 +223,7 @@ func storageUsageRequest(drive orc.Drive, sizeInGb int64) fnd.BulkRequest[apm.Re
 					Name:     drive.Specification.Product.Category,
 					Provider: config.Provider.Id,
 				},
-				Usage: sizeInGb,
+				Usage: size,
 				Description: apm.ChargeDescription{
 					Scope: util.OptValue(fmt.Sprintf("drive-%v-%v", config.Provider.Id, drive.Id)),
 				},

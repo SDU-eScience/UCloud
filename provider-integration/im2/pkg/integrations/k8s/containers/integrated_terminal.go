@@ -29,13 +29,17 @@ func initIntegratedTerminal() {
 		return integratedTerminalDimensions
 	})
 
-	group, err := orc.AppsFindGroupByApplication.Invoke(orc.AppCatalogFindGroupByApplicationRequest{
-		AppName: "terminal-ubuntu",
-	})
-	if err == nil {
-		apps := group.Status.Applications
-		if len(apps) > 0 {
-			integratedTerminalImage = apps[len(apps)-1].Invocation.Tool.Tool.Value.Description.Image
+	if ServiceConfig.Compute.IntegratedTerminal.Image.Present {
+		integratedTerminalImage = ServiceConfig.Compute.IntegratedTerminal.Image.Value
+	} else {
+		group, err := orc.AppsFindGroupByApplication.Invoke(orc.AppCatalogFindGroupByApplicationRequest{
+			AppName: "terminal-ubuntu",
+		})
+		if err == nil {
+			apps := group.Status.Applications
+			if len(apps) > 0 {
+				integratedTerminalImage = apps[len(apps)-1].Invocation.Tool.Tool.Value.Description.Image
+			}
 		}
 	}
 

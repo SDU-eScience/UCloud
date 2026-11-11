@@ -61,7 +61,7 @@ export const SshWidget: React.FunctionComponent<{
             onMouseLeave={() => setTooltipOpen(false)}
             onBlur={() => setTooltipOpen(false)}
         >
-            <Select disabled={disabled} value={(sshMode === "MANDATORY" || sshEnabled).toString()}
+            <Select aria-label="SSH access" disabled={disabled} value={(sshMode === "MANDATORY" || sshEnabled).toString()}
                 onChange={event => setSshEnabled(event.target.value === "true")}>
                 <option value="true">Enabled</option>
                 <option value="false">Disabled</option>

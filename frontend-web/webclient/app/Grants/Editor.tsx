@@ -767,18 +767,18 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             if (!section) continue;
 
             for (const category of section) {
-                const {balanceFactor} = Accounting.explainUnit(category.category);
                 if (request.category !== category.category.name) continue;
 
-                let alreadyThere = [...category.allocators.values()].find(allocator => allocator.grantGiverId === request.grantGiver && allocator.grantGiverTitle === request.grantGiverTitle)
+                const alreadyThere = [...category.allocators.values()].find(allocator => allocator.grantGiverId === request.grantGiver && allocator.grantGiverTitle === request.grantGiverTitle)
+                const inputValue = Accounting.allocationInputValue(category.category, request.balanceRequested);
                 if (alreadyThere) {
-                    category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * balanceFactor;
+                    category.totalBalanceRequested[request.grantGiver] = inputValue;
                 } else {
                     category.allocators.add({
                         grantGiverId: request.grantGiver,
                         grantGiverTitle: request.grantGiverTitle ?? ""
                     });
-                    category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * balanceFactor;
+                    category.totalBalanceRequested[request.grantGiver] = inputValue;
                 }
             }
         }
@@ -2278,9 +2278,7 @@ export function Editor(): React.ReactNode {
                                                 showDescriptionInEditMode={!!showDescriptions || (isInference && isEditingOrCreating)}
                                             >
                                                 {checkedAllocators.map(allocator => {
-                                                    const unit = Accounting.explainUnit(category.category);
-                                                    // Unused?
-                                                    const freq = category.category.accountingFrequency;
+                                                    const inputUnit = Accounting.allocationInputUnit(category.category);
                                                     const errorMessage = category.error?.allocator === allocator.grantGiverId ?
                                                         category.error?.message : undefined;
 
@@ -2290,7 +2288,7 @@ export function Editor(): React.ReactNode {
                                                         return <React.Fragment key={allocator.grantGiverId}>
                                                             <div className={"allocation-row"}>
                                                                 <Label>
-                                                                    {unit.name} requested
+                                                                    {inputUnit.name} requested
                                                                     {checkedAllocators.length > 1 &&
                                                                         <> from <ProjectTitleForNewCore id={allocator.grantGiverId} title={allocator.grantGiverTitle} /></>
                                                                     }
@@ -2314,7 +2312,7 @@ export function Editor(): React.ReactNode {
                                                         return <React.Fragment key={allocator.grantGiverId}>
                                                             <div className={"allocation-row"}>
                                                                 <Label>
-                                                                    {unit.name} requested
+                                                                    {inputUnit.name} requested
                                                                     {checkedAllocators.length > 1 && <> from <ProjectTitleForNewCore id={allocator!.grantGiverId} title={allocatorName} /></>}
 
                                                                     <Input error={state.unrequestedAllocators.has(allocator.grantGiverId)}
@@ -2821,12 +2819,7 @@ const ApplicationHistory: React.FunctionComponent<{state: EditorState}> = ({stat
                                                 <Flex flexDirection={"column"} gap={"8px"} key={providerId}>
                                                     {sortedCategories.map(([categoryName, request]) => {
                                                         const category = categoryByProviderAndName.get(`${providerId}/${categoryName}`);
-                                                        const unit = category ? Accounting.explainUnit(category) : null;
                                                         const categoryIcon = category ? Accounting.productTypeToIcon(category.productType) : null;
-
-                                                        const normalizedAmount = unit
-                                                            ? request.balanceRequested * unit.balanceFactor
-                                                            : request.balanceRequested;
 
                                                         return (
                                                             <Flex key={`${app.id}/${providerId}/${categoryName}`} justifyContent={"space-between"}>
@@ -2837,8 +2830,7 @@ const ApplicationHistory: React.FunctionComponent<{state: EditorState}> = ({stat
                                                                 </Flex>
 
                                                                 <div>
-                                                                    {formatAmount(normalizedAmount, unit?.name)}
-                                                                    {unit ? ` ${unit.name}` : ""}
+                                                                    {category ? Accounting.balanceToString(category, request.balanceRequested) : formatAmount(request.balanceRequested, undefined)}
                                                                 </div>
                                                             </Flex>
                                                         );
@@ -3102,7 +3094,7 @@ function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
                     provider: pc.provider,
                     balanceRequested: Accounting.isCreditUnit(explanation.name)
                         ? Accounting.normalizedBalanceToRaw(pc, amount)
-                        : Math.ceil(amount * explanation.invBalanceFactor),
+                        : Accounting.allocationInputToRaw(pc, amount),
                     grantGiver: allocator,
                     period,
                 });

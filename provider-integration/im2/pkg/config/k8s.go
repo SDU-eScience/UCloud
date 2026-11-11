@@ -49,6 +49,7 @@ type KubernetesFileSystem struct {
 	MountPoint       string
 	TrashStagingArea string
 	ClaimName        string
+	BillingUnit      string
 	ScanMethod       KubernetesFileSystemScanMethod
 	MetadataCatalog  KubernetesMetadataCatalog
 }
@@ -73,6 +74,16 @@ const (
 	K8sScanMethodTypeExtendedAttribute K8sScanMethodType = "Xattr"
 	K8sScanMethodTypeDevFile           K8sScanMethodType = "Development"
 )
+
+const (
+	BillingUnitGb    = "GB"
+	BillingUnitBytes = "B"
+)
+
+var BillingUnitValues = []string{
+	BillingUnitGb,
+	BillingUnitBytes,
+}
 
 var K8sScanMethodTypeValues = []K8sScanMethodType{
 	K8sScanMethodTypeWalk,
@@ -161,6 +172,7 @@ var KubernetesVmVolModeOptions = []KubernetesVmVolMode{
 
 type KubernetesIntegratedTerminal struct {
 	Enabled bool
+	Image   util.Option[string]
 }
 
 type KubernetesSshConfiguration struct {
@@ -234,6 +246,7 @@ type KubernetesCompute struct {
 	MachineImpersonation            map[string]string
 	AllowedRegistries               []string
 	EstimatedContainerDownloadSpeed float64 // MB/s
+	AccountingIntervalSeconds       int
 	Namespace                       string
 	TaskNamespace                   string
 	TaskNodeSelector                map[string]string
@@ -410,6 +423,13 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		cfg.FileSystem.TrashStagingArea = cfgutil.RequireChildFolder(filePath, fsNode, "trashStagingArea", cfgutil.FileCheckReadWrite, &success)
 		cfg.FileSystem.ClaimName = cfgutil.RequireChildText(filePath, fsNode, "claimName", &success)
 
+		billingUnit, billingUnitPresent := cfgutil.OptionalChildEnum(filePath, fsNode, "billingUnit", BillingUnitValues, &success)
+		if billingUnitPresent {
+			cfg.FileSystem.BillingUnit = billingUnit
+		} else {
+			cfg.FileSystem.BillingUnit = BillingUnitGb
+		}
+
 		scanMethodNode, _ := cfgutil.GetChildOrNil(filePath, fsNode, "scanMethod")
 		if scanMethodNode != nil {
 			cfg.FileSystem.ScanMethod.Type = cfgutil.RequireChildEnum(filePath, scanMethodNode, "type",
@@ -473,6 +493,14 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			}
 		}
 	}
+	cfg.Compute.AccountingIntervalSeconds = int(cfgutil.OptionalChildInt(
+		filePath, computeNode, "accountingIntervalSeconds", &success,
+	).GetOrDefault(30))
+	if cfg.Compute.AccountingIntervalSeconds < 1 {
+		cfgutil.ReportError(filePath, computeNode, "accountingIntervalSeconds must be at least 1")
+		success = false
+	}
+
 	cfg.Compute.Namespace = cfgutil.OptionalChildText(filePath, services, "namespace", &success)
 	if cfg.Compute.Namespace == "" {
 		cfg.Compute.Namespace = "ucloud-apps"
@@ -1107,6 +1135,10 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 	if integratedTerminalNode != nil {
 		enabled, ok := cfgutil.OptionalChildBool(filePath, integratedTerminalNode, "enabled")
 		cfg.Compute.IntegratedTerminal.Enabled = enabled && ok
+		image := cfgutil.OptionalChildText(filePath, integratedTerminalNode, "image", &success)
+		if image != "" {
+			cfg.Compute.IntegratedTerminal.Image.Set(image)
+		}
 	}
 
 	vmNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "virtualMachines")

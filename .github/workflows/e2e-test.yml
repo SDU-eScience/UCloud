@@ -9,28 +9,42 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: e2e-test
+  cancel-in-progress: false
+
 jobs:
   test:
     name: Run launcher tests
     runs-on: self-hosted
-    timeout-minutes: 60
+    timeout-minutes: 150
 
     steps:
       - name: Reset runner
         shell: bash
         run: |
-          containers="$(docker ps -aq)"
-          if [ -n "$containers" ]; then
-            docker rm -f $containers
+          set -euo pipefail
+          sudo modprobe br_netfilter
+          sudo sysctl -w net.bridge.bridge-nf-call-iptables=1
+          if [ -f "$GITHUB_WORKSPACE/.compose/docker-compose.yaml" ]; then
+            docker compose --project-name compose --project-directory "$GITHUB_WORKSPACE/.compose" down -v --remove-orphans
           fi
-          docker system prune --all --volumes --force
+          docker ps -aq --filter label=com.docker.compose.project=compose | xargs -r docker rm -f
+          docker volume ls -q --filter label=com.docker.compose.project=compose | xargs -r docker volume rm -f
+          docker network ls -q --filter label=com.docker.compose.project=compose | xargs -r docker network rm || true
+          available_kb="$(df -Pk "$GITHUB_WORKSPACE" | awk 'NR == 2 { print $4 }')"
+          if [ -n "$available_kb" ] && [ "$available_kb" -lt 20971520 ]; then
+            docker image prune --all --force
+            docker builder prune --all --force
+          fi
+          docker image prune --force
           sudo rm -rf "$GITHUB_WORKSPACE/.compose"
           sudo chown -R "$USER:$USER" "$GITHUB_WORKSPACE"
 
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           clean: 'true'
 
       - name: Verify toolchain
@@ -39,31 +53,55 @@ jobs:
           node --version
           npm --version
           docker --version
+          docker compose version
+
+      - name: Install frontend dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd frontend-web/webclient
+          npm ci
 
       - name: Run init-test
         shell: bash
+        timeout-minutes: 30
         run: |
           set -euo pipefail
           export UCLOUD_GO_CACHE_DIR=$HOME/go-cache
+          export UCLOUD_LAUNCHER_PROFILE=ci
           ./launcher init-test
 
-      - name: Remove unused docker resources
+      - name: Remove dangling docker images
         shell: bash
         run: |
-          docker system prune --all --volumes --force
+          docker image prune --force
 
       - name: Run test
         shell: bash
+        timeout-minutes: 90
         run: |
           set -euo pipefail
-          export UCLOUD_GO_CACHE_DIR=$HOME/go-cache 
+          export UCLOUD_GO_CACHE_DIR=$HOME/go-cache
+          export UCLOUD_LAUNCHER_PROFILE=ci
           ./launcher test
+
+      - name: Collect frontend logs
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --project-name compose --project-directory "$GITHUB_WORKSPACE/.compose" logs frontend > "$GITHUB_WORKSPACE/.compose/frontend.log" || true
 
       - name: Fix log permissions
         if: always()
+        shell: bash
         run: |
-          sudo chown -R $USER:$USER .compose/*-logs
-          sudo chown -R $USER:$USER .compose/k8s-storage/home/*
+          shopt -s nullglob
+          for path in .compose/*-logs .compose/k8s-storage/home; do
+            if [ -e "$path" ]; then
+              sudo chown -R "$USER:$USER" "$path"
+            fi
+          done
 
       - name: Upload test artifacts
         if: always()
@@ -80,21 +118,25 @@ jobs:
         with:
           name: test-logs-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
+            .compose/frontend.log
             .compose/k8s-logs/*
             .compose/core-logs/*
             .compose/slurm-logs/*
             .compose/k8s-storage/home/*
           if-no-files-found: warn
           retention-days: 14
-          
+
       - name: Reset runner
         if: always()
         shell: bash
         run: |
-          containers="$(docker ps -aq)"
-          if [ -n "$containers" ]; then
-            docker rm -f $containers
+          set -euo pipefail
+          if [ -f "$GITHUB_WORKSPACE/.compose/docker-compose.yaml" ]; then
+            docker compose --project-name compose --project-directory "$GITHUB_WORKSPACE/.compose" down -v --remove-orphans
           fi
-          docker system prune --all --volumes --force
+          docker ps -aq --filter label=com.docker.compose.project=compose | xargs -r docker rm -f
+          docker volume ls -q --filter label=com.docker.compose.project=compose | xargs -r docker volume rm -f
+          docker network ls -q --filter label=com.docker.compose.project=compose | xargs -r docker network rm || true
+          docker image prune --force
           sudo rm -rf "$GITHUB_WORKSPACE/.compose"
           sudo chown -R "$USER:$USER" "$GITHUB_WORKSPACE"

@@ -453,8 +453,8 @@ func grantsCanApply(actor rpc.Actor, recipient accapi.Recipient, grantGiver stri
 		sWrapper.Mu.RUnlock()
 	}
 
-	// A user is _always_ allowed to apply to a parent, regardless of settings
-	if !allowed && walletOwner != "" {
+	// An existing project is _always_ allowed to apply to a parent, regardless of settings
+	if !allowed && recipient.Type == accapi.RecipientTypeExistingProject && walletOwner != "" {
 		wallets := internalRetrieveWallets(time.Now(), walletOwner, walletFilter{})
 
 	outer:

@@ -620,12 +620,14 @@ var MachineResourceTypeOptions = []MachineResourceType{
 type PaymentInterval string
 
 const (
+	PaymentIntervalSecondly PaymentInterval = "Secondly"
 	PaymentIntervalMinutely PaymentInterval = "Minutely"
 	PaymentIntervalHourly   PaymentInterval = "Hourly"
 	PaymentIntervalDaily    PaymentInterval = "Daily"
 )
 
 var PaymentIntervalOptions = []PaymentInterval{
+	PaymentIntervalSecondly,
 	PaymentIntervalMinutely,
 	PaymentIntervalHourly,
 	PaymentIntervalDaily,

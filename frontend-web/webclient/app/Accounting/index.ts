@@ -228,12 +228,14 @@ export interface AccountingUnit {
     displayFrequencySuffix: boolean;
 }
 
-export type AccountingFrequency = "ONCE" | "PERIODIC_MINUTE" | "PERIODIC_HOUR" | "PERIODIC_DAY";
+export type AccountingFrequency = "ONCE" | "PERIODIC_SECOND" | "PERIODIC_MINUTE" | "PERIODIC_HOUR" | "PERIODIC_DAY";
 
 export function frequencyToMillis(frequency: AccountingFrequency): number {
     switch (frequency) {
         case "ONCE":
             return 1;
+        case "PERIODIC_SECOND":
+            return 1000;
         case "PERIODIC_MINUTE":
             return 1000 * 60;
         case "PERIODIC_HOUR":
@@ -248,6 +250,8 @@ export function frequencyToSuffix(frequency: AccountingFrequency, plural: boolea
     switch (frequency) {
         case "ONCE":
             return null;
+        case "PERIODIC_SECOND":
+            return pluralize("second");
         case "PERIODIC_MINUTE":
             return pluralize("minute");
         case "PERIODIC_HOUR":
@@ -592,7 +596,7 @@ export function calculateProductCost(product: ProductV2, numberOfUnits: number, 
     return normalizedDuration * pricePerUnitPerFrequency * numberOfUnits * unit.balanceFactor * fractionMultiplier;
 }
 
-const StandardStorageUnitsSi = ["KB", "MB", "GB", "TB", "PB", "EB"];
+const StandardStorageUnitsSi = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
 const StandardStorageUnits = ["KiB", "MiB", "GiB", "TiB", "PiB", "EiB"];
 const DefaultUnits = ["K", "M", "B", "T"];
 const ProbablyCurrencies = ["DKK", "kr", "EUR", "€", "USD", "$"];
@@ -1236,6 +1240,39 @@ export function normalizedBalanceToRaw(
     return isCreditUnit(unit.name) ? Math.round(rawBalance) : rawBalance;
 }
 
+export interface AllocationInputUnit {
+    name: string;
+    rawUnitsPerInputUnit: number;
+}
+
+export function allocationInputUnit(category: ProductCategoryV2): AllocationInputUnit {
+    if (
+        category.productType === "STORAGE" &&
+        category.accountingFrequency === "ONCE" &&
+        category.accountingUnit.name === "B"
+    ) {
+        return {name: "GB", rawUnitsPerInputUnit: 1_000_000_000};
+    }
+
+    const unit = explainUnit(category);
+    return {name: unit.name, rawUnitsPerInputUnit: unit.invBalanceFactor};
+}
+
+export function allocationInputValue(category: ProductCategoryV2, rawValue: number): number {
+    const unit = allocationInputUnit(category);
+    return rawValue / unit.rawUnitsPerInputUnit;
+}
+
+export function allocationInputToRaw(category: ProductCategoryV2, inputValue: number): number {
+    const unit = explainUnit(category);
+    if (isCreditUnit(unit.name)) {
+        return Math.round(inputValue * unit.invBalanceFactor);
+    }
+
+    const input = allocationInputUnit(category);
+    return Math.ceil(inputValue * input.rawUnitsPerInputUnit);
+}
+
 export function truncateValues(
     normalizedBalances: number[],
     isStorage: boolean,
@@ -1257,7 +1294,7 @@ export function truncateValues(
         const array = storageUnitIdx !== -1 ? StandardStorageUnits : StandardStorageUnitsSi;
         let idx = storageUnitIdx !== -1 ? storageUnitIdx : storageUnitSiIdx;
 
-        while (balanceToDisplay > base && idx < array.length - 1) {
+        while (balanceToDisplay >= base && idx < array.length - 1) {
             balanceToDisplay /= base;
             for (let i = 0; i < truncated.length; i++) {
                 truncated[i] /= base;
@@ -1379,6 +1416,9 @@ export function balanceToStringFromUnit(
 }
 
 export function normalizeFrequency(frequency: AccountingFrequency): string {
+    if (frequency === "PERIODIC_SECOND") {
+        return "second(s)"
+    }
     if (frequency === "PERIODIC_MINUTE") {
         return "minute(s)"
     }

@@ -150,6 +150,9 @@ func AllowNetworkFromWorld(policy *networking.NetworkPolicy, proto []orc.PortRan
 	policy.Spec.Ingress = append(policy.Spec.Ingress, networking.NetworkPolicyIngressRule{
 		Ports: portEntries,
 		From: []networking.NetworkPolicyPeer{
+            {
+				NamespaceSelector: &metav1.LabelSelector{},
+			},
 			{
 				NamespaceSelector: &metav1.LabelSelector{},
 			},

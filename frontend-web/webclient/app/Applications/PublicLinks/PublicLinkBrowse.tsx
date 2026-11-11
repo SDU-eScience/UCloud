@@ -109,9 +109,10 @@ export function PublicLinkBrowse({
             new ResourceBrowser<PublicLink>(mount, RESOURCE_NAME, opts).init(browserRef, FEATURES, "", browser => {
                 browser.setColumns({[ContainerSize.LARGE]: [
                     {name: "Domain"},
-                    {name: "In use with", columnWidth: 250},
-                    {name: "", columnWidth: 0},
-                    {name: "", columnWidth: 0},
+                    {name: "In use with", columnWidth: 250}
+                ], [ContainerSize.TINY]: [
+                    {name: "Domain"},
+                    {name: "In use with", columnWidth: 150}
                 ]});
 
                 supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(PublicLinkApi));

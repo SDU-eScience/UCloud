@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"os"
+	"sync"
 
 	cfg "ucloud.dk/pkg/config"
 	apm "ucloud.dk/shared/pkg/accounting"
@@ -10,6 +11,43 @@ import (
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
+
+var productCategoriesMu sync.RWMutex
+var productCategories = map[string]apm.ProductCategory{}
+
+func productCategoryStore(category apm.ProductCategory) {
+	productCategoriesMu.Lock()
+	productCategories[category.Name] = category
+	productCategoriesMu.Unlock()
+}
+
+func ProductCategoryAccountingUnitBytes(name string) int64 {
+	productCategoriesMu.RLock()
+	category, ok := productCategories[name]
+	productCategoriesMu.RUnlock()
+	if !ok {
+		return 1_000_000_000
+	}
+
+	switch category.AccountingUnit.Name {
+	case "B":
+		return 1
+	case "KB":
+		return 1_000
+	case "MB":
+		return 1_000_000
+	case "GB":
+		return 1_000_000_000
+	case "TB":
+		return 1_000_000_000_000
+	case "PB":
+		return 1_000_000_000_000_000
+	case "EB":
+		return 1_000_000_000_000_000_000
+	default:
+		return 1_000_000_000
+	}
+}
 
 func ProductsRegister(products []apm.ProductV2) {
 	existingCategories := map[string]apm.ProductCategory{}
@@ -37,6 +75,7 @@ func ProductsRegister(products []apm.ProductV2) {
 			existingProducts[p.Category.Name] = category
 
 			existingCategories[p.Category.Name] = p.Category
+			productCategoryStore(p.Category)
 		}
 
 		if page.Next.IsEmpty() {
@@ -95,6 +134,8 @@ func ProductsRegister(products []apm.ProductV2) {
 				os.Exit(1)
 			}
 		}
+
+		productCategoryStore(newCategory)
 
 		var items []apm.ProductV2
 		for _, item := range catItems {

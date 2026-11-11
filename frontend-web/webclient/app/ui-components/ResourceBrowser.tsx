@@ -97,6 +97,7 @@ export interface Selection<T> {
     onClick(res: T): void;
     show(res: T): boolean | string;
     text: string;
+    buttonWidth?: string;
 }
 
 export interface EmbeddedSettings {
@@ -1250,7 +1251,7 @@ export class ResourceBrowser<T> {
     }
 
     public renderRows() {
-        const page = this.cachedData[this.currentPath] ?? [];
+        const page = this.canConsumeResources ? this.cachedData[this.currentPath] ?? [] : [];
         if (this.isSelected.length < page.length) {
             const newSelected = new Uint8Array(page.length);
             newSelected.set(this.isSelected, 0);
@@ -1297,8 +1298,6 @@ export class ResourceBrowser<T> {
 
         this.renameField.style.display = "none";
 
-        if (!this.canConsumeResources) return;
-
         const containerSize = containerSizeFromWidth(containerWidth);
 
         // Render the visible rows by iterating over all items
@@ -1325,7 +1324,7 @@ export class ResourceBrowser<T> {
                 x, y
             }));
 
-            for (let i = 1; i < 5; i++) {
+            for (let i = 1; i <= StatCount[containerSize]; i++) {
                 if (this.opts.columnTitles[i - 1] !== null) {
                     this.dispatchMessage(`renderStat${i}` as RenderStatOperation, fn => fn(entry, row[`stat${i}`], row, containerSize));
                 }
@@ -2923,6 +2922,7 @@ export class ResourceBrowser<T> {
         wrapper.style.cursor = "pointer";
         wrapper.style.marginRight = "24px";
         wrapper.style.userSelect = "none";
+        wrapper.style.whiteSpace = "nowrap";
 
         const icon = this.createFilterImg(filter.icon);
         icon.style.marginTop = "0";
@@ -2967,7 +2967,8 @@ export class ResourceBrowser<T> {
                 display: "flex",
                 cursor: "pointer",
                 marginRight: "24px",
-                userSelect: "none"
+                userSelect: "none",
+                whiteSpace: "nowrap",
             }
         });
 
@@ -3147,9 +3148,7 @@ export class ResourceBrowser<T> {
         const containerBounds = container.getBoundingClientRect();
         const rootBounds = this.root.getBoundingClientRect();
         const containerTop = containerBounds.top - rootBounds.top;
-        const containerLeft = containerBounds.left - rootBounds.left;
         const containerHeight = containerBounds.height;
-        const containerWidth = containerBounds.width;
         const e = this.emptyPageElement;
         e.container.style.display = "flex";
         e.container.style.position = "absolute";
@@ -3159,10 +3158,11 @@ export class ResourceBrowser<T> {
         const containerSize = 400;
         e.container.style.width = containerSize + "px";
         e.container.style.height = containerSize + "px";
-        e.container.style.left = (containerLeft + (containerWidth / 2) - (containerSize / 2)) + "px";
         e.container.style.top = (containerTop + (containerHeight / 2) - (containerSize / 2)) + "px";
         if (this.opts?.embedded || this.opts?.selector) {
             e.container.style.position = "unset";
+            e.container.style.left = "unset";
+            e.container.style.transform = "unset";
             e.container.style.marginLeft = "auto";
             e.container.style.marginRight = "auto";
         }
@@ -3183,10 +3183,7 @@ export class ResourceBrowser<T> {
         return c;
     }
 
-    private emptyIconName: IconName | null = null;
     public setEmptyIcon(icon: IconName) {
-        this.emptyIconName = icon;
-
         ResourceBrowser.icons.renderIcon({
             name: icon,
             color: "primaryContrast",
@@ -3211,7 +3208,11 @@ export class ResourceBrowser<T> {
         for (let i = 1; i < 5; i++) {
             const title = titles[i];
             if (title && "columnWidth" in title) {
-                this.root.style.setProperty(`--stat${i}Width`, title.columnWidth + "px");
+                if (this.opts.selection && StatCount[width] === i) {
+                    this.root.style.setProperty(`--stat${i}Width`, (this.opts.selection.buttonWidth ?? 120) + "px");
+                } else {
+                    this.root.style.setProperty(`--stat${i}Width`, title.columnWidth + "px");
+                }
             } else {
                 this.root.style.setProperty(`--stat${i}Width`, "0px");
             }
@@ -3222,7 +3223,6 @@ export class ResourceBrowser<T> {
     public renderColumnTitles() {
         const titleRow = this.root.querySelector(".row.rows-title");
         if (!titleRow) return;
-
 
         if (this.features.sorting) {
             const value = getFilterStorageValue(this.resourceName, SORT_DIRECTION);
@@ -3697,30 +3697,11 @@ export function favoriteRowIcon(row: ResourceBrowserRow) {
     return favoriteIcon;
 }
 
-function renderTiny<T>(entry: T, browser: ResourceBrowser<T>, row: ResourceBrowserRow, containerSize: ContainerSize): void {
-    browser.dispatchMessage("renderStat1", fn => fn(entry, row.stat1, row, containerSize));
-}
-
-function renderSmall<T>(entry: T, browser: ResourceBrowser<T>, row: ResourceBrowserRow, containerSize: ContainerSize): void {
-    renderTiny(entry, browser, row, containerSize);
-    browser.dispatchMessage("renderStat2", fn => fn(entry, row.stat2, row, containerSize));
-}
-
-function renderMedium<T>(entry: T, browser: ResourceBrowser<T>, row: ResourceBrowserRow, containerSize: ContainerSize): void {
-    renderSmall(entry, browser, row, containerSize);
-    browser.dispatchMessage("renderStat3", fn => fn(entry, row.stat3, row, containerSize));
-}
-
-function renderLarge<T>(entry: T, browser: ResourceBrowser<T>, row: ResourceBrowserRow, containerSize: ContainerSize): void {
-    renderMedium(entry, browser, row, containerSize);
-    browser.dispatchMessage("renderStat4", fn => fn(entry, row.stat4, row, containerSize));
-}
-
-const StatsRenderers = {
-    [ContainerSize.TINY]: renderTiny,
-    [ContainerSize.SMALL]: renderSmall,
-    [ContainerSize.MEDIUM]: renderMedium,
-    [ContainerSize.LARGE]: renderLarge,
+const StatCount = {
+    [ContainerSize.TINY]: 1,
+    [ContainerSize.SMALL]: 2,
+    [ContainerSize.MEDIUM]: 3,
+    [ContainerSize.LARGE]: 4,
 };
 
 function statFromContainerSize(row: ResourceBrowserRow, containerSize: ContainerSize): HTMLElement {
@@ -3736,7 +3717,7 @@ function statFromContainerSize(row: ResourceBrowserRow, containerSize: Container
     }
 }
 
-function titleStatFromContainerSize(size: ContainerSize, titles: Element) {
+function titleStatFromContainerSize(size: ContainerSize, titles: Element): HTMLDivElement {
     switch (size) {
         case ContainerSize.TINY:
             return titles.querySelector(".stat1") as HTMLDivElement;

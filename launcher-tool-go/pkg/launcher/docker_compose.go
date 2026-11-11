@@ -2,9 +2,47 @@ package launcher
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
+	"strings"
 )
+
+const ComposeProjectName = "compose"
+
+func ComposeHostDnsServers() []string {
+	var result []string
+	seen := map[string]bool{}
+
+	for _, path := range []string{"/run/systemd/resolve/resolv.conf", "/etc/resolv.conf"} {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+
+		for _, line := range strings.Split(string(content), "\n") {
+			fields := strings.Fields(line)
+			if len(fields) < 2 || fields[0] != "nameserver" {
+				continue
+			}
+
+			address := fields[1]
+			ip := net.ParseIP(address)
+			if ip == nil || ip.IsLoopback() || seen[address] {
+				continue
+			}
+
+			seen[address] = true
+			result = append(result, address)
+		}
+
+		if len(result) > 0 {
+			break
+		}
+	}
+
+	return result
+}
 
 func ComposeExec(title string, containerName string, command []string, opts ExecuteOptions) ExecuteResponse {
 	execCommand := ComposeExecCommand(containerName, command, false)
@@ -68,7 +106,29 @@ func ComposeBaseCommand() []string {
 	return []string{
 		"docker",
 		"compose",
+		"--project-name",
+		ComposeProjectName,
 		"--project-directory",
 		ComposeDir,
 	}
+}
+
+func ComposeDeleteProjectData() {
+	StreamingExecute(
+		"Deleting containers",
+		[]string{"sh", "-c", fmt.Sprintf("docker ps -aq --filter label=com.docker.compose.project=%s | xargs -r docker rm -f", ComposeProjectName)},
+		ExecuteOptions{},
+	)
+
+	StreamingExecute(
+		"Deleting volumes",
+		[]string{"sh", "-c", fmt.Sprintf("docker volume ls -q --filter label=com.docker.compose.project=%s | xargs -r docker volume rm -f", ComposeProjectName)},
+		ExecuteOptions{},
+	)
+
+	StreamingExecute(
+		"Deleting networks",
+		[]string{"sh", "-c", fmt.Sprintf("docker network ls -q --filter label=com.docker.compose.project=%s | xargs -r docker network rm", ComposeProjectName)},
+		ExecuteOptions{ContinueOnFailure: true},
+	)
 }

@@ -43,6 +43,24 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
         }
     };
 
+    const proxy = {
+        "/auth/": sharedProxySetting,
+        "/api/": sharedProxySetting,
+        "/ucloud/development/": {
+            // NOTE(Dan): This always attempts to go to the integration module
+            target: "http://integration-module:8889",
+            ws: true,
+            changeOrigin: true,
+
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+                "Access-Control-Allow-Headers": "X-Requested-With, content-type, Authorization"
+            }
+        },
+        "/ucloud/": sharedProxySetting,
+    };
+
     return defineConfig({
         clearScreen: false,
         build: {
@@ -64,8 +82,15 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
             alias: {
                 //@ts-ignore
                 "@": path.resolve(import.meta.dirname, "./app"),
-                "monaco-editor/esm/vs": "monaco-editor"
+                "monaco-editor/esm/vs": "monaco-editor",
+                "./dompurify/dompurify.js": path.resolve(import.meta.dirname, "./node_modules/dompurify/dist/purify.es.mjs")
             }
+        },
+        preview: {
+            allowedHosts: ["ucloud.localhost.direct", "localhost:9000", "frontend:9000"],
+            port: 9000,
+            host: "0.0.0.0",
+            proxy,
         },
         server: {
             allowedHosts: ["ucloud.localhost.direct", "localhost:9000"],
@@ -77,23 +102,7 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
                 allowedHeaders: ["X-Requested-With", "content-type", "Authorization"]
             },
             // Use regex instead? These all match.
-            proxy: {
-                "/auth/": sharedProxySetting,
-                "/api/": sharedProxySetting,
-                "/ucloud/development/": {
-                    // NOTE(Dan): This always attempts to go to the integration module
-                    target: "http://integration-module:8889",
-                    ws: true,
-                    changeOrigin: true,
-
-                    headers: {
-                        "Access-Control-Allow-Origin": "*",
-                        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-                        "Access-Control-Allow-Headers": "X-Requested-With, content-type, Authorization"
-                    }
-                },
-                "/ucloud/": sharedProxySetting,
-            },
+            proxy,
             watch: {
                 usePolling: true,
                 interval: 1000,
