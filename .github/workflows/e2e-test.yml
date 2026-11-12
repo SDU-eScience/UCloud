@@ -92,6 +92,17 @@ jobs:
           set -euo pipefail
           docker compose --project-name compose --project-directory "$GITHUB_WORKSPACE/.compose" logs frontend > "$GITHUB_WORKSPACE/.compose/frontend.log" || true
 
+      - name: Collect Kubernetes debug info
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p frontend-web/webclient/playwright-report/k8s-debug
+          docker exec compose-k3s-1 kubectl get pods -n ucloud-apps -o wide > frontend-web/webclient/playwright-report/k8s-debug/pods.txt || true
+          docker exec compose-k3s-1 kubectl get events -n ucloud-apps --sort-by=.lastTimestamp > frontend-web/webclient/playwright-report/k8s-debug/events.txt || true
+          docker exec compose-k3s-1 kubectl describe pods -n ucloud-apps > frontend-web/webclient/playwright-report/k8s-debug/describe.txt || true
+          docker logs --tail 4000 compose-k3s-1 > frontend-web/webclient/playwright-report/k8s-debug/k3s.log 2>&1 || true
+
       - name: Fix log permissions
         if: always()
         shell: bash
@@ -119,6 +130,7 @@ jobs:
           name: test-logs-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             .compose/frontend.log
+            .compose/k8s-*.txt
             .compose/k8s-logs/*
             .compose/core-logs/*
             .compose/slurm-logs/*

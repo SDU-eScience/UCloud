@@ -1417,9 +1417,20 @@ export const Runs = {
             await this.extendTimeBy(page, extension);
         }
 
-        await NetworkCalls.awaitResponse(page, "**/api/jobs", async () => {
-            await page.getByRole("button", {name: "Submit"}).click();
-        })
+        for (let attempt = 0; ; attempt++) {
+            const response = await NetworkCalls.awaitResponse(page, "**/api/jobs", async () => {
+                await page.getByRole("button", {name: "Submit"}).click();
+            });
+
+            if (response.ok()) break;
+
+            const reason = await response.text();
+            if (attempt >= 30 || !reason.includes("not ready yet")) {
+                throw new Error(`Failed to submit job: ${reason}`);
+            }
+
+            await page.waitForTimeout(1000);
+        }
 
         await page.waitForURL("**/app/jobs/properties/**", {timeout: 30_000});
 
@@ -1545,7 +1556,7 @@ export const Resources = {
         await this.actionByRowTitle(page, resourceName, "dblclick");
     },
 
-    async goTo(page: Page, resource: "Links" | "IP addresses" | "SSH keys" | "Licenses" | "Private networks") {
+    async goTo(page: Page, resource: "Links" | "IP addresses" | "SSH keys" | "Licenses" | "Networks") {
         await page.getByRole("link", {name: "Go to Resources"}).hover();
         await page.getByRole("link", {name: resource, exact: true}).click();
         await page.locator(`div[data-component="project-switcher"]`).first().waitFor();
@@ -1676,23 +1687,32 @@ export const Resources = {
         },
 
         async createPrivateNetwork(page: Page, name: string): Promise<void> {
-            await Resources.goTo(page, "Private networks");
-            await page.getByText("Create private network").click();
-            await page.getByPlaceholder("My private network").fill(name);
+            await Resources.goTo(page, "Networks");
+            await page.getByText("Create network").click();
+            await page.getByPlaceholder("My network").fill(name);
 
             if (await page.getByRole("dialog").getByText("No product selected").isVisible()) {
                 await page.getByRole("dialog").getByText("No product selected").click();
-                await page.getByRole("cell", {name: providerAndProducts.products_used_in_tests.private_network}).last().click();
+                await page.getByRole("cell", {name: "Ethernet network"}).last().click();
             }
 
 
-            await page.getByRole("dialog").getByRole("button", {name: "Create", exact: true}).click();
+            await NetworkCalls.awaitResponse(page, "**/api/networks", async () => {
+                await page.getByRole("dialog").getByRole("button", {name: "Create", exact: true}).click();
+            });
+
+            await expect.poll(async () => {
+                const result = await apiJson<{
+                    items: Array<{specification: {name: string}; status: {cidrBlock?: string | null;};}>;
+                }>(page, "GET", "/api/networks/browse?itemsPerPage=100");
+                return result.items.find(it => it.specification.name === name)?.status.cidrBlock ?? "";
+            }, {timeout: 60_000}).not.toBe("");
         },
 
         async delete(page: Page, name: string): Promise<void> {
-            await Resources.goTo(page, "Private networks");
+            await Resources.goTo(page, "Networks");
             await Rows.actionByRowTitle(page, name, "click");
-            await NetworkCalls.awaitResponse(page, "**/api/private-networks**", async () => {
+            await NetworkCalls.awaitResponse(page, "**/api/networks", async () => {
                 await Components.clickConfirmationButton(page, "Delete");
             });
         }
