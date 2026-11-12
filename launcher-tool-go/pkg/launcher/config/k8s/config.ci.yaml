@@ -74,6 +74,21 @@ services:
     publicIps:
       enabled: true
 
+    privateNetworks:
+      enabled: true
+      cidrPools:
+        - 100.100.0.0/16
+        - 172.31.0.0/16
+      defaultPrefixLen: 24
+      forbiddenCidrs:
+        - 10.42.0.0/16
+        - 10.43.0.0/16
+        - 100.64.0.0/16
+        - 172.17.0.0/16
+        - 172.18.0.0/16
+        - 172.19.0.0/16
+      maxNetworksPerJob: 4
+
     integratedTerminal:
       enabled: true
       image: dreg.cloud.sdu.dk/ucloud/test-app-ubuntu:24.04

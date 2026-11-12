@@ -1682,7 +1682,7 @@ export const Resources = {
 
             if (await page.getByRole("dialog").getByText("No product selected").isVisible()) {
                 await page.getByRole("dialog").getByText("No product selected").click();
-                await page.getByRole("cell", {name: providerAndProducts.products_used_in_tests.private_network}).last().click();
+                await page.getByRole("cell", {name: "Ethernet network"}).last().click();
             }
 
 
