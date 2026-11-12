@@ -10,6 +10,11 @@ import (
 
 func main() {
 	util.DeploymentName = "Core"
+	if slices.Contains(os.Args, "migrate") {
+		util.DeploymentName = "Core/Migrate"
+		launcher.LaunchMigrationsOnly()
+		return
+	}
 	if slices.Contains(os.Args, "foundation") {
 		util.DeploymentName = "Core/Foundation"
 	}

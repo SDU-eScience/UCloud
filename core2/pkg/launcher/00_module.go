@@ -408,6 +408,25 @@ func Launch() {
 	log.Fatal("Failed to start listener: %s", err)
 }
 
+func LaunchMigrationsOnly() {
+	if !cfg.Parse("/etc/ucloud") {
+		return
+	}
+
+	dbConfig := cfg.Configuration.Database
+	db.Database = db.Connect(
+		dbConfig.Username,
+		dbConfig.Password,
+		dbConfig.Host.Address,
+		dbConfig.Host.Port,
+		dbConfig.Database,
+		dbConfig.Ssl,
+	)
+
+	migrations.Init()
+	db.Migrate()
+}
+
 func launchMetricsServer() {
 	go func() {
 		handler := promhttp.Handler()

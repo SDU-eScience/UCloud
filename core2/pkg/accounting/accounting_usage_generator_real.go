@@ -249,7 +249,7 @@ func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpErro
 				return
 			}
 
-			internalCommitAllocation(bucket, allocId)
+			internalCommitAllocation(bucket, nowTime, allocId)
 
 			maxUsable, ok := internalMaxUsable(nowTime, recipientWallet)
 			if ok && maxUsable == 0 {
@@ -316,7 +316,7 @@ func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpErro
 				return (bucket.Category.Name == usageGenTimeBasedCPUOne.Category.Name &&
 					bucket.Category.Provider == usageGenTimeBasedCPUOne.Category.Provider) ||
 					(bucket.Category.Name == usageGenTimeBasedCPUTwo.Category.Name &&
-					bucket.Category.Provider == usageGenTimeBasedCPUTwo.Category.Provider) ||
+						bucket.Category.Provider == usageGenTimeBasedCPUTwo.Category.Provider) ||
 					(bucket.Category.Name == usageGenCapacityBased.Category.Name &&
 						bucket.Category.Provider == usageGenCapacityBased.Category.Provider)
 			})
@@ -325,7 +325,7 @@ func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpErro
 				return (cat.Name == usageGenTimeBasedCPUOne.Category.Name &&
 					cat.Provider == usageGenTimeBasedCPUOne.Category.Provider) ||
 					(cat.Name == usageGenTimeBasedCPUTwo.Category.Name &&
-					cat.Provider == usageGenTimeBasedCPUTwo.Category.Provider) ||
+						cat.Provider == usageGenTimeBasedCPUTwo.Category.Provider) ||
 					(cat.Name == usageGenCapacityBased.Category.Name &&
 						cat.Provider == usageGenCapacityBased.Category.Provider)
 			})

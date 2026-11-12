@@ -598,11 +598,19 @@ func usageRetrieveHistoricReports(from time.Time, until time.Time, wallet AccWal
 		g.Mu.RLock()
 		currentReport, ok := g.Reports[wallet]
 		if ok {
-			result = append(result, *currentReport)
+			result = append(result, accountingCloneUsageReport(currentReport))
 		}
 		g.Mu.RUnlock()
 	}
 
+	return result
+}
+
+func accountingCloneUsageReport(report *internalUsageReport) internalUsageReport {
+	result := *report
+	result.UsageOverTime.Delta = slices.Clone(report.UsageOverTime.Delta)
+	result.UsageOverTime.Absolute = slices.Clone(report.UsageOverTime.Absolute)
+	result.UsageOverTime.ChildrenAbsolute = slices.Clone(report.UsageOverTime.ChildrenAbsolute)
 	return result
 }
 

@@ -102,3 +102,28 @@ A new feature page needs:
 - a dynamic view, when the feature has a flow with steps.
 
 Do not add a code-level view. Code lives in the reference pages.
+
+## Mathematics
+
+Use a fenced `math` block for an equation. Write the equation in TeX syntax.
+
+````markdown
+```math
+\operatorname{excess}(W) = \operatorname{inNode}(W) - \operatorname{propagated}(W)
+```
+````
+
+The book renders these blocks with its bundled KaTeX scripts, styles, and fonts.
+Rendering needs no external math service. Ordinary code blocks remain unchanged.
+Use code blocks for field names and program steps; use math blocks for equations and constraints.
+
+Use inline KaTeX for mathematical symbols and expressions in prose and table cells:
+
+```html
+Let <span class="math-inline">Q</span> be quota and <span class="math-inline">U</span> be group flow.
+```
+
+Keep code field names in backticks. Use the same mathematical symbols in prose and their related equations.
+
+Use descriptive table headers, such as `Wallet P`, instead of single-letter headers in aligned columns.
+The external-links preprocessor can produce invalid Markdown separators for those short headers.
