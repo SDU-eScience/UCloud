@@ -243,7 +243,7 @@ echo "${BashScriptStringContent}"
             const jobName = Runs.newJobName();
             const jobNetworkId1 = Resources.PrivateNetworks.newJobNetworkName();
             const term1 = await Applications.runAppAndOpenTerminalWithTerminalPage(page, AppNames.TestApplication, 2, async p => {
-                await p.getByRole("textbox", {name: "Private network #1"}).click();
+                await p.getByRole("textbox", {name: "Network #1"}).click();
                 await p.getByRole("dialog").locator(".row", {hasText: networkName}).getByRole("button", {name: "Use"}).click();
                 await p.locator("[data-field-row]", {hasText: "Hostname"}).getByRole("textbox").fill(jobNetworkId1);
             }, jobName);
@@ -253,7 +253,7 @@ echo "${BashScriptStringContent}"
             const jobNetworkId2 = Resources.PrivateNetworks.newJobNetworkName();
             await User.toLoginPage(otherPage); // Should redirect to dashboard, as this is already logged in.
             const term2 = await Applications.runAppAndOpenTerminalWithTerminalPage(otherPage, AppNames.TestApplication, 2, async p => {
-                await p.getByRole("textbox", {name: "Private network #1"}).click();
+                await p.getByRole("textbox", {name: "Network #1"}).click();
                 await p.getByRole("dialog").locator(".row", {hasText: networkName}).getByRole("button", {name: "Use"}).click();
                 await p.locator("[data-field-row]", {hasText: "Hostname"}).getByRole("textbox").fill(jobNetworkId2);
             }, jobName);

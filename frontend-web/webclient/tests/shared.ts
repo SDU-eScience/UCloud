@@ -1545,7 +1545,7 @@ export const Resources = {
         await this.actionByRowTitle(page, resourceName, "dblclick");
     },
 
-    async goTo(page: Page, resource: "Links" | "IP addresses" | "SSH keys" | "Licenses" | "Private networks") {
+    async goTo(page: Page, resource: "Links" | "IP addresses" | "SSH keys" | "Licenses" | "Networks") {
         await page.getByRole("link", {name: "Go to Resources"}).hover();
         await page.getByRole("link", {name: resource, exact: true}).click();
         await page.locator(`div[data-component="project-switcher"]`).first().waitFor();
@@ -1676,9 +1676,9 @@ export const Resources = {
         },
 
         async createPrivateNetwork(page: Page, name: string): Promise<void> {
-            await Resources.goTo(page, "Private networks");
-            await page.getByText("Create private network").click();
-            await page.getByPlaceholder("My private network").fill(name);
+            await Resources.goTo(page, "Networks");
+            await page.getByText("Create network").click();
+            await page.getByPlaceholder("My network").fill(name);
 
             if (await page.getByRole("dialog").getByText("No product selected").isVisible()) {
                 await page.getByRole("dialog").getByText("No product selected").click();
@@ -1686,13 +1686,15 @@ export const Resources = {
             }
 
 
-            await page.getByRole("dialog").getByRole("button", {name: "Create", exact: true}).click();
+            await NetworkCalls.awaitResponse(page, "**/api/networks", async () => {
+                await page.getByRole("dialog").getByRole("button", {name: "Create", exact: true}).click();
+            });
         },
 
         async delete(page: Page, name: string): Promise<void> {
-            await Resources.goTo(page, "Private networks");
+            await Resources.goTo(page, "Networks");
             await Rows.actionByRowTitle(page, name, "click");
-            await NetworkCalls.awaitResponse(page, "**/api/private-networks**", async () => {
+            await NetworkCalls.awaitResponse(page, "**/api/networks", async () => {
                 await Components.clickConfirmationButton(page, "Delete");
             });
         }
