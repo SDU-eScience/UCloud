@@ -5,7 +5,7 @@ import (
 	"ucloud.dk/shared/pkg/log"
 )
 
-func RetryOrPanic[R any](action string, fn func() (R, error)) R {
+func Retry[R any](action string, fn func() (R, error)) (R, error) {
 	wait := 10
 	var lastErr error
 	for attempt := 0; attempt < 30; attempt++ {
@@ -21,9 +21,18 @@ func RetryOrPanic[R any](action string, fn func() (R, error)) R {
 			continue
 		}
 
-		return res
+		return res, nil
 	}
 
-	log.Fatal("RetryOrPanic failure: %s", lastErr)
-	panic(lastErr)
+	var zero R
+	return zero, lastErr
+}
+
+func RetryOrPanic[R any](action string, fn func() (R, error)) R {
+	res, err := Retry(action, fn)
+	if err != nil {
+		log.Fatal("RetryOrPanic failure: %s", err)
+		panic(err)
+	}
+	return res
 }

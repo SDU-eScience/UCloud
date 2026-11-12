@@ -196,7 +196,10 @@ func scanDrive(drive orc.Drive) {
 	}
 	sizeToReport = sizeToReport / ctrl.ProductCategoryAccountingUnitBytes(drive.Specification.Product.Category)
 
-	reportUsedStorage(drive, sizeToReport)
+	if err := reportUsedStorage(drive, sizeToReport); err != nil {
+		log.Warn("Unable to report storage usage for drive %s: %s", drive.Id, err)
+		return
+	}
 
 	ctrl.DriveUpdateScannedAt(drive.Id)
 
@@ -205,12 +208,13 @@ func scanDrive(drive orc.Drive) {
 	}
 }
 
-func reportUsedStorage(drive orc.Drive, size int64) {
+func reportUsedStorage(drive orc.Drive, size int64) error {
 	request := storageUsageRequest(drive, size)
-	util.RetryOrPanic("report storage", func() (util.Empty, error) {
+	_, err := util.Retry("report storage", func() (util.Empty, error) {
 		_, err := apm.ReportUsage.Invoke(request)
 		return util.EmptyValue, err.AsError()
 	})
+	return err
 }
 
 func storageUsageRequest(drive orc.Drive, size int64) fnd.BulkRequest[apm.ReportUsageRequest] {

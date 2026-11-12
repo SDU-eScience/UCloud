@@ -507,7 +507,29 @@ func metadataDispatchScans(requests <-chan metadataScanRequest, ready chan<- met
 				completions: current.request.completions,
 			})
 		case driveId := <-completed:
+			current := active[driveId]
 			queue := pending[driveId]
+
+			if current != nil {
+				kept := queue[:0]
+				for _, req := range queue {
+					if !req.ensure && metadataPathContains(current.request.internalPath, req.internalPath) {
+						completions := req.completions
+						finishedAt := current.finishedAt
+						scanErr := current.err
+						go func() {
+							for _, completion := range completions {
+								completion(scanErr, finishedAt)
+							}
+						}()
+						continue
+					}
+					kept = append(kept, req)
+				}
+				queue = kept
+				pending[driveId] = queue
+			}
+
 			if len(queue) == 0 {
 				delete(active, driveId)
 				delete(pending, driveId)
@@ -616,12 +638,13 @@ func metadataDoScan(internalPath string, drive *orc.Drive) error {
 	metadataRuntime.Unlock()
 	startedAt := time.Now()
 	metadataRecordScanStarted(drive.Id)
-	err = metadataScanAndPublish(ctx, internalPath, basePath, databasePath, limiter, entriesPerTable)
+	err = metadataScanAndPublishWithCallback(ctx, internalPath, basePath, databasePath, limiter, entriesPerTable, func() error {
+		if !shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration {
+			return nil
+		}
+		return metadataReportAccounting(drive)
+	})
 	metadataRecordScanFinished(drive.Id, time.Since(startedAt), err)
-	aggregatesPublished := err == nil || errors.Is(err, errMetadataNameRepairRequired)
-	if aggregatesPublished && shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration {
-		metadataReportAccounting(drive)
-	}
 	if err != nil {
 		aggregatesNeedRepair := errors.Is(err, errMetadataAggregateRepairRequired)
 		if aggregatesNeedRepair || errors.Is(err, errMetadataNameRepairRequired) {
@@ -640,18 +663,34 @@ func metadataDoScan(internalPath string, drive *orc.Drive) error {
 	return err
 }
 
-func metadataReportAccounting(drive *orc.Drive) {
+func metadataReportAccounting(drive *orc.Drive) error {
 	stats, found, err := MetadataLookupDirectoryStats("/" + drive.Id)
 	if err != nil {
-		log.Warn("Unable to retrieve metadata accounting for drive %s: %s", drive.Id, err)
-		return
+		return fmt.Errorf("unable to retrieve metadata accounting for drive %s: %w", drive.Id, err)
 	}
-	if !found || !stats.CompleteCoverage {
-		return
+	if !found {
+		return fmt.Errorf("metadata catalog has no root entry for drive %s", drive.Id)
 	}
-	size := stats.LogicalBytes
-	size = size / uint64(ctrl.ProductCategoryAccountingUnitBytes(drive.Specification.Product.Category))
-	reportUsedStorage(*drive, int64(min(size, uint64(math.MaxInt64))))
+	if !stats.CompleteCoverage {
+		return fmt.Errorf("metadata catalog is incomplete for drive %s", drive.Id)
+	}
+
+	unitBytes := ctrl.ProductCategoryAccountingUnitBytes(drive.Specification.Product.Category)
+	if unitBytes <= 0 {
+		return fmt.Errorf("invalid accounting unit for drive %s", drive.Id)
+	}
+	size := stats.LogicalBytes / uint64(unitBytes)
+	err = reportUsedStorage(*drive, int64(min(size, uint64(math.MaxInt64))))
+	if err != nil {
+		var httpErr *util.HttpError
+		if errors.As(err, &httpErr) && httpErr.StatusCode >= 400 && httpErr.StatusCode < 500 &&
+			httpErr.StatusCode != 408 && httpErr.StatusCode != 429 {
+			log.Warn("Permanent accounting report failure for drive %s: %s", drive.Id, err)
+			return nil
+		}
+		return fmt.Errorf("unable to report storage usage for drive %s: %w", drive.Id, err)
+	}
+	return nil
 }
 
 func metadataDatabasePath(driveID string) string {
@@ -681,7 +720,11 @@ type metadataScanOutput struct {
 	rootEntry   MetadataEntry
 }
 
-func metadataScanAndPublish(ctx context.Context, scanPath, driveRoot, databasePath string, limiter *rate.Limiter, entriesPerTable int) (scanErr error) {
+func metadataScanAndPublish(ctx context.Context, scanPath, driveRoot, databasePath string, limiter *rate.Limiter, entriesPerTable int) error {
+	return metadataScanAndPublishWithCallback(ctx, scanPath, driveRoot, databasePath, limiter, entriesPerTable, nil)
+}
+
+func metadataScanAndPublishWithCallback(ctx context.Context, scanPath, driveRoot, databasePath string, limiter *rate.Limiter, entriesPerTable int, afterPublish func() error) (scanErr error) {
 	// NOTE(Dan): A scan must not publish anything until the complete subtree has been visited. Users are changing the
 	// filesystem while we scan it, and a partial result would make deleted files disappear before their replacement is
 	// known. We first build the complete replacement in a temporary workspace and only open Pebble when it is ready.
@@ -755,12 +798,10 @@ func metadataScanAndPublish(ctx context.Context, scanPath, driveRoot, databasePa
 	defer releaseDatabase()
 
 	// NOTE(Dan): The process may have stopped after publishing an earlier PATH replacement but before updating its
-	// ancestors or NAME entries. Recover that work before calculating another subtree delta. A root scan replaces the
-	// complete PATH keyspace and has no ancestors, so its journal safely supersedes an older pending aggregate update.
-	if len(components) != 0 {
-		if err = metadataRecoverPendingAggregate(db); err != nil {
-			return err
-		}
+	// ancestors or NAME entries. Recover that work before calculating another subtree delta, including before a root
+	// scan. Otherwise a failed root scan can overwrite the only pending subtree journal.
+	if err = metadataRecoverPendingAggregate(db); err != nil {
+		return err
 	}
 	if err = metadataRecoverPendingNameIndex(db); err != nil {
 		return err
@@ -816,6 +857,10 @@ func metadataScanAndPublish(ctx context.Context, scanPath, driveRoot, databasePa
 		return err
 	}
 	aggregatesPending = false
+	var afterPublishErr error
+	if afterPublish != nil {
+		afterPublishErr = afterPublish()
+	}
 
 	pathBytes, _ := db.EstimateDiskUsage([]byte{MetaKeyspacePath}, []byte{MetaKeyspaceName})
 	nameBytes, _ := db.EstimateDiskUsage([]byte{MetaKeyspaceName}, []byte{MetaKeyspaceTrigram + 1})
@@ -825,7 +870,18 @@ func metadataScanAndPublish(ctx context.Context, scanPath, driveRoot, databasePa
 	metadataRecordNameRefreshStarted(filepath.Base(databasePath))
 	err = metadataRefreshNameIndexAndFinish(db, databasePath, filepath.Base(databasePath), span, oldNamesPath, scanPath, refreshDone)
 	if err != nil {
+		if afterPublishErr != nil {
+			return fmt.Errorf(
+				"%w (accounting report failed: %v): %v",
+				errMetadataNameRepairRequired,
+				afterPublishErr,
+				err,
+			)
+		}
 		return fmt.Errorf("%w: %v", errMetadataNameRepairRequired, err)
+	}
+	if afterPublishErr != nil {
+		return afterPublishErr
 	}
 	return nil
 }
