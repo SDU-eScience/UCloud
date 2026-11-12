@@ -1,8 +1,6 @@
-import {injectStyle} from "@/Unstyled";
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useReducer, useRef, useState} from "react";
 import {
-    Box,
     Button,
     Checkbox,
     Divider,
@@ -11,11 +9,8 @@ import {
     Label,
     MainContainer,
 } from "@/ui-components";
-import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
-import * as Accounting from "@/Accounting";
 import {
     NO_EXPIRATION_FALLBACK,
-    ProductType,
 } from "@/Accounting";
 import {useProjectId} from "@/Project/Api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -38,48 +33,14 @@ import {OldProjectRole} from "@/Project";
 import {VariableSizeList} from "react-window";
 import {initialState, stateReducer, useEventReducer} from "./State"
 import {GiftSection, RootAllocationSections} from "./ProviderOnlySections";
-import {
-    YourAllocations,
-    SubProjectList,
-} from "./CommonSections";
 import {projectInfoPi, useProjectInfos} from "@/Project/InfoCache";
 import {sendFailureNotification} from "@/Notifications";
 import {callAPI} from "@/Authentication/DataHook";
 import * as Grants from "@/Grants";
 import {DefaultTemplateRevision} from "@/Grants/Editor";
-
-// Styling
-// =====================================================================================================================
-const AllocationsStyle = injectStyle("allocations", k => `
-    ${k} > header {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 16px;
-    }
-    
-    ${k} > header h2 {
-        font-size: 20px;
-        margin: 0;
-    }
-    
-    ${k} h1,
-    ${k} h2,
-    ${k} h4 {
-        margin: 15px 0;
-    }
-    
-    ${k} .disabled-alloc .row-left, ${k} .disabled-alloc .low-opaqueness {
-        filter: opacity(0.5);
-    }
-    
-    ${k} .sub-alloc {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-`);
+import {AllocationPage} from "./AllocationPage";
+import {allocationCurrentCalendarYear} from "./AllocationPeriodFilter";
+import type {AllocationDateRange} from "@/Accounting/Allocations/AllocationGrid";
 
 // User-interface
 // =====================================================================================================================
@@ -90,12 +51,11 @@ const Allocations: React.FunctionComponent = () => {
     const [state, rawDispatch] = useReducer(stateReducer, initialState());
     const dispatchEvent = useEventReducer(didCancel, rawDispatch);
     const avatars = useAvatars();
-    const allocationTree = useRef<TreeApi>(null);
     const suballocationTree = useRef<TreeApi>(null);
     const searchBox = useRef<HTMLInputElement>(null);
     const projectState = useProject();
     const projectRole = projectState.fetch().status.myRole ?? OldProjectRole.USER;
-    const reports = state.remoteData.reports ?? [];
+    const listRef = useRef<VariableSizeList<number[]>>(null);
     const didUnmount = useDidUnmount();
 
     usePage("Allocations", SidebarTabId.PROJECT);
@@ -115,6 +75,8 @@ const Allocations: React.FunctionComponent = () => {
     useEffect(() => {
         dispatchEvent({type: "SubProjectData", projects: projectInfo.data});
     }, [projectInfo]);
+
+    const [dateRange, setDateRange] = useState<AllocationDateRange>(allocationCurrentCalendarYear);
 
     const [settings, setSettings] = useState<Grants.RequestSettings>({
         enabled: false,
@@ -168,21 +130,6 @@ const Allocations: React.FunctionComponent = () => {
     useEffect(() => {
         const handler = (ev: KeyboardEvent) => {
             switch (ev.code) {
-                case "Tab": {
-                    ev.preventDefault();
-                    const allocTreeActive = allocationTree.current?.isActive() === true;
-                    const subAllocTreeActive = suballocationTree.current?.isActive() === true;
-
-                    if (allocTreeActive) {
-                        suballocationTree.current?.activate();
-                    } else if (subAllocTreeActive) {
-                        allocationTree.current?.activate();
-                    } else {
-                        allocationTree.current?.activate();
-                    }
-                    break;
-                }
-
                 case "KeyK": {
                     if (ev.ctrlKey || ev.metaKey) {
                         ev.preventDefault();
@@ -296,22 +243,6 @@ const Allocations: React.FunctionComponent = () => {
             onEdit(target);
         }
     }, [onEdit]);
-    // Short-hands used in the user-interface
-    // -----------------------------------------------------------------------------------------------------------------
-    const indent = 16;
-
-    const sortedAllocations = Object.entries(state.yourAllocations).sort((a, b) => {
-        const aPriority = Accounting.ProductTypesByPriority.indexOf(a[0] as ProductType);
-        const bPriority = Accounting.ProductTypesByPriority.indexOf(b[0] as ProductType);
-
-        if (aPriority === bPriority) return 0;
-        if (aPriority === -1) return 1;
-        if (bPriority === -1) return -1;
-        if (aPriority < bPriority) return -1;
-        if (aPriority > bPriority) return 1;
-        return 0;
-    });
-
     // Actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
     if (projectState.fetch().status.personalProviderProjectFor != null) {
@@ -328,42 +259,28 @@ const Allocations: React.FunctionComponent = () => {
         />
     }
 
-    const listRef = useRef<VariableSizeList<number[]>>(null);
-
-    return <MainContainer
-        headerSize={0}
-        main={<div className={AllocationsStyle}>
-            <header>
-                <h3 className="title">Resource allocations</h3>
-                <Box flexGrow={1} />
-                <ProjectSwitcher />
-            </header>
-
-            {(state.remoteData.managedProviders ?? []).length > 0 ? <>
-                <RootAllocationSections state={state} dispatchEvent={dispatchEvent} />
-                <GiftSection state={state} dispatchEvent={dispatchEvent} />
-            </> : <>
-                {!settings.enabled ? null :
-                    <GiftSection state={state} dispatchEvent={dispatchEvent} />
-                }</>
-            }
-
-            <YourAllocations state={state} allocations={sortedAllocations} allocationTree={allocationTree} indent={indent} />
-
-            {/*<ResourcesGranted state={state} allocationTree={allocationTree} sortedAllocations={sortedAllocations}*/}
-            {/*                  indent={indent} avatars={avatars}/>*/}
-
-            {/*
-                <KeyMetrics allocations={sortedAllocations} indent={indent} reports={reports} state={state} />
-            */}
-
-            <SubProjectList
-                projectId={projectId} onNewSubProject={onNewSubProject} projectRole={projectRole}
-                state={state} onSearchInput={onSearchInput} onSearchKey={onSearchKey}
-                searchBox={searchBox} dispatchEvent={dispatchEvent}
-                suballocationTree={suballocationTree} listRef={listRef}
-                onSubAllocationShortcut={onSubAllocationShortcut} avatars={avatars} />
-        </div>}
+    return <AllocationPage
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+        providerTools={(state.remoteData.managedProviders ?? []).length > 0 ? <>
+            <RootAllocationSections state={state} dispatchEvent={dispatchEvent} />
+            <GiftSection state={state} dispatchEvent={dispatchEvent} />
+        </> : settings.enabled ? <GiftSection state={state} dispatchEvent={dispatchEvent} /> : null}
+        subProjects={{
+            projectId,
+            onNewSubProject,
+            projectRole,
+            state,
+            onSearchInput,
+            onSearchKey,
+            searchBox,
+            dispatchEvent,
+            suballocationTree,
+            listRef,
+            onSubAllocationShortcut,
+            avatars,
+            projectInfo: projectInfo.data,
+        }}
     />;
 };
 

@@ -29,6 +29,7 @@ import ManageProjects from "@/Admin/ManageProjects";
 import NewsList from "@/NewsPost/NewsList";
 import NewsManagement from "@/Admin/NewsManagement";
 import Playground from "@/Playground/Playground";
+import AllocationsDemo from "@/Playground/AllocationsDemo";
 import Products from "@/Products/Products";
 import ProjectSettings from "@/Project/ProjectSettings";
 import ProjectMembers from "@/Project/Members";
@@ -194,6 +195,8 @@ const Core = (): React.ReactNode => {
 
                     {!inDevEnvironment() ? null : <Route path={"/playground"} element={<Playground />} />}
                     {!inDevEnvironment() ? null : <Route path={"/playground/demo"} element={<Demo />} />}
+                    {!inDevEnvironment() ? null : <Route path={"/playground/allocations"} element={<AllocationsDemo />} />}
+                    {!inDevEnvironment() ? null : <Route path={"/playground/allocations/received"} element={<AllocationsDemo />} />}
                     {!inDevEnvironment() ? null : <Route path={"/playground/lag"} element={<LagTest />} />}
 
                     <Route path="/inference/*"
@@ -262,6 +265,8 @@ const Core = (): React.ReactNode => {
                     <Route path={AppRoutes.accounting.usage()}
                            element={React.createElement(requireAuth(ResourceUsage))} />
                     <Route path={AppRoutes.accounting.allocations()}
+                           element={React.createElement(requireAuth(ResourceAllocations))} />
+                    <Route path={AppRoutes.accounting.receivedAllocations()}
                            element={React.createElement(requireAuth(ResourceAllocations))} />
 
                     <Route

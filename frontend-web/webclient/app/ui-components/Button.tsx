@@ -55,6 +55,16 @@ export const ButtonClass = injectStyle("button", k => `
     ${k}:hover {
         background: var(--hoverColor, var(--primaryLight));
     }
+
+    ${k}[data-color="ghost"] {
+        border-width: 1px;
+        border-color: var(--borderColor);
+        gap: 6px;
+    }
+
+    ${k}[data-color="ghost"] svg {
+        margin-right: 0;
+    }
     
     ${k}:disabled {
         opacity: 0.25;
@@ -169,6 +179,7 @@ export const Button: React.FunctionComponent<ButtonProps> = props => {
         data-square={props.asSquare === true}
         data-fullwidth={props.fullWidth === true}
         data-size={sizeName}
+        data-color={props.color}
         style={inlineStyles}
         disabled={props.disabled}
         aria-label={props.ariaLabel}

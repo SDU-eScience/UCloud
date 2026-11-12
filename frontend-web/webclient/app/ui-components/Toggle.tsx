@@ -12,6 +12,7 @@ interface ToggleProps {
     height?: number;
     colorAnimationDisabled?: boolean;
     disabled?: boolean;
+    ariaLabel?: string;
 }
 
 const DEFAULT_TOGGLE_HEIGHT = 26;
@@ -24,6 +25,7 @@ export const Toggle: React.FC<ToggleProps> = ({
     circleColor = "fixedWhite",
     colorAnimationDisabled = false,
     disabled = false,
+    ariaLabel,
 }) => {
     const checkedRef = useRef(checked);
     useEffect(() => {
@@ -50,6 +52,7 @@ export const Toggle: React.FC<ToggleProps> = ({
             if ((event.key === "Enter" || event.key === " ") && !event.metaKey && !event.ctrlKey && !event.altKey) handler(event);
         }}
         role="switch"
+        aria-label={ariaLabel}
         aria-checked={checked}
         aria-disabled={disabled}
         tabIndex={disabled ? -1 : 0}

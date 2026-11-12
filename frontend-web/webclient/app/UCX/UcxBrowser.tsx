@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore} from "react";
-import {Box, Button, Icon, Input, Text} from "@/ui-components";
+import {Box, Button, Checkbox, Icon, Input, Text} from "@/ui-components";
 import {ActionEntry, ActionMenu} from "@/ui-components/Actions";
 import {IconButton} from "@/ui-components/IconButton";
 import {IconName} from "@/ui-components/Icon";
@@ -22,6 +22,7 @@ import {
 } from "@/UCX/UcxTableColumns";
 
 const UCX_ACTION_COLUMN_WIDTH = 40;
+const UCX_SELECT_COLUMN_WIDTH = 32;
 
 export interface UcxTableStats {
     filtered: number;
@@ -927,6 +928,20 @@ export interface UcxTableGroupActionEvent {
     group: string;
 }
 
+export interface UcxTableCellRenderContext {
+    row: TableRow;
+    column: TableColumn;
+    cell: string;
+    cellIndex: number;
+    rowIndex: number;
+    isFirstInGroup: boolean;
+}
+
+export interface UcxTableSelection {
+    selected: ReadonlySet<string>;
+    onChange: (selected: ReadonlySet<string>) => void;
+}
+
 interface UcxStreamedTableProps {
     tableId: string;
     store: UcxTableStore;
@@ -934,7 +949,19 @@ interface UcxStreamedTableProps {
     stateKey?: string;
     emptyMessage?: string;
     showGroupHeaders?: boolean;
+    showControls?: boolean;
+    rowHeight?: number;
+    activateOnSpace?: boolean;
+    renderGroupHeader?: (group: string) => React.ReactNode;
     sorted?: boolean;
+    preserveRowOrder?: boolean;
+    inlineGroups?: boolean;
+    inlineGroupColumn?: string;
+    density?: "compact";
+    columnWidths?: Record<string, number>;
+    fitToWidth?: boolean;
+    renderCell?: (context: UcxTableCellRenderContext) => React.ReactNode;
+    selection?: UcxTableSelection;
     actions?: UcxTableActionDef[];
     groupAction?: UcxTableActionDef;
     trailingAction?: UcxTableActionDef;
@@ -956,6 +983,8 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     const columns = store.columnsFor(tableId);
     const filter = store.filterFor(stateKey);
     const sort = props.sorted !== false ? store.sortFor(stateKey) : null;
+    const inlineGroups = props.inlineGroups === true &&
+        (!props.inlineGroupColumn || sort === null || sort.columnKey === props.inlineGroupColumn);
     const storedSelectedKey = store.selectedFor(stateKey);
     const selectedTableRef = useRef<{tableId: string; stateKey: string; viewId: string} | null>(null);
     const rootRef = useRef<HTMLDivElement | null>(null);
@@ -974,6 +1003,9 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     const [viewportWidth, setViewportWidth] = useState(0);
     const actionDefs = props.actions ?? [];
     const hasActionDefs = actionDefs.length > 0;
+    const selection = props.selection;
+    const selectionEnabled = selection !== undefined;
+    const leadingColumnWidth = selectionEnabled ? UCX_SELECT_COLUMN_WIDTH : 0;
     const groupAction = props.groupAction;
     const trailingAction = props.trailingAction;
     const [menuRowKey, setMenuRowKey] = useState<string | null>(null);
@@ -987,28 +1019,33 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     menuRowKeyRef.current = menuRowKey;
     menuOpenRefState.current = menuRowKey !== null;
 
-    const autoWidths = useMemo(
-        () => computeColumnWidths(columns, Array.from(rowMap.values())),
-        [columns, rowMap],
-    );
+    const autoWidths = useMemo(() => {
+        const configured = props.columnWidths;
+        if (configured !== undefined && columns.every(column => configured[column.key] !== undefined)) {
+            return {};
+        }
+        return computeColumnWidths(columns, Array.from(rowMap.values()));
+    }, [columns, rowMap, props.columnWidths]);
     const widths = useMemo(
-        () => resolveColumnWidths(columns, autoWidths),
-        [columns, autoWidths, widthRevision],
+        () => resolveColumnWidths(columns, autoWidths, props.columnWidths),
+        [columns, autoWidths, widthRevision, props.columnWidths],
     );
     const dataWidth = useMemo(() => Object.values(widths).reduce((a, b) => a + b, 0), [widths]);
-    const totalWidth = hasActionDefs && dataWidth > 0
-        ? Math.max(dataWidth + UCX_ACTION_COLUMN_WIDTH, viewportWidth)
-        : dataWidth + (hasActionDefs ? UCX_ACTION_COLUMN_WIDTH : 0);
+    const naturalWidth = hasActionDefs && dataWidth > 0
+        ? Math.max(dataWidth + leadingColumnWidth + UCX_ACTION_COLUMN_WIDTH, viewportWidth)
+        : dataWidth + leadingColumnWidth + (hasActionDefs ? UCX_ACTION_COLUMN_WIDTH : 0);
+    const totalWidth = props.fitToWidth && viewportWidth > 0 ? viewportWidth : naturalWidth;
     const renderedWidths = useMemo(() => {
-        if (!hasActionDefs || dataWidth === 0) return widths;
-        const scale = (totalWidth - UCX_ACTION_COLUMN_WIDTH) / dataWidth;
+        if ((!hasActionDefs && !props.fitToWidth) || dataWidth === 0) return widths;
+        const actionWidth = hasActionDefs ? UCX_ACTION_COLUMN_WIDTH : 0;
+        const scale = (totalWidth - leadingColumnWidth - actionWidth) / dataWidth;
         const result: Record<string, number> = {};
         for (const column of columns) result[column.key] = widths[column.key] * scale;
         return result;
-    }, [columns, widths, dataWidth, totalWidth, hasActionDefs]);
+    }, [columns, widths, dataWidth, totalWidth, hasActionDefs, leadingColumnWidth, props.fitToWidth]);
 
     useLayoutEffect(() => {
-        if (!hasActionDefs) return;
+        if (!hasActionDefs && !props.fitToWidth) return;
         const viewport = scrollRef.current;
         if (!viewport) return;
         const updateWidth = () => setViewportWidth(viewport.clientWidth);
@@ -1016,7 +1053,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         const observer = new ResizeObserver(updateWidth);
         observer.observe(viewport);
         return () => observer.disconnect();
-    }, [hasActionDefs]);
+    }, [hasActionDefs, props.fitToWidth]);
 
     useLayoutEffect(() => {
         const previous = store.claimView(viewId, stateKey);
@@ -1036,11 +1073,11 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         if (sort !== null && sortIdx >= 0) {
             const sortType = columns[sortIdx].sortType;
             const direction = sort.ascending ? 1 : -1;
-            const groupPrimary = props.showGroupHeaders !== false;
+            const groupPrimary = inlineGroups || props.showGroupHeaders !== false;
             sorted.sort((a, b) => {
                 if (groupPrimary) {
                     const groupCmp = a.group.localeCompare(b.group);
-                    if (groupCmp !== 0) return groupCmp;
+                    if (groupCmp !== 0) return props.inlineGroupColumn ? groupCmp * direction : groupCmp;
                 }
                 const cellCmp = compareCells(sortType, a.cells[sortIdx], b.cells[sortIdx]);
                 if (cellCmp !== 0) return cellCmp * direction;
@@ -1050,7 +1087,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
             });
             return sorted;
         }
-        if (props.sorted !== false) {
+        if (props.sorted !== false && props.preserveRowOrder !== true) {
             sorted.sort((a, b) => {
                 const groupCmp = a.group.localeCompare(b.group);
                 if (groupCmp !== 0) return groupCmp;
@@ -1058,13 +1095,52 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
             });
         }
         return sorted;
-    }, [rows, props.sorted, columns, sort, stateKey, store, revision]);
+    }, [rows, props.sorted, props.preserveRowOrder, inlineGroups, props.inlineGroupColumn, props.showGroupHeaders, columns, sort, stateKey, store, revision]);
 
     const filteredRows = useMemo(() => {
         const needle = filter.trim().toLowerCase();
         if (needle === "") return orderedRows;
         return orderedRows.filter(row => row.cells.some(cell => cell.toLowerCase().includes(needle)));
     }, [orderedRows, filter]);
+
+    const rowIndexByKey = useMemo(() => {
+        const result = new Map<string, number>();
+        filteredRows.forEach((row, index) => result.set(row.key, index));
+        return result;
+    }, [filteredRows]);
+
+    const firstInGroupByKey = useMemo(() => {
+        const result = new Map<string, boolean>();
+        let previousGroup: string | undefined;
+        for (const row of filteredRows) {
+            const ungrouped = props.inlineGroupColumn !== undefined && !inlineGroups;
+            result.set(row.key, ungrouped || row.group !== previousGroup);
+            previousGroup = row.group;
+        }
+        return result;
+    }, [filteredRows, inlineGroups, props.inlineGroupColumn]);
+
+    const allFilteredSelected = selectionEnabled && filteredRows.length > 0
+        && filteredRows.every(row => selection!.selected.has(row.key));
+
+    const toggleSelection = useCallback((rowKey: string) => {
+        if (!selection) return;
+        const next = new Set(selection.selected);
+        if (next.has(rowKey)) next.delete(rowKey);
+        else next.add(rowKey);
+        selection.onChange(next);
+    }, [selection]);
+
+    const toggleAllFiltered = useCallback(() => {
+        if (!selection) return;
+        const next = new Set(selection.selected);
+        if (allFilteredSelected) {
+            for (const row of filteredRows) next.delete(row.key);
+        } else {
+            for (const row of filteredRows) next.add(row.key);
+        }
+        selection.onChange(next);
+    }, [allFilteredSelected, filteredRows, selection]);
 
     const selectedTable = selectedTableRef.current;
     const tableChanged = selectedTable?.tableId !== tableId || selectedTable?.stateKey !== stateKey || selectedTable?.viewId !== viewId;
@@ -1084,7 +1160,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         const items: UcxTableItem[] = [];
         let previousGroup: string | undefined;
         for (const row of filteredRows) {
-            if (props.showGroupHeaders !== false && row.group !== "" && previousGroup !== row.group) {
+            if (props.inlineGroups !== true && props.showGroupHeaders !== false && row.group !== "" && previousGroup !== row.group) {
                 items.push({key: `group:${row.key}`, kind: "group", group: row.group});
             }
             items.push({key: `row:${row.key}`, kind: "row", rowKey: row.key});
@@ -1093,7 +1169,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         if (filteredRows.length === 0) items.push({key: "empty", kind: "empty"});
         if (trailingAction) items.push({key: "trailing", kind: "trailing"});
         return items;
-    }, [filteredRows, props.showGroupHeaders, Boolean(trailingAction)]);
+    }, [filteredRows, props.inlineGroups, props.showGroupHeaders, Boolean(trailingAction)]);
     const virtualization = useUcxTableVirtualization(tableItems, scrollRef, bodyRef);
     const restoredStateRef = useRef<string | null>(null);
     useLayoutEffect(() => {
@@ -1414,7 +1490,16 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                 return;
             }
 
-            if (event.key === "Enter") {
+            if (event.key === " " && selectionEnabled) {
+                event.preventDefault();
+                const selected = selectedKeyRef.current != null
+                    ? filteredRows.find(row => row.key === selectedKeyRef.current)
+                    : undefined;
+                if (selected) toggleSelection(selected.key);
+                return;
+            }
+
+            if (event.key === "Enter" || (event.key === " " && props.activateOnSpace === true)) {
                 event.preventDefault();
                 activateSelection();
                 return;
@@ -1436,10 +1521,21 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
 
         document.addEventListener("keydown", onKeyDown);
         return () => document.removeEventListener("keydown", onKeyDown);
-    }, [activateSelection, moveSelection, openMenuForSelection, stateKey, store, triggerActionByShortcut]);
+    }, [
+        activateSelection,
+        props.activateOnSpace,
+        filteredRows,
+        moveSelection,
+        openMenuForSelection,
+        selectionEnabled,
+        stateKey,
+        store,
+        toggleSelection,
+        triggerActionByShortcut,
+    ]);
 
     const emptyMessage = props.emptyMessage ?? "No resources found.";
-    const colCount = columns.length + (hasActionDefs ? 1 : 0);
+    const colCount = columns.length + (selectionEnabled ? 1 : 0) + (hasActionDefs ? 1 : 0);
     const filterActive = filter.trim() !== "";
     const emptyRowContent = !loaded ?
         <span className="streamed-table-loading">
@@ -1457,6 +1553,9 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         className={UcxStreamedTableClass}
         data-ucx-table={tableId}
         data-has-actions={hasActionDefs ? "true" : undefined}
+        data-has-selection={selectionEnabled ? "true" : undefined}
+        data-inline-groups={inlineGroups ? "true" : undefined}
+        data-density={props.density}
         style={{
             "--ucx-table-width": dataWidth === 0 ? "100%" : `${totalWidth}px`,
             "--ucx-table-header-height": `${virtualization.headerHeight}px`,
@@ -1474,11 +1573,22 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
             >
             <Table tableType="presentation" aria-role="grid">
                 <colgroup>
+                    {selectionEnabled ? <col className="streamed-table-select-col" style={{width: `${UCX_SELECT_COLUMN_WIDTH}px`}} /> : null}
                     {columns.map(col => <col key={col.key} data-col-key={col.key} style={{width: `${renderedWidths[col.key]}px`}} />)}
                     {hasActionDefs ? <col className="streamed-table-actions-col" style={{width: `${UCX_ACTION_COLUMN_WIDTH}px`}} /> : null}
                 </colgroup>
                 <TableHeader>
                     <UiTableRow>
+                        {selectionEnabled ? <TableHeaderCell>
+                            <div className="streamed-table-select-header">
+                                <Checkbox
+                                    size={15}
+                                    checked={allFilteredSelected}
+                                    onChange={toggleAllFiltered}
+                                    aria-label="Select all visible rows"
+                                />
+                            </div>
+                        </TableHeaderCell> : null}
                         {columns.map(col => {
                             const sort = store.sortFor(stateKey);
                             const isSortColumn = sort !== null && sort.columnKey === col.key;
@@ -1551,10 +1661,10 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                 null
                             }
                             {item.kind === "group" ?
-                                <UiTableRow className="group-row" data-ucx-virtual-key={item.key}>
-                                    <TableCell colSpan={columns.length + (hasActionDefs ? 1 : 0)}>
+                                <UiTableRow className="group-row" data-ucx-virtual-key={item.key} height={props.rowHeight}>
+                                    <TableCell colSpan={colCount}>
                                         <span className="group-row-inner">
-                                            <span className="group-row-label">{item.group}</span>
+                                            <span className="group-row-label">{props.renderGroupHeader ? props.renderGroupHeader(item.group) : item.group}</span>
                                             {groupAction ?
                                                 <span className="group-row-action">
                                                     <IconButton
@@ -1578,11 +1688,14 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                 const row = rowMap.get(item.rowKey)!;
                                 const hasActions = (row.actions?.length ?? 0) > 0;
                                 const isSelected = selectedKey === row.key;
+                                const isFirstInGroup = firstInGroupByKey.get(row.key) === true;
                                 return <UiTableRow
                                     key={row.key}
                                     data-row-key={row.key}
+                                    height={props.rowHeight}
                                     data-ucx-virtual-key={item.key}
                                     data-selected={isSelected}
+                                    data-first-in-group={isFirstInGroup ? "true" : undefined}
                                     role="row"
                                     aria-selected={isSelected}
                                     tabIndex={isSelected ? 0 : -1}
@@ -1596,10 +1709,34 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                         openRowMenu(row, event.clientX, event.clientY);
                                     } : undefined}
                                 >
-                                    {columns.map((col, cellIdx) =>
-                                        col.copy === true ?
+                                    {selectionEnabled ? <TableCell role="gridcell">
+                                        <div className="streamed-table-select-cell" onClick={event => event.stopPropagation()}>
+                                            <Checkbox
+                                                size={15}
+                                                checked={selection!.selected.has(row.key)}
+                                                onChange={() => {
+                                                    store.setSelected(stateKey, row.key);
+                                                    toggleSelection(row.key);
+                                                }}
+                                                aria-label={`Select ${row.cells[0] ?? row.key}`}
+                                            />
+                                        </div>
+                                    </TableCell> : null}
+                                    {columns.map((col, cellIdx) => {
+                                        const cell = row.cells[cellIdx] ?? "";
+                                        const content = props.renderCell
+                                            ? props.renderCell({
+                                                row,
+                                                column: col,
+                                                cell,
+                                                cellIndex: cellIdx,
+                                                rowIndex: rowIndexByKey.get(row.key) ?? 0,
+                                                isFirstInGroup,
+                                            })
+                                            : cell;
+                                        return col.copy === true ?
                                             <TableCell key={col.key} role="gridcell" style={{position: "relative"}}>
-                                                {row.cells[cellIdx]}
+                                                {content}
                                                 {cellIdx === 0 && row.busy ? <UcxSpinner size={12} margin="0 0 0 6px" /> : null}
                                                 <button
                                                     className="streamed-table-copy-button"
@@ -1608,22 +1745,22 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                                     tabIndex={-1}
                                                     onClick={event => {
                                                         event.stopPropagation();
-                                                        copyToClipboard(row.cells[cellIdx]);
+                                                        copyToClipboard(cell);
                                                     }}
                                                 >
                                                     <Icon name="heroDocumentDuplicate" size={14} />
                                                 </button>
                                             </TableCell> :
                                             <TableCell key={col.key} role="gridcell">
-                                                {row.cells[cellIdx]}
+                                                {content}
                                                 {cellIdx === 0 && row.busy ? <UcxSpinner size={12} margin="0 0 0 6px" /> : null}
-                                            </TableCell>
-                                    )}
+                                            </TableCell>;
+                                    })}
                                     {hasActions ?
                                         <TableCell role="gridcell">
                                             <div className="streamed-table-actions-cell">
                                                 <button
-                                                    className="streamed-table-actions-button"
+                                                    className={`streamed-table-actions-button ${UcxTableIconButtonClass}`}
                                                     title="Row actions"
                                                     tabIndex={-1}
                                                     onClick={event => {
@@ -1676,11 +1813,12 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                 </tbody>
             </Table>
             </div>
-            <UcxTableShortcutGuide
+            {props.showControls !== false ? <UcxTableShortcutGuide
                 actionDefs={actionDefs}
                 groupAction={groupAction}
+                selectionEnabled={selectionEnabled}
                 tableRef={rootRef}
-            />
+            /> : null}
         </div>
         {menuRowKey !== null && rowMenuEntries.length > 0 ?
             <ActionMenu
@@ -1819,15 +1957,17 @@ function UcxTableShortcutGuideRow({keys, action}: {keys: string[]; action: strin
     </div>;
 }
 
-function UcxTableShortcutGuide({actionDefs, groupAction, tableRef}: {
+function UcxTableShortcutGuide({actionDefs, groupAction, selectionEnabled, tableRef}: {
     actionDefs: UcxTableActionDef[];
     groupAction?: UcxTableActionDef;
+    selectionEnabled?: boolean;
     tableRef: React.RefObject<HTMLDivElement | null>;
 }): React.ReactNode {
     const rows: {keys: string[]; action: string}[] = [
         {keys: ["↑", "↓", "j", "k"], action: "Move selection"},
         {keys: ["Enter"], action: "Open"},
     ];
+    if (selectionEnabled) rows.push({keys: ["Space"], action: "Select"});
     if (actionDefs.length > 0) rows.push({keys: ["x"], action: "Row actions"});
     const builtIn = new Set(["j", "k", "g", "G", "x", "/"]);
     for (const def of actionDefs) {
@@ -2169,6 +2309,10 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
         background: var(--tableBackground, var(--blue-10));
         font-weight: 600;
         font-size: 13px;
+        box-shadow: inset 0 1px 0 var(--borderColor), 0 1px 0 var(--borderColor);
+    }
+
+    ${k} tbody > tr.group-row:first-child > td {
         box-shadow: 0 1px 0 var(--borderColor);
     }
 
@@ -2275,6 +2419,72 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
         background: var(--primaryMain);
     }
 
+    ${k} .streamed-table-select-col {
+        width: ${UCX_SELECT_COLUMN_WIDTH}px;
+    }
+
+    ${k} .streamed-table-select-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    ${k} th:has(> .streamed-table-select-header) {
+        width: ${UCX_SELECT_COLUMN_WIDTH}px;
+        min-width: ${UCX_SELECT_COLUMN_WIDTH}px;
+        padding: 0 !important;
+        text-align: center;
+    }
+
+    ${k} .streamed-table-select-header > div {
+        margin-right: 0;
+    }
+
+    ${k} td:has(> .streamed-table-select-cell) {
+        width: ${UCX_SELECT_COLUMN_WIDTH}px;
+        min-width: ${UCX_SELECT_COLUMN_WIDTH}px;
+        padding: 0 !important;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    ${k} .streamed-table-select-cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    ${k} .streamed-table-select-cell > div {
+        margin-right: 0;
+    }
+
+    ${k}[data-density="compact"] .streamed-table-scroll thead th {
+        height: 40px;
+        padding: 10px 8px;
+        vertical-align: middle;
+        text-align: left;
+        color: var(--textSecondary);
+        font-size: 12px;
+    }
+
+    ${k}[data-density="compact"] .streamed-table-header-label {
+        display: inline-flex;
+        align-items: center;
+        max-width: calc(100% - 5px);
+        vertical-align: middle;
+    }
+
+    ${k}[data-density="compact"] .streamed-table-scroll td {
+        padding: 3px 8px;
+        vertical-align: middle;
+    }
+
+    ${k}[data-density="compact"] .streamed-table-scroll th,
+    ${k}[data-density="compact"] .streamed-table-scroll td {
+        border-left: 0;
+        border-right: 0;
+    }
+
     ${k} .streamed-table-actions-col {
         width: ${UCX_ACTION_COLUMN_WIDTH}px;
     }
@@ -2296,29 +2506,6 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
         display: flex;
         align-items: center;
         justify-content: center;
-    }
-
-    ${k} .streamed-table-actions-button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        padding: 0;
-        border: 0;
-        border-radius: 6px;
-        background: transparent;
-        color: var(--textSecondary);
-        cursor: pointer;
-    }
-
-    ${k} .streamed-table-actions-button:hover {
-        background: var(--gray-20);
-        color: var(--textPrimary);
-    }
-
-    html.dark ${k} .streamed-table-actions-button:hover {
-        background: var(--gray-100);
     }
 
     ${k} .streamed-table-copy-button {
@@ -2354,7 +2541,13 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
     }
 `);
 
-const UcxTableControlsClass = injectStyle("ucx-table-controls", key => `
+export const UcxTableIconButtonClass = injectStyle("ucx-table-icon-button", k => `
+    ${k} { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--textSecondary); cursor: pointer; }
+    ${k}:hover { background: var(--gray-20); color: var(--textPrimary); }
+    html.dark ${k}:hover { background: var(--gray-100); }
+`);
+
+export const UcxTableControlsClass = injectStyle("ucx-table-controls", key => `
     ${key} {
         display: flex;
         align-items: center;

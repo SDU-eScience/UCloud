@@ -20,6 +20,7 @@ export const appColors: HexColor[][] = [
 
 export type HexColor = `#${string}`;
 export type ThemeColor =
+    | "ghost"
     | "primaryMain"
     | "primaryLight"
     | "primaryDark"
@@ -100,6 +101,7 @@ export function selectContrastColor(inputColor: ThemeColor): ThemeColor {
 }
 
 export function selectHoverColor(inputColor: string | ThemeColor): string | ThemeColor {
+    if (inputColor === "ghost") return "rowHover";
     if (inputColor.endsWith("Main")) {
         return inputColor.replace("Main", "Dark");
     } else if (inputColor.endsWith("Dark")) {

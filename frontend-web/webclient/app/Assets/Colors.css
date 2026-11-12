@@ -1,3 +1,7 @@
+html {
+    --ghost: transparent;
+}
+
 html.light {
     --primaryMain: var(--blue-60);
     --primaryLight: var(--blue-50);

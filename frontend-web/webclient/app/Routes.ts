@@ -152,6 +152,7 @@ const grants = {
 const accounting = {
     usage: () => "/usage",
     allocations: () => "/allocations",
+    receivedAllocations: () => "/allocations/received",
 }
 
 const files = {

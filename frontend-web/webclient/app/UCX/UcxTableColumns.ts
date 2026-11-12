@@ -52,7 +52,11 @@ export function computeColumnWidths(columns: TableColumn[], rows: UcxStreamedRow
     return widths;
 }
 
-export function resolveColumnWidths(columns: TableColumn[], autoWidths: Record<string, number>): Record<string, number> {
+export function resolveColumnWidths(
+    columns: TableColumn[],
+    autoWidths: Record<string, number>,
+    defaults?: Record<string, number>,
+): Record<string, number> {
     const widths: Record<string, number> = {};
     for (const column of columns) {
         const user = userWidthCache.get(column.key);
@@ -60,8 +64,8 @@ export function resolveColumnWidths(columns: TableColumn[], autoWidths: Record<s
             widths[column.key] = user;
             continue;
         }
-        const auto = autoWidths[column.key];
-        widths[column.key] = auto === undefined ? UCX_MIN_COLUMN_WIDTH : auto;
+        const fallback = defaults?.[column.key] ?? autoWidths[column.key];
+        widths[column.key] = fallback === undefined ? UCX_MIN_COLUMN_WIDTH : fallback;
     }
     return widths;
 }
