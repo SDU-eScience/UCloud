@@ -136,6 +136,8 @@ services:
       u1-standard:
         nameSuffix: Cpu
 
+        systemReservedCpuMillis: 2000
+
         cpu: [ 1, 2, 4 ]
         memory: [ 1, 2, 4 ]
 
