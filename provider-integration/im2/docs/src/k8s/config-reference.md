@@ -221,6 +221,7 @@ services:
       enableIntegration: false
       iops: 45000
       parallelScans: 8
+      parallelLookups: 32
       entriesPerSSTable: 16384
 
   compute:

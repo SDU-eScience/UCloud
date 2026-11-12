@@ -242,7 +242,7 @@ func handleAuthenticationToken(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now().Truncate(time.Second)
 	expiresAt := now.Add(registryJWTExpiry)
-	if hasCredentials && identity.ExpiresAt.Before(expiresAt) {
+	if hasCredentials && !identity.ExpiresAt.IsZero() && identity.ExpiresAt.Before(expiresAt) {
 		expiresAt = identity.ExpiresAt.Truncate(time.Second)
 	}
 	if !expiresAt.After(now) {

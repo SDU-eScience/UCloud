@@ -59,6 +59,7 @@ type KubernetesMetadataCatalog struct {
 	EnableIntegration bool
 	IOPS              int
 	ParallelScans     int
+	ParallelLookups   int
 	EntriesPerSSTable int
 }
 
@@ -455,6 +456,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		cfg.FileSystem.MetadataCatalog.EnableIntegration = util.DevelopmentModeEnabled()
 		cfg.FileSystem.MetadataCatalog.IOPS = 45_000
 		cfg.FileSystem.MetadataCatalog.ParallelScans = 8
+		cfg.FileSystem.MetadataCatalog.ParallelLookups = 32
 		cfg.FileSystem.MetadataCatalog.EntriesPerSSTable = 1024 * 16
 		if metadataNode != nil {
 			if enabled, ok := cfgutil.OptionalChildBool(filePath, metadataNode, "enabled"); ok {
@@ -469,13 +471,16 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			cfg.FileSystem.MetadataCatalog.ParallelScans = int(cfgutil.OptionalChildInt(
 				filePath, metadataNode, "parallelScans", &success,
 			).GetOrDefault(int64(cfg.FileSystem.MetadataCatalog.ParallelScans)))
+			cfg.FileSystem.MetadataCatalog.ParallelLookups = int(cfgutil.OptionalChildInt(
+				filePath, metadataNode, "parallelLookups", &success,
+			).GetOrDefault(int64(cfg.FileSystem.MetadataCatalog.ParallelLookups)))
 			cfg.FileSystem.MetadataCatalog.EntriesPerSSTable = int(cfgutil.OptionalChildInt(
 				filePath, metadataNode, "entriesPerSSTable", &success,
 			).GetOrDefault(int64(cfg.FileSystem.MetadataCatalog.EntriesPerSSTable)))
 		}
 		if cfg.FileSystem.MetadataCatalog.IOPS <= 0 || cfg.FileSystem.MetadataCatalog.ParallelScans < 2 ||
-			cfg.FileSystem.MetadataCatalog.EntriesPerSSTable < 10_000 {
-			cfgutil.ReportError(filePath, fsNode, "metadataCatalog requires positive iops, at least 2 parallelScans, and at least 10000 entriesPerSSTable")
+			cfg.FileSystem.MetadataCatalog.ParallelLookups < 1 || cfg.FileSystem.MetadataCatalog.EntriesPerSSTable < 10_000 {
+			cfgutil.ReportError(filePath, fsNode, "metadataCatalog requires positive iops and parallelLookups, at least 2 parallelScans, and at least 10000 entriesPerSSTable")
 			success = false
 		}
 	}
