@@ -1417,9 +1417,20 @@ export const Runs = {
             await this.extendTimeBy(page, extension);
         }
 
-        await NetworkCalls.awaitResponse(page, "**/api/jobs", async () => {
-            await page.getByRole("button", {name: "Submit"}).click();
-        })
+        for (let attempt = 0; ; attempt++) {
+            const response = await NetworkCalls.awaitResponse(page, "**/api/jobs", async () => {
+                await page.getByRole("button", {name: "Submit"}).click();
+            });
+
+            if (response.ok()) break;
+
+            const reason = await response.text();
+            if (attempt >= 30 || !reason.includes("not ready yet")) {
+                throw new Error(`Failed to submit job: ${reason}`);
+            }
+
+            await page.waitForTimeout(1000);
+        }
 
         await page.waitForURL("**/app/jobs/properties/**", {timeout: 30_000});
 
@@ -1689,6 +1700,13 @@ export const Resources = {
             await NetworkCalls.awaitResponse(page, "**/api/networks", async () => {
                 await page.getByRole("dialog").getByRole("button", {name: "Create", exact: true}).click();
             });
+
+            await expect.poll(async () => {
+                const result = await apiJson<{
+                    items: Array<{specification: {name: string}; status: {cidrBlock?: string | null;};}>;
+                }>(page, "GET", "/api/networks/browse?itemsPerPage=100");
+                return result.items.find(it => it.specification.name === name)?.status.cidrBlock ?? "";
+            }, {timeout: 60_000}).not.toBe("");
         },
 
         async delete(page: Page, name: string): Promise<void> {
