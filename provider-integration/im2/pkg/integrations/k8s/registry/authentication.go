@@ -200,13 +200,18 @@ func handleAuthenticationToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requestedService := r.URL.Query().Get("service")
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+
+	requestedService := r.Form.Get("service")
 	if requestedService != "" && requestedService != Service() {
 		http.Error(w, "invalid registry service", http.StatusBadRequest)
 		return
 	}
 
-	rawScopes := r.URL.Query()["scope"]
+	rawScopes := r.Form["scope"]
 	scopes, scopesOk := registryScopeEntries(rawScopes)
 	if !scopesOk {
 		http.Error(w, "too many registry scopes", http.StatusBadRequest)
@@ -215,12 +220,26 @@ func handleAuthenticationToken(w http.ResponseWriter, r *http.Request) {
 
 	identity := controller.ApiTokenIdentity{}
 	_, apiToken, hasCredentials := r.BasicAuth()
-	credentialsRejected := false
+	if !hasCredentials {
+		switch r.PostForm.Get("grant_type") {
+		case "password":
+			apiToken = r.PostForm.Get("password")
+			hasCredentials = apiToken != ""
+		case "refresh_token":
+			apiToken = r.PostForm.Get("refresh_token")
+			hasCredentials = apiToken != ""
+		case "":
+		default:
+			http.Error(w, "unsupported grant type", http.StatusBadRequest)
+			return
+		}
+	}
+	state := requestStateFromContext(r.Context())
 	var access []registryJWTAccess
 	if hasCredentials {
 		validated, authErr := controller.ApiTokenValidateWithIdentity(containerRepositoryApiTokenKind, apiToken)
 		if authErr != nil {
-			credentialsRejected = true
+			state.credentialsRejected = true
 			access = authorizedAnonymousTokenAccess(scopes)
 			if len(access) == 0 {
 				http.Error(w, "invalid API token", http.StatusUnauthorized)
@@ -250,8 +269,6 @@ func handleAuthenticationToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state := requestStateFromContext(r.Context())
-	state.credentialsRejected = credentialsRejected
 	if hasCredentials {
 		state.grant = &ocidauth.Grant{User: ocidauth.UserInfo{Name: identity.Username}}
 		state.owner = identity.Owner
@@ -370,8 +387,8 @@ func authorizedTokenAccess(identity controller.ApiTokenIdentity, scopes []regist
 		actor.Project = util.OptValue(identity.Owner.ProjectId)
 	}
 
-	canPull := apiTokenAllows(identity.Permissions, "pull")
 	canPush := apiTokenAllows(identity.Permissions, "push")
+	canPull := canPush || apiTokenAllows(identity.Permissions, "pull")
 	repositoryCache := map[string]registryRepositoryCacheEntry{}
 	var result []registryJWTAccess
 	for _, scope := range scopes {

@@ -627,16 +627,13 @@ func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Applica
 	}
 	serviceName := deploymentName
 	selector := ucxSelectorLabels(deploymentName)
-	inDevelopmentMode := ucxDevelopmentModePath(app)
 	cacheCurrentPath := util.OptNone[string]()
-	if !inDevelopmentMode.Present {
-		if app.Invocation.Ucx.Present && app.Invocation.Ucx.Value.Executable.Present {
-			path, err := ucxdelivery.ExecutablePath(app.Metadata.Name, app.Metadata.Version)
-			if err != nil {
-				return "", "", err
-			}
-			cacheCurrentPath.Set(path)
+	if app.Invocation.Ucx.Present && app.Invocation.Ucx.Value.Executable.Present {
+		path, err := ucxdelivery.ExecutablePath(app.Metadata.Name, app.Metadata.Version)
+		if err != nil {
+			return "", "", err
 		}
+		cacheCurrentPath.Set(path)
 	}
 
 	isRunning, err := ucxDeploymentRunning(ctx, namespace, deploymentName)
@@ -646,7 +643,7 @@ func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Applica
 	}
 
 	if !isRunning {
-		invocation, err := renderUcxInvocationScript(app, inDevelopmentMode.Present)
+		invocation, err := renderUcxInvocationScript(app)
 		if err != nil {
 			return "", "", err
 		}
@@ -662,7 +659,7 @@ func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Applica
 			return "", "", err
 		}
 
-		if err := ensureUcxDeployment(ctx, namespace, deploymentName, image, script, selector, inDevelopmentMode, cacheCurrentPath, app.Metadata.Name, app.Metadata.Version, authToken); err != nil {
+		if err := ensureUcxDeployment(ctx, namespace, deploymentName, image, script, selector, cacheCurrentPath, app.Metadata.Name, app.Metadata.Version, authToken); err != nil {
 			log.Warn("UCX provider: failed ensuring deployment %s/%s: %v", namespace, deploymentName, err)
 			return "", "", err
 		}
@@ -737,7 +734,6 @@ func ensureUcxDeployment(
 	image string,
 	script string,
 	selector map[string]string,
-	developmentModeSubPath util.Option[string],
 	cacheCurrentPath util.Option[string],
 	appName string,
 	appVersion string,
@@ -745,24 +741,6 @@ func ensureUcxDeployment(
 ) error {
 	volumes := []k8score.Volume{}
 	volumeMounts := []k8score.VolumeMount{}
-
-	if developmentModeSubPath.Present {
-		volumes = append(volumes, k8score.Volume{
-			Name: "ucloud-filesystem",
-			VolumeSource: k8score.VolumeSource{
-				PersistentVolumeClaim: &k8score.PersistentVolumeClaimVolumeSource{
-					ClaimName: shared.ServiceConfig.FileSystem.ClaimName,
-				},
-			},
-		})
-
-		volumeMounts = append(volumeMounts, k8score.VolumeMount{
-			Name:      "ucloud-filesystem",
-			MountPath: "/opt/ucloud",
-			SubPath:   developmentModeSubPath.Value,
-			ReadOnly:  true,
-		})
-	}
 
 	if cacheCurrentPath.Present {
 		cacheParent := filepath.Dir(cacheCurrentPath.Value)
@@ -960,7 +938,7 @@ func findReadyUcxPod(ctx context.Context, namespace string, selector map[string]
 	return pods.Items[0].Name, nil
 }
 
-func renderUcxInvocationScript(app *orcapi.Application, inDevelopmentMode bool) (string, error) {
+func renderUcxInvocationScript(app *orcapi.Application) (string, error) {
 	template := ""
 	for _, parameter := range app.Invocation.Invocation {
 		if parameter.Type == orcapi.InvocationParameterTypeJinja {
@@ -975,7 +953,6 @@ func renderUcxInvocationScript(app *orcapi.Application, inDevelopmentMode bool) 
 
 	jinjaContext := exec.NewContext(map[string]any{
 		"ucloud": map[string]any{
-			"ucxDevelopmentMode": inDevelopmentMode,
 			"application": map[string]any{
 				"name":    app.Metadata.Name,
 				"version": app.Metadata.Version,
@@ -1084,15 +1061,4 @@ func ucxSelectorLabels(deploymentName string) map[string]string {
 	return map[string]string{
 		"ucloud.dk/ucx-deployment": deploymentName,
 	}
-}
-
-func ucxDevelopmentModePath(app *orcapi.Application) util.Option[string] {
-	developmentEntries := shared.ServiceConfig.Compute.Ucx.Development
-	for _, entry := range developmentEntries {
-		if entry.Name == app.Metadata.Name && entry.Version == app.Metadata.Version {
-			return util.OptValue(entry.SubPath.GetOrDefault(shared.ExecutablesDir))
-		}
-	}
-
-	return util.OptNone[string]()
 }

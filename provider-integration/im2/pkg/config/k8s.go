@@ -231,15 +231,8 @@ type KubernetesInferenceAccessConfiguration struct {
 	Testers        []string
 }
 
-type KubernetesUcxDevelopmentApp struct {
-	Name    string              `json:"name" yaml:"name"`
-	Version string              `json:"version" yaml:"version"`
-	SubPath util.Option[string] `json:"subPath" yaml:"subPath"`
-}
-
 type KubernetesUcxConfiguration struct {
-	Development []KubernetesUcxDevelopmentApp `json:"development" yaml:"development"`
-	Publish     map[string][]string           `json:"publish" yaml:"publish"`
+	Publish map[string][]string `json:"publish" yaml:"publish"`
 }
 
 type KubernetesCompute struct {
@@ -544,11 +537,6 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 	ucxNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "ucx")
 	if ucxNode != nil {
-		developmentNode, _ := cfgutil.GetChildOrNil(filePath, ucxNode, "development")
-		if developmentNode != nil {
-			cfgutil.Decode(filePath, developmentNode, &cfg.Compute.Ucx.Development, &success)
-		}
-
 		publishNode, _ := cfgutil.GetChildOrNil(filePath, ucxNode, "publish")
 		if publishNode != nil {
 			cfgutil.Decode(filePath, publishNode, &cfg.Compute.Ucx.Publish, &success)

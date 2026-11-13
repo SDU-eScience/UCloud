@@ -3331,7 +3331,7 @@ const UcxServiceProviderSelector: React.FunctionComponent<{
     const {wallets, products, loading: walletsAndProductsLoading} = useMachineWalletsAndProducts();
 
     const providers = useMemo(() => {
-        const coreProviders = new Set(["ucloud", "aau", "aau-test"]);
+        const providersToSkip = new Set(["", "aau", "lumi-sdu", "aau-k8", "hippo", "sophia"]);
         const result = new Set<string>();
 
         for (const product of products.items) {
@@ -3339,7 +3339,7 @@ const UcxServiceProviderSelector: React.FunctionComponent<{
                 productCategoryEquals(wallet.paysFor, product.category)
             );
             if (!hasWallet) continue;
-            if (realProvidersOnly && coreProviders.has(product.category.provider)) continue;
+            if (realProvidersOnly && providersToSkip.has(product.category.provider)) continue;
             result.add(product.category.provider);
         }
 

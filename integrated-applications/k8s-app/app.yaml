@@ -8,10 +8,10 @@
 application: v2
 
 name: kubernetes
-version: "0.1.5"
+version: "1.0.0"
 
 title: Kubernetes
-description: K3s based Kubernetes cluster on UCloud virtual machines
+description: Kubernetes cluster on UCloud
 
 software:
   type: UCX
@@ -22,7 +22,7 @@ invocation: |
 
 ucx:
   executable:
-    manifestUrl: https://k8s.localhost.direct/ucx/kubernetes/0.1.5/manifest.json
+    manifestUrl: https://k8s.localhost.direct/ucx/kubernetes/1.0.0/manifest.json
     publicKey: ed25519:REPLACE_ME
     binaryName: k8s-app
   disasterRecovery:
@@ -33,3 +33,4 @@ ucx:
       memoryInGigs: 1
       args: ["recovery"]
       port: 43103
+
