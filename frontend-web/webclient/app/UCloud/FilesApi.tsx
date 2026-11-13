@@ -6,7 +6,6 @@ import {
     ResourceApi,
     ResourceApiActions,
     ResourceBrowseCallbacks,
-    ResourceUpdate,
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import FileCollectionsApi, {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";

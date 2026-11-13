@@ -11,18 +11,21 @@ export function Browser(): React.ReactNode {
      // A reference to the ResourceBrowser, to target the API if necessary.
     const browserRef = React.useRef<ResourceBrowser<ResourceType> | null>(null);
 
-    // useLayoutEffect as we only care about mounting _after_ the <div>-element has been mounted.
+    // useLayoutEffect as we only care about mounting
+    // _after_ the <div>-element has been mounted.
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            // Creates instance of class, sets up the DOM elements, and the setup of the callbacks
-            // in the Resource Browser
+            // Creates instance of class, sets up the DOM elements, 
+            // and the setup of the callbacks in the Resource Browser
             new ResourceBrowser<ResourceType>(mount, "Resource Type", opts)
                 .init(browserRef, FEATURES, "", browser => {
-                // Sets column titles. First and second only here, but an additional 3 are possible.
+                // Sets column titles. First and second only here, 
+                // but an additional 3 are possible.
                 browser.setColumns([{name: "Title"}, {name: "Created at"}]);
 
-                // Behavior for when a row is activated by double mouse-click, or pressing enter.
+                // Behavior for when a row is activated by double mouse-click,
+                // or pressing enter.
                 browser.on("open", (_oldPath, newPath, resource) => {
                     callAPI(ResourceApi.browse({
                         ...defaultRetrieveFlags,
@@ -52,7 +55,8 @@ export function Browser(): React.ReactNode {
                     browser.registerPage(result, path, false);
                 });
 
-                // The item has an icon to represent it. It is presented when no entries can be shown
+                // The item has an icon to represent it. 
+                // It is presented when no entries can be shown
                 browser.setEmptyIcon(productTypeToIcon("ResourceTypeIcon"));
 
                 // Filters that can be applied to the items that are fetched from the backend.
@@ -67,11 +71,16 @@ export function Browser(): React.ReactNode {
                 browser.on("renderStat1", (item, stat) => stat.innerText = item.createdAt}); 
                 
                // Generate the breadcrumbs to be presented in the header 
-                browser.on("generateBreadcrumbs", () => [{title: browser.resourceName, absolutePath: ""}]);
+                browser.on("generateBreadcrumbs", () => [
+                    {title: browser.resourceName, absolutePath: ""}
+                ]);
                 
-                // What to write when the page is empty. Usually handled with a switch on `reason`.
+                // What to write when the page is empty. 
+                // Usually handled with a switch on `reason`.
                 browser.on("renderEmptyPage", reason => {
-                    browser.emptyPageElement.reason.append(`The page is empty for reason: ${EmptyReasonTag[reason]}`);
+                    browser.emptyPageElement.reason.append(
+                        `The page is empty for reason: ${EmptyReasonTag[reason]}`
+                    );
                 });
 
                 // Callbacks to be used by actions
@@ -97,18 +106,19 @@ export function Browser(): React.ReactNode {
     return <MainContainer main={
         <>
             <div ref={mountRef} />
-            // The ResourceBrowserProjectSwitcher mounts the Project Switcher inside the Resource Browser header
+            // The ResourceBrowserProjectSwitcher mounts the Project Switcher
+            // inside the Resource Browser header
             <ResourceBrowserProjectSwitcher browser={browserRef.current} />
         </>
     } />
 }
 ```
 
-If the API calls could succeed, this would:
+If the API calls would succeed, this would:
 
-- Render a list of resources, with a title and stat1 filled out
-- Automatically fetch more if the bottom is reached.
-- Renders the title of the resource in the breadcrumbs
-- Allow filtering of resources, based on a date range
-- Show operations that can be done on the selected resources
-- Adds the Project Switcher
+- Render a list of resources, with `title` and `stat1` filled out
+- Automatically fetch more if the bottom of the page is reached, by scrolling.
+- Renders the title of the resource in the breadcrumbs.
+- Allow filtering of resources, based on a date range.
+- Show operations that can be done on the selected resources.
+- Adds the Project Switcher to the header of the component.

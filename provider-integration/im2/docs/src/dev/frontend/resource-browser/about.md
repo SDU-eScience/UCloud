@@ -1,6 +1,6 @@
 ## Resource Browser
 
-The Resource Browser is a component intended to bring a user interface for generic resources, with features a user would expect from a native file explorer. The component is written in Vanilla TypeScript, but is mounted within the React-mounted root, as to be compatible with the rest of the frontend.
+The Resource Browser is a generic component intended to bring a user interface for generic resources, with features a user would expect from a native file explorer. The component is written in Vanilla TypeScript, but is mounted within the React-mounted root, as to be compatible with the rest of the frontend.
 
 Additionally, keyboard navigation, either by arrow-keys or shortcuts, are available when using the component.
 
@@ -10,27 +10,28 @@ The component was written to accomodate rendering directories containing thousan
 
 ### Implementation
 
-See [`Use`](./use.md) for a how-to with implementing a component that uses the ResourceBrowser.
+See [`Use`](./use.md) for a how-to with implementing a component that uses the Resource Browser.
 
-The ResourceBrowser-component is, as mentioned, written in TypeScript. The component is a class that handles setting up the HTML-elements the Resource Browser adds and removes resource entries from directly, as opposed to React that keeps a shadow DOM to guage whether updates need to happen. Instead of running checks for differences, different parts of the Resource Browser are targeted for updates when needed, like the rows, operations or filters.
+The Resource Browser-component is written in TypeScript. The component is a class that handles setting up the HTML-elements the Resource Browser inserts and removes resource entries from directly, as opposed to React that keeps a shadow DOM to gauge whether updates need to happen. Instead of running checks for differences, different parts of the Resource Browser are targeted for updates when needed, like the rows, actions or filters.
 
-The setup of the ResourceBrowser happens in two steps:
+The setup of the Resource Browser happens in two steps:
 
 1. `constructor`
 2. `init`
 
 With the Resource Browser instantiated, `init` is called. `init` takes a callback as an argument, that is responsible for defining the hooks into the Resource Browser:
 
-It is here the custom parts of the Resource Browser is defined, including how `open`, `wantToFetchNextPage`, `fetchOperations`, etc. should behave when called. This is defined using `browserInstance.on(method-key, callback)`. Variables local to the resource browser can be defined inside this scope as well, like `FileBrowse` that defines local caches, used for the currently viewed files.
+It is here the custom parts of the Resource Browser are defined, including how `open`, `wantToFetchNextPage`, `fetchOperations`, etc. should behave when called. This is defined using `browserInstance.on(method-key, callback)`. Variables local to the resource browser can be defined inside this scope as well, like `FileBrowse` that defines local caches, used for the currently viewed files.
 
 ```mermaid
 flowchart LR
-    subgraph UCloud component
-        A(React component)
-        B(ResourceBrowser instance)
-        A -->|Dispatches messages|B
-        C[HTML elements]
-        B -->|Modifies| C
+    subgraph "UCloud component"
+        A["React component"]:::diagram-external-cog-6-tooth
+        B["Resource Browser instance"]:::diagram-external-cog-6-tooth
+        A -->|"Dispatches messages"|B
+        A -->|"Defines callbacks"|B
+        C["HTML elements"]:::diagram-external-cog-6-tooth
+        B -->|"Modifies"| C
     end
 ```
 
@@ -44,7 +45,7 @@ Each row is divided into multiple parts: `star`, `title`, `stat1`, `stat2`, `sta
 
 The title is the name of the entry, a locally unique identifier. This could be the file name (but not the full file path), job name or grant application ID. The `stat`-parts are used for info about the entry. This can be information, like created by, created by, or state of the resource. What is actually rendered is like `title` also handled by the React-component wrapping the instance of the ResourceBrowser.
 
-The `renderTitle` or `renderStat{i}` methods largely share the same arguments, with `renderTitle` having an additional `dims: RenderDimensions`-argument. 
+The `renderTitle` or `renderStat[1-4]` methods largely share the same arguments, with `renderTitle` having an additional `dims: RenderDimensions`-argument. 
 
 `renderStat1: (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;`
 
@@ -90,7 +91,7 @@ If new functionality is needed in the Resource Browser:
 
 If we were to implement the `sort` method, we would do the following:
 
-Add `"sort": (page: T[]) => void;` to the `ResourceBrowserListenerMap<T>`. With the method now recognized by the class, add `sort: doNothing` to the default handlers, as this is not a required function.
+Add `"sort": (page: T[]) => void;` to the `ResourceBrowserListenerMap<T>`. With the method now recognized by the class, add `sort: doNothing` to the default handlers, as this is not a required function. If the parent component wants to define the callback, inside the `init` callback, add `browser.on("sort", sortingFunction)`, with `sortingFunction` being defined elsewhere.
 
 The sort function can now be called using `this.dispatchMessage("sort", fn => fn(page))`, both in the Resource Browser-component internally, or React-components mounting the Resource Browser using `resourceBrowserInstance.dispatchMessage("sort", fn => fn(page))`.
 

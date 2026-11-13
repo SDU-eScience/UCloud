@@ -202,7 +202,7 @@ export abstract class ResourceApi<Res extends Resource,
     protected baseContext: string;
 
     public abstract productType?: ProductType;
-    public abstract routingNamespace;
+    public abstract routingNamespace: string;
     public abstract title: string;
     public isCoreResource: boolean = false;
     public defaultSortDirection: "ascending" | "descending" = "ascending";

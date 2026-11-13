@@ -3,7 +3,7 @@
 The UCloud page layout always consists of three parts and additional optional one:
 
 - Sidebar
-- Main content
+- Main container
 - Secondary sidebar
 - Modal (Optional)
 
@@ -13,7 +13,7 @@ The sidebar, positioned on the left side of the screen. This is used for navigat
 <img class="dark" src="./assets/sidebar-main-dark.png">
 <img class="light" src="./assets/sidebar-main-light.png">
 <figcaption>
-    The common view of the UCloud platform.
+    The view of the UCloud platform.
 </figcaption>
 </figure>
 The main container is a component that centers the content, and restricts to a max width of 1400px and resizes for smaller widths. The main container shows the content navigated to by either the sidebar or secondary sidebar. Navigation can happen from the main container, but it shouldn't change the resource type being viewed.
@@ -45,5 +45,3 @@ Modals do not use the main container, and are styled as relevant for what they c
     The UCloud platform with an active modal showing.
 </figcaption>
 </figure>
-
-### Architecture

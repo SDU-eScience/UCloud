@@ -64,6 +64,21 @@
     - [Configuration](./k8s/config-reference.md)
     - [CLI](./k8s/cli-reference.md)
 
+# UCloud frontend
+
+- [Frontend](./dev/frontend/frontend-development.md)
+- [Frontend layout](./dev/frontend/frontend-layout.md)
+- [Frontend architecture](./dev/frontend/frontend-architecture.md)
+- [Network calls](./dev/frontend/network-calls.md)
+- [Styling (CSS)](./dev/frontend/inject-style.md)
+- [Testing](./dev/frontend/testing.md)
+- [UI Components](./dev/frontend/ui-components.md)
+- [ResourceAPI](./dev/frontend/resource-api.md)
+
+- [ResourceBrowser](./dev/frontend/resource-browser/about.md)
+    - [Features and operations](./dev/frontend/resource-browser/features-and-operations.md)
+    - [Use](./dev/frontend/resource-browser/use.md)
+
 
 # Style guidelines
 
@@ -83,21 +98,6 @@
 # Glossary
 
 - [Glossary](./glossary.md)
-
-# WIP
-
-# Frontend
-
-- [Frontend](./dev/frontend/frontend-development.md)
-- [Frontend layout](./dev/frontend/frontend-layout.md)
-- [Network calls](./dev/frontend/network-calls.md)
-- [Styling (CSS)](./dev/frontend/inject-style.md)
-- [Testing](./dev/frontend/testing.md)
-- [UI Components](./dev/frontend/ui-components.md)
-
-- [ResourceBrowser](./dev/frontend/resource-browser/about.md)
-    - [Features and operations](./dev/frontend/resource-browser/features-and-operations.md)
-    - [Use](./dev/frontend/resource-browser/use.md)
 
 <!--
 

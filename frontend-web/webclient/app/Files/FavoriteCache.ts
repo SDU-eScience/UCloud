@@ -54,14 +54,6 @@ export const sidebarFavoriteCache = new class extends ExternalStoreBase {
         return this.fileInfoCache[path];
     }
 
-    public fileInfosIfPresent(paths: string[]): UFile[] {
-        const result: UFile[] = [];
-        for (const p of paths) {
-            if (this.fileInfoCache[p]) result.push(this.fileInfoCache[p]);
-        }
-        return result;
-    }
-
     public renameInCached(oldPath: string, newPath: string): void {
         const file = this.cache.items.find(it => it.path === oldPath);
         if (!file) return;
@@ -103,11 +95,11 @@ export const sidebarFavoriteCache = new class extends ExternalStoreBase {
 
 
 
-/* 
+/*
 const testCases: [string, boolean][] = [[".hidden", true], [".hidden.thing", false], ["visible", true], ["visible.thing", false]];
 for (const [path, expectedResult] of testCases) {
     console.log(path, expectedResult, "did match:", isLikelyFolder(path) === expectedResult);
-} 
+}
 // false positive: [".vimrc", false]
 */
 export function isLikelyDirectory(path: string): boolean {

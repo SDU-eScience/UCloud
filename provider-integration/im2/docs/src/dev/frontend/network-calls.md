@@ -6,21 +6,27 @@ UCloud has three different options for network calls, that components can use:
 - `fetch`
 - `WSFactory#open`
 
+<figure class="diagram" id="ucloud-fe-network-calls">
+
 ```mermaid
 flowchart LR
-    subgraph frontend
-        A(Frontend component)
-        A <--> B(WSFactory)
-        A <--> C(HttpClient)
-        A <--> D(Fetch)
+    subgraph UCloud frontend
+        A["Frontend component"]:::diagram-external-ucloud
+        A <--> B["WSFactory"]:::diagram-external-ucloud
+        A <--> C["HttpClient"]:::diagram-external-ucloud
+        A <--> D["Fetch"]:::diagram-external-ucloud
     end
-    subgraph Backend
-        E[Backend service]
-    end
+    E["Backend service"]:::diagram-external-ucloud
     B <--> E
     C <--> E
     D <--> E
 ```
+
+<figurecaption>
+    The different options the UCloud frontend has for communicating with a backend.
+</figurecaption>
+</figure>
+
 
 ### callAPI
 

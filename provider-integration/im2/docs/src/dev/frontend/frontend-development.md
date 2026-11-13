@@ -1,22 +1,8 @@
 # UCloud frontend development
 
-```mermaid
-flowchart RL
-
-    C <--> A
-    A <--> B
-
-    subgraph Frontend
-        A(Frontend component)
-        subgraph Stores
-            B(Redux store)
-            C(External store)
-        end
-    end
-```
 ## UCloud description
 
-See [introduction](../../overview/introduction.md#introduction)
+For a description of the UCloud frontend, and how it exists in the context of the UCloud platform, see [introduction](../../overview/introduction.md#introduction).
 
 ## Technologies
 
