@@ -6,9 +6,11 @@ For a description of where UCloud frontend exists in the context of the UCloud p
 
 ## Technologies
 
-The UCloud frontend is written in Typescript, with the frontend library [React](https://en.wikipedia.org/wiki/React_(software)). Some use of the library Redux exists in the codebase, but it is rarely used when developing new features, instead replaced by `ExternalStore`. TypeScript was chosen to reduce the friction that comes from Vanilla JavaScript's dynamic nature, and TypeScript letting developers use upcoming TC-39 features, by compiling to an older target, making UCloud available for people running older versions of JavaScript.
+The UCloud frontend is written in Typescript, with the frontend library [React](https://en.wikipedia.org/wiki/React_(software)). Some use of the library Redux exists in the codebase, but it is rarely used when developing new features, instead replaced by `ExternalStore`. TypeScript was chosen to reduce the friction that comes from Vanilla JavaScript's dynamic nature, and TypeScript letting developers use upcoming TC-39 features, by compiling to an older target, making UCloud available for people running older versions of JavaScript. 
 
-React was chosen because of its ubiquity and being battle-tested and the library authors use of "dogfooding".
+`npm` is used as the package manager, and contains the various scripts for [running the UCloud frontend](#running-the-ui), [generating icons](#color-references-and-icons), etc. Drop-in replacements can be used if preferred.
+
+React was chosen because of its ubiquity and being battle-tested and the library authors use of "dogfooding". 
 
 Where the performance of React has not been adequate, Vanilla TypeScript/ECMAScript has been used instead. An example of this is the [ResourceBrowser](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/app/ui-components/ResourceBrowser.tsx) component, where very little use of React is present.
 
@@ -46,32 +48,6 @@ Some editors will only run type checking on open files and not the entire projec
 Every added NPM-package is a potential security or licensing risk. With this in mind, keep new NPM packages to a minimum as they are something that might need to be updated, increasingly so through issues with security. Whether or not to add a package will be up to the programmer, depending on saving time through offloading the complexity to the package or similar. If a package is added to `package.json` file, the version must only consist of the version number, fixing it to that version.
 
 This means no `~`, `^`, `>=`, `>`, `<=`, `<`, `x`, `*` or `latest`, as this provides less control over which version of the package will be installed.
-
-## Adding a route to a component
-
-When creating a new component that needs its own route-path, the approach to follow is in the file `Core.tsx`.
-
-If frontend authentication is required for accessing the component, the component should be wrapped in the function `requireAuth`, like so:
-
-```tsx
-<Route 
-    path={AppRoutes.dev.pathForAuthenticatedComponent()}
-    element={React.createElement(requireAuth(MyNewComponent))} 
-/>
-```
-
-If authentication is not needed, this can be omitted, like so:
-
-```jsx
-<Route path={AppRoutes.dev.pathForComponent()} element={<MyNewComponent />} />
-```
-
-The route-path must be added to the `AppRoutes`.
-
-Relevant code can be found in:
-
-- `Core.tsx` found in [`/app/Core.tsx`](https://github.com/sdu-eScience/UCloud/tree/master/frontend-web/webclient/app/Core.tsx)
-- `AppRoutes` found in [`/app/Routes.ts`](https://github.com/sdu-eScience/UCloud/tree/master/frontend-web/webclient/app/Routes.ts)
 
 ## Color references and icons
 

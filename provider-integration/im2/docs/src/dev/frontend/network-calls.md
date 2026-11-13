@@ -10,7 +10,7 @@ UCloud has three different options for network calls, that components can use:
 
 ```mermaid
 flowchart LR
-    subgraph UCloud frontend
+    subgraph UCloud frontend<TODO>
         A["Frontend component"]:::diagram-external-ucloud
         A <--> B["WSFactory"]:::diagram-external-ucloud
         A <--> C["HttpClient"]:::diagram-external-ucloud
@@ -22,9 +22,9 @@ flowchart LR
     D <--> E
 ```
 
-<figurecaption>
+<figcaption>
     The different options the UCloud frontend has for communicating with a backend.
-</figurecaption>
+</figcaption>
 </figure>
 
 

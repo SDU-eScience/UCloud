@@ -11,7 +11,7 @@ Only two types are required, but more are usually needed for a derived class:
 - `Res extends Resource`
     - Required and is the resource type, e.g. `UFile` or `Job`.
 - `Prod extends Product`
-    - Required and the kind of product, e.g. `ProductStorage` or `ProductCompute` 
+    - Required and the kind of product, e.g. `ProductStorage` or `ProductCompute`.
 - `Spec extends ResourceSpecification = ResourceSpecification`
     - Not required, but needed if requiring access to the `specification` object in the resource is needed, other than the `product`.
 - `Flags extends ResourceIncludeFlags = ResourceIncludeFlags`

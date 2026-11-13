@@ -5,7 +5,7 @@ Styling for the frontend is primarily done with the function `injectStyle` found
 ### Motivation
 
 The motivation for this approach, was to make a largely drop-in replacement for `styled-components`, a popular JavaScript library for CSS styling.
-Investigating websites with larger userbases, that use the library, revealed that the performance issues we were facing on UCloud using the library were not a result of us not using it correctly. The UCloud solution `Unstyled`, gave performance improvements, and provides what is needed for the styling, without dependening on an external package. As a `devDependency`, `Unstyled` does depend on `styled-systems` which provides TypeScript definitions for styling.
+Investigating websites with larger userbases, that use the library, revealed that the performance issues we were facing on UCloud using the library were not a result of us not using it correctly. The UCloud solution `Unstyled`, gave performance improvements, and provides what is needed for the styling. As a `devDependency`, `Unstyled` does depend on `styled-systems` which provides TypeScript definitions for styling.
 
 ### Using `injectStyle`
 
@@ -47,7 +47,7 @@ If just a classname is needed without any rules, see `makeClassName` function.
 
 ### Drawbacks
 
-One of the drawbacks of `Unstyled` is the same as you'd experience writing CSS in general: whether or not a child-selector is matched somewhere. 
+One of the drawbacks of `Unstyled` is the same as you'd experience writing CSS in general: whether or not a child-selector is still matched somewhere. 
 While separate tools exist to help with finding these cases, the aforementionened `makeClassName` can be used to leverage the TypeScript compiler to warn when it's the case.
 If the result of the `makeClassName` is no longer applied to any component, the rule can safely be deleted. This requires selectors to be written where references to classes in selectors has the classname interpolated. 
 

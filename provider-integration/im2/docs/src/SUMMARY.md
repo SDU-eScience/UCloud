@@ -75,7 +75,7 @@
 - [UI Components](./dev/frontend/ui-components.md)
 - [ResourceAPI](./dev/frontend/resource-api.md)
 
-- [ResourceBrowser](./dev/frontend/resource-browser/about.md)
+- [Resource Browser](./dev/frontend/resource-browser/about.md)
     - [Features and operations](./dev/frontend/resource-browser/features-and-operations.md)
     - [Use](./dev/frontend/resource-browser/use.md)
 

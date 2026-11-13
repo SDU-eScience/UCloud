@@ -6,20 +6,20 @@ All of these are optional.
 
 | *Name*                        | *Description*                                                                                                          |
 |-------------------------------|------------------------------------------------------------------------------------------------------------------------|
-| dragToSelect                  | Enables drag to select with mouse.                                                                                     |
-| supportsMove                  | Whether the resource kind supports moving, e.g. files                                                                  | 
-| supportsCopy                  | Whether the resource kind supports copying, e.g. files                                                                 |
-| locationBar                   | If the component should show an editable location bar at the top                                                       |
+| dragToSelect                  | Enables drag to select with a mouse.                                                                                   |
+| supportsMove                  | Whether the resource kind supports moving, e.g. files.                                                                 | 
+| supportsCopy                  | Whether the resource kind supports copying, e.g. files.                                                                |
+| locationBar                   | If the component should show an editable location bar at the top.                                                      |
 | showHeaderInEmbedded          | If `embedded` is set to true in `opts`, the header will be hidden by default. Use this value to override the behavior. |
 | showStar                      | Whether or not to render a star on the left side of an entries' row. Used for "favoriting".                            |
 | renderSpinnerWhenLoading      | If the component should render the loading spinner on initial load.                                                    | 
 | breadcrumbsSeparatedBySlashes | The component can show breadcrumbs in the header. Enable to add slashes between, for instance for file paths.          | 
-| search                        | Is search enabled for the component                                                                                    | 
-| filters                       | Are filters enabled for the component                                                                                  | 
+| search                        | Is search enabled for the component.                                                                                   | 
+| filters                       | Are filters enabled for the component.                                                                                 | 
 | breadcrumbTitles              | Add the breadcrumb value to the html tags 'title' attribute.                                                           |
-| showColumnTitles              | Usually disabled for embedded resource-browsers, enables titles for columns. Required if sorting is allowed.           |
+| showColumnTitles              | Usually disabled for embedded resource browsers, enables titles for columns. Required if sorting is allowed.           |
 | sorting                       | Enables sorting by column. Only works if `showColumnTitles` is also enabled. In addition, you must also set `sortById` on the appropriate columns. |
-| projectSwitcher               | Adds a HTML-element to the header to allocate space for the project-switcher component.                                |
+| projectSwitcher               | Adds an HTML-element to the header to allocate space for the project-switcher component.                               |
 
 ### Operations
 
@@ -66,25 +66,25 @@ The ResourceBrowser-component has a series of operations that must be defined, a
 
 `() => void;`
 
-An operation that is called to initiate teardown of the component when it is no longer mounted in the React-DOM.
+An operation that is called to initiate teardown of the component, when it is no longer mounted in the React-DOM.
 
 ### rowSelectionUpdated
 
 `() => void;`
 
-Called when the selection of entries changes.
+Called when the selection of entries changes. Used by the FileBrowser to show storage usage for the selected entries.
 
 ### beforeShortcut
 
 `(ev: KeyboardEvent) => void;`
 
-Called before a keyboard event is passed to the shortcut handlers, to close menus
+Called before a keyboard event is passed to the shortcut handlers. Used for closing menus.
 
 ### unhandledShortcut
 
 `(ev: KeyboardEvent) => void;`
 
-Called if a keyboard shortcut entered is not defined in the ResourceBrowser-component, and allows extending the available shortcuts when using the component. 
+Called if a keyboard shortcut entered is not defined in the Resource Browser-component, and allows extending the available shortcuts when using the component. 
 
 ### startRenderPage 
 
@@ -136,13 +136,13 @@ For more on how to use, see [`renderRows`](./about.md#renderrows)
 
 `() => void;`
 
-A callback, called after the final row has been rendered. Can be used to make batched calls, built up from rendering of rows. 
+A callback, called after the final row has been rendered. Can be used to make batched calls, built up from rendering of rows, like fetching missing avatar images. 
 
 ### skipOpen 
 
 `(oldPath: string, path: string, resource?: T) => boolean;`
 
-A check called before `open` to allow skipping calling open on the resource, if any. Example use is double clicking on a temporary resource, that is being created but not yet exists. Navigating to this resource would be impossible.
+A check called before `open` to allow skipping calling open on the resource, if any. Example use is double clicking on a temporary resource, that is being created but not yet exists. Navigating to this resource has no logical behavior.
 
 ### open 
 
@@ -160,37 +160,37 @@ An optional callback called before the `refresh`-functionality in the Resource B
 
 `(path: string) => Promise<void>;`
 
-Callback for when the end of the page is reached, and the last page returned, contains a defined `next` entry. 
+Callback for when the end of the page is reached, and the last page returned contains a defined `next` entry. 
 
 ### search 
 
 `(query: string) => void;`
 
-A callback for when a search is made by the user
+A callback for when a search is made by the user.
 
 ### onSearchHidden 
 
 `() => void;`
 
-A callback that's invoked when the search-bar is hidden.
+A callback that's invoked when the search-bar is hidden. Used for reverting to a non-search state, if the state change has been triggered.
 
 ### copy
 
 `(entries: T[], target: string) => void;`
 
-A callback for when a copy action is done using your keyboard. | Optional 
+A callback for when a copy action is done using your keyboard. 
 
 ### move
 
 `(entries: T[], target: string) => void;`
 
-A callback for when a cut action is done using your keyboard, or dragging a entry into a valid target | Optional
+A callback for when a cut action is done using your keyboard, or dragging a entry into a valid target.
 
 ### starClicked
 
 `(entry: T) => void;`
 
-Callback for when the star is clicked
+Callback for when the star is clicked.
 
 ### renderEmptyPage
 
@@ -202,7 +202,7 @@ Callback for what to render, depending on error-codes or PageV2 contents.
 
 `() => OperationOrGroup<T, any>[] | ResourceBrowserActions<T, any>;`
 
-Returns the available operations or actions for the resources.
+Returns the available actions for the resources.
 
 ### fetchOperationsCallback
 
@@ -214,7 +214,7 @@ Returns an object with methods and values the actions/operations will use (e.g. 
 
 `() => ControlDescription[] | undefined;`
 
-ResourceBrowser-specific operations. Currently only in use for Files with F2 for renaming entries.
+Resource Browser-specific operations. Currently only in use for Files with F2 for renaming entries.
 
 ### validDropTarget
 
@@ -226,25 +226,25 @@ Returns true if the hovered entry is a valid target, e.g. folder when dragging f
 
 `(selectedEntries: T[], currentTarget: string | null) => void;`
 
-Handler for how to render the drop indicator. The Resource Browser mounts an HTMLElement that can be filled with info for the drag indicator, like amount which files are being dragged.
+Handler for how to render the drop indicator. The Resource Browser mounts an HTMLElement that can be filled with info for the drag indicator, like which files are being dragged.
 
 ### generateBreadcrumbs
 
 `(path: string) => ({title: string, absolutePath: string}[]) | custom-rendering;`
 
-Passes the current path to generate breadcrumbs to be rendered in the locationbar. Can either return a list of titles to be rendered, and absolute path to be used with navigation, if applicable. The parent component could also manage rendering own its own. In that case, the method must return the string "custom-rendering".
+Passes the current path to generate breadcrumbs to be rendered in the location bar. Can either return a list of titles to be rendered and absolute path to be used with navigation, if applicable. The parent component could also manage rendering own its own. In that case, the method must return the string `"custom-rendering"`.
 
 ### generateTabCompletionEntries
 
 `(prompt: string, shouldFetch: boolean, lastSelectedIndex: number) => string[] | Promise<void>;`
 
-Returns a list possible completions based on the current locationbar text.
+Returns a list possible completions based on the current location bar text.
 
 ### renderLocationBar
 
 `(prompt: string) => {rendered: string, normalized: string};`
 
-Based on the `prompt`, returns a `rendered` and `normalized` version of the input, with the `rendered` used for presenting to the user, and `normalized` being used behind the scenes. For instance, a drive ID in the `normalized` version will be replaced with the drive name in the `rendered` version, but the drive ID is necessary for navigation. 
+Based on the `prompt`, returns a `rendered` and `normalized` version of the input, with the `rendered` used for presenting to the user, and `normalized` being used behind the scenes. For instance, a drive ID in the `normalized` version will be replaced with the drive name in the `rendered` version, but the drive ID is used for navigation. 
 
 ### pathToEntry
 
@@ -262,7 +262,7 @@ Given an entry, returns a presentable name for for the entry. `pathToEntry` is u
 
 `(page: T[]) => void;`
 
-A sorting function used for local sorting. E.g. when a folder is inserted in the frontend optimistically.
+A sorting function used for local sorting. E.g. when a folder is created inserted in the frontend locally before the backend has responding.
 
 ### fetchFilters
 
