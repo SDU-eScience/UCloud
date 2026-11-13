@@ -6,7 +6,7 @@ It typically contains functions to get the objects used for the resource's netwo
 
 The ResourceApi also contains the generic versions of actions/operations available for the resources. These are overridden as needed in the derived resource APIs that implement the abstract class.
 
-Only two types are required, but more are usually needed for derived classes:
+Only two types are required, but more are usually needed for a derived class:
 
 - `Res extends Resource`
     - Required and is the resource type, e.g. `UFile` or `Job`.

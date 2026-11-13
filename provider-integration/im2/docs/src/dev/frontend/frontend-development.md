@@ -2,13 +2,13 @@
 
 ## UCloud description
 
-For a description of the UCloud frontend, and how it exists in the context of the UCloud platform, see [introduction](../../overview/introduction.md#introduction).
+For a description of where UCloud frontend exists in the context of the UCloud platform, see [introduction](../../overview/introduction.md#introduction).
 
 ## Technologies
 
-The UCloud UI is written in Typescript, with the frontend library React. Some use of the library Redux exists in the codebase, but it is rarely used when developing new features. TypeScript was chosen to reduce the friction that comes from Vanilla JavaScripts dynamic nature, and TypeScript letting developers use upcoming TC-39 features, compiling to an older target, making UCloud available for people running older versions of JavaScript.
+The UCloud frontend is written in Typescript, with the frontend library [React](https://en.wikipedia.org/wiki/React_(software)). Some use of the library Redux exists in the codebase, but it is rarely used when developing new features, instead replaced by `ExternalStore`. TypeScript was chosen to reduce the friction that comes from Vanilla JavaScript's dynamic nature, and TypeScript letting developers use upcoming TC-39 features, by compiling to an older target, making UCloud available for people running older versions of JavaScript.
 
-React was chosen because of its ubiquity and being battle-tested and the framework authors do "dogfooding".
+React was chosen because of its ubiquity and being battle-tested and the library authors use of "dogfooding".
 
 Where the performance of React has not been adequate, Vanilla TypeScript/ECMAScript has been used instead. An example of this is the [ResourceBrowser](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/app/ui-components/ResourceBrowser.tsx) component, where very little use of React is present.
 
@@ -23,8 +23,8 @@ The UCloud frontend is found in the [`frontend-web/webclient`](https://github.co
 For a local dev environment, the `launcher`-tool, available in the root folder of the repository, can be run, which will prompt the user to initialize and start the environment.
 The UI will be available at `ucloud.localhost.direct` and will use the local environment as the backend. An admin user will be generated with the following login info:
 
-- Username: user
-- Password: mypassword
+- Username: `user`
+- Password: `mypassword`
 
 If using another backend is required, the frontend can be run using two commands, while in the `webclient` folder:
 
@@ -43,7 +43,7 @@ Some editors will only run type checking on open files and not the entire projec
 
 ## On adding NPM packages
 
-Every added NPM-package is a potential security or licensing risk. With this in mind, keep new NPM packages to a minimum as they are something that might need to be updated, increasingly through issues with security. Whether or not to add a package will be up to the programmer, depending on saving time through offloading the complexity to the package or similar. If a package is added to `package.json` file, the version must only consist of the version number, fixing it to that version.
+Every added NPM-package is a potential security or licensing risk. With this in mind, keep new NPM packages to a minimum as they are something that might need to be updated, increasingly so through issues with security. Whether or not to add a package will be up to the programmer, depending on saving time through offloading the complexity to the package or similar. If a package is added to `package.json` file, the version must only consist of the version number, fixing it to that version.
 
 This means no `~`, `^`, `>=`, `>`, `<=`, `<`, `x`, `*` or `latest`, as this provides less control over which version of the package will be installed.
 

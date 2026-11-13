@@ -29,7 +29,6 @@ flowchart LR
         A["Frontend component"]:::diagram-external-cog-6-tooth
         B["Redux store"]:::diagram-external-cog-6-tooth
         C["External store"]:::diagram-external-cog-6-tooth
-        
         A -->|Dispatches actions| B
         B -->|Reads from Redux| A
         A -->|Triggers calls| C
@@ -39,4 +38,4 @@ flowchart LR
 
 </figure>
 
-The external stores keep more state about the contents and can be used in non-React contexts. These stores can make calls directly from the stores themselves, and do not rely on dispatching the actions with the contents to be stored.
+The external stores keep more state about the contents and can be used in a non-React context. These stores can make calls directly from the stores themselves, and do not rely on dispatching the actions with the contents to be stored.
