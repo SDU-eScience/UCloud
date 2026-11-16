@@ -689,7 +689,7 @@ func (app *k8sApp) OnMessage(msg ucx.Frame) {
 
 func k8sVersionOptions() []ucx.Option {
 	now := time.Now().UTC()
-	releases := shared.Releases(now, shared.ReleaseFlagSupported)
+	releases := shared.ReleasesNewestPatchPerMinor(shared.Releases(now, shared.ReleaseFlagSupported))
 
 	options := make([]ucx.Option, 0, len(releases))
 	for _, release := range releases {
