@@ -10,16 +10,18 @@ UCloud has three different options for network calls, that components can use:
 
 ```mermaid
 flowchart LR
-    subgraph UCloud frontend<TODO>
+    subgraph frontend["UCloud frontend"]
         A["Frontend component"]:::diagram-external-ucloud
-        A <--> B["WSFactory"]:::diagram-external-ucloud
         A <--> C["HttpClient"]:::diagram-external-ucloud
+        A <--> B["WSFactory"]:::diagram-external-ucloud
         A <--> D["Fetch"]:::diagram-external-ucloud
     end
     E["Backend service"]:::diagram-external-ucloud
-    B <--> E
     C <--> E
     D <--> E
+    B <--> C
+    
+    class frontend diagram-external-window
 ```
 
 <figcaption>
@@ -32,9 +34,9 @@ flowchart LR
 
 The `callAPI`-function is used for contacting the backend, fetching data and posting updates.
 
-The first parameter `APICallParameter`, is an object that contains HTTP method, optional body, and other relevant arguments for the network call.
+The first parameter, `APICallParameter`, is an object that contains HTTP method, optional body, and other relevant arguments for the network call.
 
-Helper functions to create an `APICallParameter`-object exist, that map to different network actions. See `apiCreate`, `apiBrowse`, `apiRetrieve`, `apiSearch`, `apiUpdate`, and `apiDelete`.
+Helper functions to create an `APICallParameter`-object exist that map to different network actions. See `apiCreate`, `apiBrowse`, `apiRetrieve`, `apiSearch`, `apiUpdate`, and `apiDelete`.
 
 Example usage:
 

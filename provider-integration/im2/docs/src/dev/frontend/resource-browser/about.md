@@ -4,7 +4,7 @@ The Resource Browser is a generic component bringing a user interface for generi
 
 ## Motivation
 
-The component was written to accomodate rendering of directories containing thousands of files, without any significant slowdowns. The component supports keyboard inputs, like navigation and shortcuts. The component replaced the previous custom 'List'-component, that was written in React, which had major slowdowns for larger directories. While packages like `react-window` could be used, this would only fix the performance aspect, and not the wanted interactions like keyboard shortcuts or drag to select. Initially, the component was written with file-browsing in mind, which is why some of the operations relate heavily to functionality to files, but were applicable to a lot of other resources on UCloud.
+The component was written to accommodate rendering of directories containing thousands of files, without any significant slowdowns. The component supports keyboard inputs, like navigation and shortcuts. The component replaced the previous custom 'List'-component, that was written in React, which had major slowdowns for larger directories. While packages like `react-window` could be used, this would only fix the performance aspect, and not the wanted interactions like keyboard shortcuts or drag to select. Initially, the component was written with file-browsing in mind, which is why some of the operations relate heavily to functionality to files, but were applicable to a lot of other resources on UCloud.
 
 ## Implementation
 
@@ -19,11 +19,11 @@ The setup of the Resource Browser happens in two steps:
 
 With the Resource Browser instantiated, `init` is called. `init` takes a callback as an argument, that is responsible for defining the hooks into the Resource Browser:
 
-It is here the custom parts of the Resource Browser are defined, including how `open`, `wantToFetchNextPage`, `fetchOperations`, etc. should behave when called. This is defined using `browserInstance.on(method-key, callback)`. Variables local to the resource browser can be defined inside this scope as well, like `FileBrowse` that defines local caches, used for the currently viewed files.
+It is here the custom parts of the Resource Browser are defined, including how `open`, `wantToFetchNextPage`, `fetchOperations`, etc. should behave when called. This is defined using `browserInstance.on(<method-key>, <callback>)`. Variables local to the resource browser can be defined inside this scope as well, like `FileBrowse` that defines local caches, used for the currently viewed files.
 
 ```mermaid
 flowchart LR
-    subgraph "UCloud component"<TODO>
+    subgraph component["UCloud component"]
         A["React component"]:::diagram-external-cog-6-tooth
         B["Resource Browser instance"]:::diagram-external-cog-6-tooth
         A -->|"Dispatches messages"|B
@@ -31,11 +31,13 @@ flowchart LR
         C["HTML elements"]:::diagram-external-cog-6-tooth
         B -->|"Modifies"| C
     end
+    
+    class component diagram-external-cog-6-tooth
 ```
 
 ## `renderRows`
 
-Instead of rendering every item in the viewed page, the Resource Browser uses a similar approach to `react-window`, that is, based on the available space, initialize as many entries that can be visible at any time, plus an additional buffer, in the container. When rendering rows, the rows are reset, and placed relative to their sorting. Each page (See [Page](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/app/UCloud/index.ts#L41)) entry is checked if it is in view, and if so, renders using the prepared row checked.
+Instead of rendering every item in the viewed page, the Resource Browser uses a similar approach to `react-window`, that is, based on the available space, initializes as many entries that can be visible at any time, plus an additional buffer, in the container. When rendering rows, the rows are reset, and placed relative to their sorting. Each page (See [Page](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/app/UCloud/index.ts#L41)) entry is checked if it is in view, and if so, rendered using the prepared row checked.
 
 Each row is divided into multiple parts: `star`, `title`, `stat1`, `stat2`, `stat3`, and `stat4`.
 

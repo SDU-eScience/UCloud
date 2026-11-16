@@ -73,7 +73,7 @@ If a magic string/number is present more than once, it's to be extracted into a 
 
 HTML/JSX tags that close immediately and have no children, should have a space before closing, e.g. `<br />`, but not in the case of `<div></div>`.
 
-Imports ands objects should not have a preceeding or succeeding space.
+Imports and objects should not have a preceding or succeeding space.
 
 Yes
 

@@ -1,4 +1,4 @@
-### Features
+## Features
 
 The ResourceBrowser accepts a combination of `features` that allow and disallow functionality in the mounted component.
 
@@ -21,7 +21,7 @@ All of these are optional.
 | sorting                       | Enables sorting by column. Only works if `showColumnTitles` is also enabled. In addition, you must also set `sortById` on the appropriate columns. |
 | projectSwitcher               | Adds an HTML-element to the header to allocate space for the project-switcher component.                               |
 
-### Operations
+## Operations
 
 The ResourceBrowser-component has a series of operations that must be defined, and can be defined:
 
@@ -232,7 +232,7 @@ Handler for how to render the drop indicator. The Resource Browser mounts an HTM
 
 `(path: string) => ({title: string, absolutePath: string}[]) | custom-rendering;`
 
-Passes the current path to generate breadcrumbs to be rendered in the location bar. Can either return a list of titles to be rendered and absolute path to be used with navigation, if applicable. The parent component could also manage rendering own its own. In that case, the method must return the string `"custom-rendering"`.
+Passes the current path to generate breadcrumbs to be rendered in the location bar. Can either return a list of titles to be rendered and absolute path to be used with navigation, if applicable. The parent component could also manage rendering on its own. In that case, the method must return the string `"custom-rendering"`.
 
 ### generateTabCompletionEntries
 
@@ -256,13 +256,13 @@ Given an entry, returns a unique identifier for the entry.
 
 `(entry: T) => string;`
 
-Given an entry, returns a presentable name for for the entry. `pathToEntry` is used as fallback.
+Given an entry, returns a presentable name for the entry. `pathToEntry` is used as a fallback.
 
 ### sort
 
 `(page: T[]) => void;`
 
-A sorting function used for local sorting. E.g. when a folder is created inserted in the frontend locally before the backend has responding.
+A sorting function used for local sorting. E.g. when a folder is created inserted in the frontend locally before the backend has responded.
 
 ### fetchFilters
 

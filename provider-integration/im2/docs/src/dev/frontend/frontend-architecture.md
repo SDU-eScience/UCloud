@@ -4,7 +4,7 @@ Some notable architecture choices are describe here.
 
 ## React Router
 
-The library `React Router` is used to routing. What the [main container](./frontend-layout.md) shows is decided by the URL, and will mount the relevant component in most cases. While using `React Router` is not notable, some cases where is does not behave as intended are. 
+The library `React Router` is used for routing. What the [main container](./frontend-layout.md) shows is decided by the URL, and will mount the relevant component in most cases. While using `React Router` is not notable, some cases where it does not behave as intended are. 
 
 The UCloud frontend has some cases where the component will not be mounted as expected. These include:
 
@@ -54,7 +54,7 @@ The external stores keep more state about the contents and can be used in a non-
 
 ```mermaid
 flowchart LR
-    subgraph UCloud frontend
+    subgraph frontend["UCloud/Frontend"]
         A["Frontend component"]:::diagram-external-cog-6-tooth
         B["Redux store"]:::diagram-external-cog-6-tooth
         C["External store"]:::diagram-external-cog-6-tooth
@@ -63,10 +63,12 @@ flowchart LR
         A -->|Can trigger calls| C
         C -->|Subscribes to changes| A
     end
+    
+    class frontend diagram-external-ucloud
 ```
 
 <figcaption>
-    How a React component can communicate with either stores.
+    How a React component can communicate with either store.
 </figcaption>
 </figure>
 

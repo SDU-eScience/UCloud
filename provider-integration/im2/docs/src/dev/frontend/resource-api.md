@@ -1,4 +1,4 @@
-### ResourceApi
+# ResourceApi
 
 The ResourceApi abstract class is a grouping of functionality relating to a specific resource.
 

@@ -35,7 +35,7 @@ The secondary sidebar can be in one of two states: either hovering over the main
 </figcaption>
 </figure>
 
-Modals are placed on top the other parts, which are not interactive as long as a modal is present.
+Modals are placed on top of the other parts, which are not interactive as long as a modal is present.
 Modals do not use the main container, and are styled as relevant for what they contain. They cannot be stacked when presented, as only one will be visible at most. Modals are used for confirmation, resource selection, resource creation, etc.
 
 <figure>
