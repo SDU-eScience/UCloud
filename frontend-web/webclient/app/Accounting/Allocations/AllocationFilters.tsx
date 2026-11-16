@@ -6,6 +6,7 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {UcxTableControlsClass} from "@/UCX/UcxBrowser";
 import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 
 export type AllocationFilterState = "all" | "active" | "expiring" | "upcoming" | "exhausted" | "expired";
 
@@ -32,7 +33,7 @@ function AllocationFilterSelect(props: {
     onChange: (selected: string[]) => void;
 }): React.ReactNode {
     return <ClickableDropdown
-        trigger={<span className="allocation-filter-trigger"><Icon name={props.icon} size={15} />{props.label}{props.selected.length > 0 ? ` (${props.selected.length})` : ""}<Icon name="heroChevronDown" size={12} /></span>}
+        trigger={<span className="allocation-filter-trigger"><Icon name={props.icon} size={15} />{props.label}{props.selected.length > 0 ? ` (${formatNumber(props.selected.length)})` : ""}<Icon name="heroChevronDown" size={12} /></span>}
         triggerAriaLabel={`Filter by ${props.label.toLowerCase()}`}
         width={300}
         focusable
@@ -73,7 +74,7 @@ const AllocationFiltersStyle = injectStyle("allocation-filters", k => `
     ${k} .allocation-state-row { gap: 2px; font-size: 12px; color: var(--textSecondary); }
     ${k} .allocation-search { flex: 1 1 280px; max-width: 380px; }
     ${k} .allocation-search .table-filter { width: 100%; }
-    ${k} .allocation-filter-trigger { display: flex; align-items: center; gap: 7px; padding: 6px 8px; border: 1px solid transparent; border-radius: 8px; font-size: 12px; color: var(--textPrimary); }
+    ${k} .allocation-filter-trigger { display: flex; align-items: center; gap: 6px; height: 35px; padding: 0 14px; border: 1px solid var(--borderColor); border-radius: 8px; background: transparent; font-size: 14px; color: var(--textPrimary); }
     ${k} .allocation-filter-trigger:hover { background: var(--rowHover); }
     ${k} .allocation-result-count { margin-left: auto; font-size: 12px; color: var(--textSecondary); }
     ${k} .allocation-state-button { border: 0; border-radius: 8px; padding: 6px 8px; background: transparent; color: var(--textSecondary); cursor: pointer; font-size: 12px; }
@@ -143,14 +144,14 @@ export function AllocationFilters(props: {
                     className="allocation-state-button"
                     aria-pressed={props.state === state}
                     onClick={() => props.onStateChange(state)}
-                >{label}<b>{props.counts[state]}</b></button>)}
+                >{label}<b>{formatNumber(props.counts[state])}</b></button>)}
             </div>
             <div className="allocation-personal">
                 <span>Personal workspaces</span>
                 <Toggle height={18} activeColor="primaryMain" checked={props.personalWorkspaces} onChange={props.onPersonalWorkspacesChange} ariaLabel="Personal workspaces" />
             </div>
             <Button color="ghost" onClick={props.onClear}><Icon name="heroXMark" size={13} />Clear filters</Button>
-            <span className="allocation-result-count">{props.workspaceCount} workspaces</span>
+            <span className="allocation-result-count">{formatNumber(props.workspaceCount)} workspaces</span>
         </div>
     </div>;
 }

@@ -1,33 +1,35 @@
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {Button, Icon} from "@/ui-components";
+import {IconButton} from "@/ui-components/IconButton";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {UcxTableIconButtonClass} from "@/UCX/UcxBrowser";
 import {injectStyle} from "@/Unstyled";
 import type {AllocationDateRange} from "@/Accounting/Allocations/AllocationGrid";
 import {format} from "date-fns";
 
 const AllocationPeriodFilterClass = injectStyle("allocation-period-filter", k => `
-    ${k} .period-trigger { display: flex; align-items: center; gap: 8px; height: 35px; padding: 0 10px; border: 1px solid var(--borderColor); border-radius: 8px; color: var(--textPrimary); font-size: 13px; }
-    ${k} .period-trigger > svg { color: var(--textSecondary); flex-shrink: 0; }
+    ${k} .period-trigger { display: flex; align-items: center; gap: 6px; height: 35px; padding: 0 14px; border: 1px solid var(--borderColor); border-radius: 8px; background: transparent; color: var(--textPrimary); font-size: 14px; }
+    ${k} .period-trigger:hover { background: var(--rowHover); }
+    ${k} .period-trigger > svg { flex-shrink: 0; }
 `);
 
 const AllocationPeriodPanelClass = injectStyle("allocation-period-panel", k => `
-    ${k} { box-sizing: border-box; padding: 20px 12px 12px; color: var(--textPrimary); cursor: default; max-height: min(478px, calc(100vh - 34px)); overflow-y: auto; }
+    ${k} { box-sizing: border-box; padding: 12px; color: var(--textPrimary); cursor: default; max-height: min(478px, calc(100vh - 34px)); overflow-y: auto; }
     ${k} h4 { margin: 0; font-size: 14px; font-weight: 600; }
     ${k} .period-presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
     ${k} .period-presets > button { flex: 1; min-width: 0; padding: 4px 6px; white-space: nowrap; }
-    ${k} .period-bounds { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-    ${k} .period-bound { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--borderColor); border-radius: 8px; background: transparent; color: var(--textPrimary); cursor: pointer; font-size: 12px; line-height: 16px; }
+    ${k} .period-bounds { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0 12px; }
+    ${k} .period-bound { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0 0 6px; border: 0; border-bottom: 1px solid transparent; background: transparent; color: var(--textSecondary); cursor: pointer; font-size: 13px; line-height: 16px; text-align: left; }
     ${k} .period-bound small { color: var(--textSecondary); font-size: 11px; }
-    ${k} .period-bound[aria-pressed="true"] { border-color: var(--textPrimary); background: color-mix(in srgb, var(--textPrimary) 4%, transparent); }
+    ${k} .period-bound[aria-pressed="true"] { color: var(--textPrimary); border-bottom-color: var(--primaryMain); }
     ${k} .period-year { display: flex; align-items: center; justify-content: space-between; margin: 16px 0 8px; padding-top: 10px; border-top: 1px solid var(--borderColor); font-size: 14px; }
     ${k} .period-months { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
     ${k} .period-month { height: 28px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--textPrimary); cursor: pointer; font-size: 12px; }
-    ${k} .period-month[data-in-range="true"] { background: var(--rowActive); }
-    ${k} .period-month:hover { background: var(--rowHover); }
-    ${k} .period-month[aria-pressed="true"] { background: var(--textPrimary); color: var(--backgroundDefault); }
-    ${k} .period-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--borderColor); }
+    ${k} .period-month[data-in-range="true"] { background: var(--gray-10); color: var(--textPrimary); }
+    html.dark ${k} .period-month[data-in-range="true"]:not([aria-pressed="true"]) { background: var(--gray-90); }
+    ${k} .period-month:hover { background: var(--rowHover); color: var(--textPrimary); }
+    ${k} .period-month[aria-pressed="true"] { background: var(--primaryMain); color: var(--primaryContrast); }
+    ${k} .period-footer { display: flex; justify-content: flex-end; gap: 8px; margin: 12px -12px -12px; padding: 8px 12px; background: var(--dialogToolbar); }
     ${k} button:focus-visible { outline: 2px solid var(--textPrimary); outline-offset: 2px; }
 `);
 
@@ -39,7 +41,6 @@ export function allocationCurrentCalendarYear(): AllocationDateRange {
 export function AllocationPeriodFilter(props: {
     value: AllocationDateRange;
     onChange: (value: AllocationDateRange) => void;
-    title?: string;
 }): React.ReactNode {
     const [open, setOpen] = useState(false);
     const [start, setStart] = useState(props.value.start);
@@ -78,7 +79,6 @@ export function AllocationPeriodFilter(props: {
     return <div
         ref={wrapperRef}
         className={AllocationPeriodFilterClass}
-        title={props.title ?? "Filter allocations by period"}
     >
         <ClickableDropdown
             open={open}
@@ -126,9 +126,9 @@ export function AllocationPeriodFilter(props: {
                     }}><small>Through</small><span>{end ? format(end, "MMM yyyy") : "Choose a month"}</span></button>
                 </div>
                 <div className="period-year">
-                    <button type="button" className={UcxTableIconButtonClass} aria-label="Previous year" onClick={() => setYear(year - 1)}><Icon name="heroChevronLeft" size={16} /></button>
+                    <IconButton tooltip="Previous year" icon="heroChevronLeft" onClick={() => setYear(year - 1)} />
                     <span>{year}</span>
-                    <button type="button" className={UcxTableIconButtonClass} aria-label="Next year" onClick={() => setYear(year + 1)}><Icon name="heroChevronRight" size={16} /></button>
+                    <IconButton tooltip="Next year" icon="heroChevronRight" onClick={() => setYear(year + 1)} />
                 </div>
                 <div className="period-months" onMouseLeave={() => setHoveredMonth(null)}>
                     {Array.from({length: 12}, (_, month) => {
@@ -169,8 +169,8 @@ export function AllocationPeriodFilter(props: {
                     })}
                 </div>
                 <div className="period-footer">
-                    <Button color="ghost" onClick={closePicker}>Cancel</Button>
-                    <Button disabled={!end} onClick={() => {
+                    <Button color="errorMain" onClick={closePicker}>Cancel</Button>
+                    <Button color="successMain" disabled={!end} onClick={() => {
                         if (!end) return;
                         props.onChange({start, end});
                         closePicker();

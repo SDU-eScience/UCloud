@@ -15,6 +15,7 @@ import {TableColumnSortType} from "@/UCX/protocol";
 import type {TableColumn, TableRow} from "@/UCX/protocol";
 import {injectStyle} from "@/Unstyled";
 import {Icon} from "@/ui-components";
+import {TooltipV2} from "@/ui-components/Tooltip";
 import {AllocationAmount, AllocationUsage} from "./AllocationCells";
 
 interface AllocationOverviewRow {
@@ -34,7 +35,6 @@ export function allocationCategoryKey(category: ProductCategoryV2): string {
 
 const allocationOverviewColumns: TableColumn[] = [
     {key: "overview.product", label: "Product", jsonPath: "product", sortType: TableColumnSortType.Text},
-    {key: "overview.received", label: "Received", jsonPath: "received", sortType: TableColumnSortType.Number},
     {key: "overview.granted", label: "Granted", jsonPath: "granted", sortType: TableColumnSortType.Number},
     {key: "overview.used", label: "Usage", jsonPath: "used", sortType: TableColumnSortType.Number},
     {key: "overview.future", label: "Starting soon", jsonPath: "future", sortType: TableColumnSortType.Number},
@@ -45,7 +45,6 @@ const allocationOverviewColumns: TableColumn[] = [
 
 const allocationOverviewWidths: Record<string, number> = {
     "overview.product": 300,
-    "overview.received": 100,
     "overview.granted": 130,
     "overview.used": 130,
     "overview.future": 120,
@@ -64,9 +63,9 @@ const AllocationOverviewStyle = injectStyle("allocation-overview", k => `
     ${k} h4 { margin: 0 0 4px; }
     ${k} p { margin: 0; color: var(--textSecondary); font-size: 12px; }
     ${k} .overview-table { display: flex; flex-direction: column; margin-top: 10px; min-height: 200px; }
-    ${k} [data-density="compact"] .streamed-table-scroll thead th:not(:first-child):not(:nth-child(3)):not(:nth-child(4)) { text-align: right; }
+    ${k} [data-density="compact"] .streamed-table-scroll thead th:not(:first-child):not(:nth-child(2)):not(:nth-child(3)) { text-align: right; }
     ${k} .overview-number { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; font-variant-numeric: tabular-nums; }
-    ${k} .overview-product { display: flex; align-items: center; gap: 7px; min-height: 24px; max-width: 100%; color: var(--textPrimary); font-size: 12px; }
+    ${k} .overview-product { display: flex; align-items: center; gap: 7px; min-height: 24px; max-width: 100%; }
     ${k} .overview-product-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     ${k} .overview-provider { display: flex; align-items: center; gap: 8px; }
 `);
@@ -101,32 +100,24 @@ export function AllocationOverview(props: {
             return row;
         };
 
+        const receivedByCategory = new Map<string, number>();
         for (const allocation of Object.values(props.state.yourAllocations)) {
             for (const wallet of allocation.wallets) {
-                const row = ensureProduct(wallet.category);
-                const raw = wallet.usageAndQuota.raw;
-                row.received += raw.quota;
-                row.used += raw.retiredAmountStillCounts ? raw.usage : Math.max(0, raw.usage - raw.retiredAmount);
-            }
-        }
-
-        for (const wallet of props.state.remoteData.wallets ?? []) {
-            if (wallet.paysFor.freeToUse) continue;
-            const row = ensureProduct(wallet.paysFor);
-            const factor = explainUnit(wallet.paysFor).balanceFactor;
-            for (const child of wallet.children ?? []) {
-                row.granted += (child.group.activeQuota ?? 0) * factor;
+                const key = allocationCategoryKey(wallet.category);
+                receivedByCategory.set(key, (receivedByCategory.get(key) ?? 0) + wallet.usageAndQuota.raw.quota);
             }
         }
 
         for (const recipient of props.state.subAllocations.recipients) {
             for (const group of recipient.groups) {
                 const row = ensureProduct(group.category);
+                const raw = group.usageAndQuota.raw;
+                const usage = raw.retiredAmountStillCounts ? raw.usage : Math.max(0, raw.usage - raw.retiredAmount);
+                row.granted += raw.quota;
+                row.used += usage;
                 const allocations = group.allocations.filter(it => allocationOverlapsRange(it.start, it.end, range));
                 if (allocations.length === 0) continue;
                 row.workspaces++;
-                const raw = group.usageAndQuota.raw;
-                const usage = raw.retiredAmountStillCounts ? raw.usage : Math.max(0, raw.usage - raw.retiredAmount);
                 const hasActiveAllocation = allocations.some(it => it.start <= now && it.end >= now);
                 if (hasActiveAllocation && raw.quota > 0 && usage >= raw.quota) row.exhausted++;
                 const factor = explainUnit(group.category).balanceFactor;
@@ -138,8 +129,11 @@ export function AllocationOverview(props: {
                 }
             }
         }
+        for (const row of products.values()) {
+            row.received = receivedByCategory.get(allocationCategoryKey(row.category)) ?? 0;
+        }
         return [...products.values()].sort((a, b) => allocationCompareProducts(a.category, b.category));
-    }, [props.state.yourAllocations, props.state.subAllocations, props.state.remoteData.wallets, props.dateRange]);
+    }, [props.state.yourAllocations, props.state.subAllocations, props.dateRange]);
 
     const number = (value: number) => formatNumber(value, {precision: 2, removeTrailingZeros: true});
     const providerCount = new Set(rows.map(row => row.category.provider)).size;
@@ -149,7 +143,6 @@ export function AllocationOverview(props: {
         group: row.category.provider,
         cells: [
             row.category.name,
-            `${row.received}`,
             `${row.granted}`,
             `${row.used}`,
             `${row.future}`,
@@ -191,11 +184,10 @@ export function AllocationOverview(props: {
             return <div className="overview-product">
                 <Icon name={productTypeToIcon(row.category.productType)} size={16} />
                 <span className="overview-product-name">{row.category.name}</span>
-                <button
+                <TooltipV2 tooltip={label}><button
                     className={UcxTableIconButtonClass}
                     aria-pressed={selected}
                     aria-label={label}
-                    title={label}
                     onClick={event => {
                         event.stopPropagation();
                         store.setSelected("allocation-overview", context.row.key);
@@ -204,11 +196,18 @@ export function AllocationOverview(props: {
                     onKeyDown={event => {
                         if (event.key === "Enter" || event.key === " ") event.stopPropagation();
                     }}
-                ><Icon name={selected ? "heroMagnifyingGlassMinus" : "heroMagnifyingGlassPlus"} size={16} /></button>
+                ><Icon name={selected ? "heroMagnifyingGlassMinus" : "heroMagnifyingGlassPlus"} size={16} /></button></TooltipV2>
             </div>;
         }
         if (context.column.key === "overview.used") {
-            return <AllocationUsage usage={row.used} quota={row.received} unit={allocationDisplayUnit(row.category)} compact />;
+            const unit = allocationDisplayUnit(row.category);
+            return <AllocationUsage
+                usage={row.used}
+                quota={row.granted}
+                unit={unit}
+                compact
+                title={`${number(row.used)} ${unit} used by sub-workspaces of ${number(row.granted)} ${unit} granted`}
+            />;
         }
         if (context.column.key === "overview.granted") {
             const unit = allocationDisplayUnit(row.category);
@@ -217,7 +216,7 @@ export function AllocationOverview(props: {
                 quota={row.received}
                 unit={unit}
                 compact
-                title={`${number(row.granted)} ${unit} granted to sub-workspaces / ${number(row.received)} ${unit} received`}
+                title={`${number(row.granted)} ${unit} granted to sub-workspaces of ${number(row.received)} ${unit} received`}
             />;
         }
         const value = Number(context.cell);
@@ -226,7 +225,7 @@ export function AllocationOverview(props: {
         let title = `${number(value)} ${unit}`;
         if (context.column.key === "overview.expiring") title += " of quota ending within 30 days";
         if (context.column.key === "overview.future") title += " of quota starting within 30 days";
-        if (count) return <span className="overview-number" title={title}>{number(value)}</span>;
+        if (count) return <TooltipV2 tooltip={title}><span className="overview-number">{number(value)}</span></TooltipV2>;
         return <AllocationAmount value={value} unit={unit} title={title} />;
     };
 

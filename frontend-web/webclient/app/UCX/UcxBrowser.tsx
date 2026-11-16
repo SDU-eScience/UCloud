@@ -2225,6 +2225,7 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
     ${k} .streamed-table-scroll {
         overflow: auto;
         overflow-anchor: none;
+        overscroll-behavior: none;
         flex: 1;
         min-height: 0;
     }

@@ -29,6 +29,7 @@ interface DemoProductSpec {
     parentQuota: number;
     parentUsage: number;
     parentGrantId: number;
+    fillerQuota: number;
     children: DemoChildSpec[];
 }
 
@@ -118,12 +119,24 @@ const DEV_SANDBOX: DemoWorkspace = {
     pi: "DevSandbox#6789",
 };
 
+const FILLER_WORKSPACE_COUNT = 60;
+
+const FILLER_WORKSPACES: DemoWorkspace[] = Array.from({length: FILLER_WORKSPACE_COUNT}, (_, index) => {
+    const number = index + 1;
+    return {
+        projectId: `demo-research-${number}`,
+        title: `Research Project ${String(number).padStart(2, "0")}`,
+        pi: `Researcher${number}#${String(7000 + number)}`,
+    };
+});
+
 const DEMO_PRODUCTS: DemoProductSpec[] = [
     {
         category: ZEN5,
         parentQuota: 124_000,
         parentUsage: 86_200,
         parentGrantId: 3101,
+        fillerQuota: 1_000,
         children: [
             {
                 workspace: ALPHAFOLD,
@@ -146,8 +159,9 @@ const DEMO_PRODUCTS: DemoProductSpec[] = [
     {
         category: B200,
         parentQuota: 42_800,
-        parentUsage: 31_200,
+        parentUsage: 40_000,
         parentGrantId: 3201,
+        fillerQuota: 900,
         children: [
             {
                 workspace: ALPHAFOLD,
@@ -171,6 +185,7 @@ const DEMO_PRODUCTS: DemoProductSpec[] = [
         parentQuota: 18_400,
         parentUsage: 12_900,
         parentGrantId: 3301,
+        fillerQuota: 200,
         children: [
             {
                 workspace: MATERIALS,
@@ -191,6 +206,7 @@ const DEMO_PRODUCTS: DemoProductSpec[] = [
         parentQuota: 860_000,
         parentUsage: 612_000,
         parentGrantId: 3401,
+        fillerQuota: 10_000,
         children: [
             {
                 workspace: ALPHAFOLD,
@@ -215,6 +231,7 @@ const DEMO_PRODUCTS: DemoProductSpec[] = [
         parentQuota: 12_000,
         parentUsage: 8_450,
         parentGrantId: 3501,
+        fillerQuota: 100,
         children: [
             {
                 workspace: MATERIALS,
@@ -235,6 +252,7 @@ const DEMO_PRODUCTS: DemoProductSpec[] = [
         parentQuota: 76_000,
         parentUsage: 48_300,
         parentGrantId: 3601,
+        fillerQuota: 500,
         children: [
             {
                 workspace: CLIMATE,
@@ -255,6 +273,7 @@ const DEMO_PRODUCTS: DemoProductSpec[] = [
         parentQuota: 24_600,
         parentUsage: 19_800,
         parentGrantId: 3701,
+        fillerQuota: 200,
         children: [
             {
                 workspace: NLP,
@@ -275,6 +294,7 @@ const DEMO_PRODUCTS: DemoProductSpec[] = [
         parentQuota: 420_000,
         parentUsage: 301_000,
         parentGrantId: 3801,
+        fillerQuota: 5_000,
         children: [
             {
                 workspace: CLIMATE,
@@ -296,6 +316,29 @@ const DEMO_PRODUCTS: DemoProductSpec[] = [
     },
 ];
 
+function fillerChildSpecs(spec: DemoProductSpec): DemoChildSpec[] {
+    return FILLER_WORKSPACES.map((workspace, index) => {
+        const primaryQuota = spec.fillerQuota;
+        const usageFactor = index % 17 === 0 ? 1.1 : 0.3 + (index % 6) * 0.1;
+        const allocations: DemoAllocationSpec[] = [{
+            quota: primaryQuota,
+            usage: Math.floor(primaryQuota * usageFactor),
+            period: "active",
+            grantId: 10_000 + (spec.parentGrantId % 1_000) * 100 + index,
+        }];
+        if (index < 3) {
+            const extraQuota = Math.max(1, Math.floor(primaryQuota / 2));
+            allocations.push({
+                quota: extraQuota,
+                usage: Math.floor(extraQuota * 0.5),
+                period: "expiring",
+                grantId: 20_000 + (spec.parentGrantId % 1_000) * 100 + index,
+            });
+        }
+        return {workspace, allocations};
+    });
+}
+
 export const demoProjectInfo: Record<string, ProjectInfo | null> = {
     "demo-alphafold": {id: "demo-alphafold", title: ALPHAFOLD.title, piUsername: ALPHAFOLD.pi},
     "demo-genome": {id: "demo-genome", title: GENOME.title, piUsername: GENOME.pi},
@@ -304,12 +347,23 @@ export const demoProjectInfo: Record<string, ProjectInfo | null> = {
     "demo-materials": {id: "demo-materials", title: MATERIALS.title, piUsername: MATERIALS.pi},
 };
 
+for (const workspace of FILLER_WORKSPACES) {
+    if (workspace.projectId) {
+        demoProjectInfo[workspace.projectId] = {
+            id: workspace.projectId,
+            title: workspace.title,
+            piUsername: workspace.pi,
+        };
+    }
+}
+
 export function buildDemoWallets(): WalletV2[] {
     let allocationId = 900_000;
     let parentAllocationId = 800_000;
 
     return DEMO_PRODUCTS.map(spec => {
-        const children: AllocationGroupWithChild[] = spec.children.map(childSpec => {
+        const childSpecs = [...spec.children, ...fillerChildSpecs(spec)];
+        const children: AllocationGroupWithChild[] = childSpecs.map(childSpec => {
             const built = childSpec.allocations.map(allocation => {
                 const period = periodFor(allocation.period);
                 const row: Allocation = {

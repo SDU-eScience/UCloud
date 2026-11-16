@@ -14,6 +14,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import * as Gifts from "@/Accounting/Gifts";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -230,7 +231,7 @@ export const GiftSection: React.FunctionComponent<{
             </div>
 
             <Tree>
-                <TreeNode left={`View existing gifts (${gifts.length})`}>
+                <TreeNode left={`View existing gifts (${formatNumber(gifts.length)})`}>
                     {gifts.length === 0 ? <>This project currently has no active gifts!</> : <Tree>
                         {gifts.map(g =>
                             <TreeNode

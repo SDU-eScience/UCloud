@@ -13,6 +13,7 @@ import type {
     UcxTableSelection,
 } from "@/UCX/UcxBrowser";
 import {Icon, Link} from "@/ui-components";
+import {TooltipV2} from "@/ui-components/Tooltip";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import {projectInfoPi, projectInfoTitle} from "@/Project/InfoCache";
@@ -20,6 +21,7 @@ import type {ProjectInfo} from "@/Project/InfoCache";
 import {injectStyle} from "@/Unstyled";
 import AppRoutes from "@/Routes";
 import {format} from "date-fns";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {allocationCompareProducts, allocationDisplayUnit} from "./AllocationPresentation";
 import {AllocationFilters} from "./AllocationFilters";
 import type {AllocationFilterState} from "./AllocationFilters";
@@ -32,7 +34,6 @@ const COLUMN_KEYS = {
     workspace: "allocation.workspace",
     product: "allocation.product",
     period: "allocation.period",
-    state: "allocation.state",
     quota: "allocation.quota",
     usage: "allocation.usage",
     available: "allocation.available",
@@ -43,7 +44,6 @@ const COLUMN_WIDTHS: Record<string, number> = {
     [COLUMN_KEYS.workspace]: 220,
     [COLUMN_KEYS.product]: 300,
     [COLUMN_KEYS.period]: 170,
-    [COLUMN_KEYS.state]: 86,
     [COLUMN_KEYS.quota]: 130,
     [COLUMN_KEYS.usage]: 170,
     [COLUMN_KEYS.available]: 140,
@@ -84,6 +84,7 @@ interface AllocationGridProps {
 }
 
 type AllocationState = "active" | "expiring" | "upcoming" | "exhausted" | "expired";
+type AllocationLifecycleState = "active" | "expiring" | "upcoming" | "expired";
 
 interface AllocationGridRow {
     key: string;
@@ -100,21 +101,14 @@ interface AllocationGridRow {
     provider: string;
     unit: string;
     state: AllocationState;
-    stateLabel: string;
+    lifecycleState: AllocationLifecycleState;
+    isLastInGroup: boolean;
     allocationQuota: number;
     allocationQuotaRaw: number;
     productQuota: number;
     productUsage: number;
     productAvailable: number;
 }
-
-const STATE_LABELS: Record<AllocationState, string> = {
-    active: "Active",
-    expiring: "Expiring",
-    upcoming: "Upcoming",
-    exhausted: "Exhausted",
-    expired: "Expired",
-};
 
 export function allocationDateRangeBounds(range?: AllocationDateRange): {start: number | null; end: number | null} {
     if (!range) return {start: null, end: null};
@@ -147,6 +141,14 @@ function stateForAllocation(start: number, end: number, usage: number, quota: nu
     return "active";
 }
 
+function lifecycleStateForAllocation(start: number, end: number): AllocationLifecycleState {
+    const now = Date.now();
+    if (end < now) return "expired";
+    if (start > now) return "upcoming";
+    if (end - now <= EXPIRING_WINDOW_MS) return "expiring";
+    return "active";
+}
+
 function periodPercent(start: number, end: number): number {
     if (end <= start) return 100;
     const percentage = ((Date.now() - start) / (end - start)) * 100;
@@ -155,9 +157,9 @@ function periodPercent(start: number, end: number): number {
 
 function relativeDuration(ms: number): string {
     const days = Math.max(1, Math.round(ms / DAY_MS));
-    if (days < 60) return `${days} day${days === 1 ? "" : "s"}`;
+    if (days < 60) return `${formatNumber(days)} day${days === 1 ? "" : "s"}`;
     const months = Math.max(1, Math.round(days / 30));
-    return `${months} month${months === 1 ? "" : "s"}`;
+    return `${formatNumber(months)} month${months === 1 ? "" : "s"}`;
 }
 
 function hasNoEnd(end: number): boolean {
@@ -204,12 +206,19 @@ function openGrantApplication(grantId: number): void {
 }
 
 function renderWorkspaceCell(row: AllocationGridRow, isFirstInGroup: boolean): React.ReactNode {
-    if (!isFirstInGroup) return <span className="allocation-group-rail" aria-hidden="true" />;
+    if (!isFirstInGroup) return <span
+        className={`allocation-group-rail${row.isLastInGroup ? " allocation-group-rail-last" : ""}`}
+        aria-hidden="true"
+    />;
     return <div className="allocation-workspace">
-        <span className="allocation-workspace-title" title={row.workspaceTitle}>{row.workspaceTitle}</span>
-        <span className="allocation-workspace-meta" title={row.workspacePi}>
-            {row.workspaceType === "user" ? "Personal" : `PI ${row.workspacePi}`}
-        </span>
+        <TooltipV2 tooltip={row.workspaceTitle} triggerClassName="allocation-workspace-tooltip">
+            <span className="allocation-workspace-title">{row.workspaceTitle}</span>
+        </TooltipV2>
+        <TooltipV2 tooltip={row.workspacePi} triggerClassName="allocation-workspace-tooltip">
+            <span className="allocation-workspace-meta">
+                {row.workspaceType === "user" ? "Personal" : `PI ${row.workspacePi}`}
+            </span>
+        </TooltipV2>
     </div>;
 }
 
@@ -226,7 +235,7 @@ function renderProductCell(row: AllocationGridRow): React.ReactNode {
 function renderPeriodCell(row: AllocationGridRow): React.ReactNode {
     const percentage = periodPercent(row.start, row.end);
     const noEnd = hasNoEnd(row.end);
-    return <div className="allocation-period" data-state={row.state}>
+    return <div className="allocation-period" data-state={row.lifecycleState}>
         <div className="allocation-period-dates">
             <span>{format(row.start, "MMM yyyy")}</span>
             <Icon name="heroArrowRight" size={9} />
@@ -235,17 +244,13 @@ function renderPeriodCell(row: AllocationGridRow): React.ReactNode {
         <div className="allocation-period-bottom">
             <div className="allocation-period-track">
                 <span className="allocation-period-elapsed" style={{width: `${percentage}%`}} />
-                {row.state !== "upcoming" && row.state !== "expired" ?
+                {row.lifecycleState !== "upcoming" && row.lifecycleState !== "expired" ?
                     <span className="allocation-period-now" style={{left: `${percentage}%`}} /> :
                     null}
             </div>
             <span className="allocation-period-note">{periodNote(row.start, row.end)}</span>
         </div>
     </div>;
-}
-
-function renderStateCell(row: AllocationGridRow): React.ReactNode {
-    return <span className={`allocation-state ${row.state}`}>{row.stateLabel}</span>;
 }
 
 function renderNumber(value: number, unit: string, title: string, negative = false): React.ReactNode {
@@ -280,8 +285,8 @@ const AllocationGridClass = injectStyle("allocation-grid", k => `
         min-width: 0;
     }
 
-    ${k} [data-density="compact"] .streamed-table-scroll thead th:nth-child(6),
-    ${k} [data-density="compact"] .streamed-table-scroll thead th:nth-child(8) {
+    ${k} [data-density="compact"] .streamed-table-scroll thead th:nth-child(5),
+    ${k} [data-density="compact"] .streamed-table-scroll thead th:nth-child(7) {
         text-align: right;
     }
 
@@ -291,6 +296,13 @@ const AllocationGridClass = injectStyle("allocation-grid", k => `
         align-items: flex-start;
         gap: 2px;
         min-width: 0;
+    }
+
+    ${k} .allocation-workspace-tooltip {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        max-width: 100%;
     }
 
     ${k} .allocation-workspace-title {
@@ -312,14 +324,37 @@ const AllocationGridClass = injectStyle("allocation-grid", k => `
     }
 
     ${k} .allocation-group-rail {
+        position: relative;
         display: block;
         width: 16px;
         height: 14px;
         margin: -14px 0 0;
+        opacity: 0.65;
+    }
+
+    ${k} .allocation-group-rail::before {
+        content: "";
+        position: absolute;
+        top: -100px;
+        left: 0;
+        width: 1px;
+        height: 200px;
+        background: var(--textSecondary);
+    }
+
+    ${k} .allocation-group-rail::after {
+        content: "";
+        position: absolute;
+        top: 9px;
+        left: 0;
+        width: 16px;
+        height: 5px;
         border-left: 1px solid var(--textSecondary);
         border-bottom: 1px solid var(--textSecondary);
-        border-bottom-left-radius: 3px;
-        opacity: 0.65;
+    }
+
+    ${k} .allocation-group-rail-last::before {
+        height: 114px;
     }
 
     ${k} .allocation-product {
@@ -333,15 +368,15 @@ const AllocationGridClass = injectStyle("allocation-grid", k => `
     }
 
     ${k} .allocation-product-name {
-        color: var(--textPrimary);
-        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     ${k} .allocation-product-meta {
         overflow: hidden;
         color: var(--textSecondary);
-        font-size: 9.5px;
         text-overflow: ellipsis;
+        margin-left: 8px;
     }
 
     ${k} .allocation-period {
@@ -399,48 +434,11 @@ const AllocationGridClass = injectStyle("allocation-grid", k => `
         background: var(--warningMain);
     }
 
-    ${k} .allocation-period[data-state="exhausted"] .allocation-period-elapsed {
-        background: var(--errorMain);
-    }
-
     ${k} .allocation-period-note {
         flex: 0 0 auto;
         color: var(--textSecondary);
         font-size: 9px;
         white-space: nowrap;
-    }
-
-    ${k} .allocation-state {
-        display: inline-flex;
-        align-items: center;
-        height: 18px;
-        font-size: 12px;
-        font-weight: 400;
-        white-space: nowrap;
-    }
-
-    ${k} .allocation-state.active {
-        color: var(--successMain);
-    }
-
-    ${k} .allocation-state.expiring {
-        color: var(--warningMain);
-    }
-
-    ${k} .allocation-state.upcoming {
-        color: var(--primaryMain);
-    }
-
-    html.dark ${k} .allocation-state.upcoming {
-        color: var(--blue-40);
-    }
-
-    ${k} .allocation-state.exhausted {
-        color: var(--errorMain);
-    }
-
-    ${k} .allocation-state.expired {
-        color: var(--textSecondary);
     }
 
     ${k} .allocation-grant-empty {
@@ -496,6 +494,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
 
                     const normalizedQuota = allocation.quota * unitInfo.balanceFactor;
                     const state = stateForAllocation(allocation.start, allocation.end, usage, quota);
+                    const lifecycleState = lifecycleStateForAllocation(allocation.start, allocation.end);
 
                     result.push({
                         key: `allocation:${allocation.allocationId}`,
@@ -512,7 +511,8 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                         provider: group.category.provider,
                         unit,
                         state,
-                        stateLabel: STATE_LABELS[state],
+                        lifecycleState,
+                        isLastInGroup: false,
                         allocationQuota: normalizedQuota,
                         allocationQuotaRaw: allocation.quota,
                         productQuota: quota,
@@ -575,7 +575,13 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         expired: 0,
     };
     for (const row of matchingRows) counts[row.state]++;
-    const rows = useMemo(() => matchingRows.filter(row => filterState === "all" || row.state === filterState), [matchingRows, filterState]);
+    const rows = useMemo(() => {
+        const filtered = matchingRows.filter(row => filterState === "all" || row.state === filterState);
+        return filtered.map((row, index) => ({
+            ...row,
+            isLastInGroup: index === filtered.length - 1 || filtered[index + 1].group !== row.group,
+        }));
+    }, [matchingRows, filterState]);
 
     const rowByKey = useMemo(() => {
         const result = new Map<string, AllocationGridRow>();
@@ -587,7 +593,6 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         {key: COLUMN_KEYS.workspace, label: "Workspace", jsonPath: "workspace", sortType: TableColumnSortType.Text},
         {key: COLUMN_KEYS.product, label: "Product", jsonPath: "product", sortType: TableColumnSortType.Text},
         {key: COLUMN_KEYS.period, label: "Period", jsonPath: "period", sortType: TableColumnSortType.Text},
-        {key: COLUMN_KEYS.state, label: "State", jsonPath: "state", sortType: TableColumnSortType.Text},
         {key: COLUMN_KEYS.quota, label: "Quota", jsonPath: "quota", sortType: TableColumnSortType.Number},
         {key: COLUMN_KEYS.usage, label: "Usage", jsonPath: "usage", sortType: TableColumnSortType.Number},
         {key: COLUMN_KEYS.available, label: "Available", jsonPath: "available", sortType: TableColumnSortType.Number},
@@ -601,7 +606,6 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             `${row.workspaceTitle} ${row.workspacePi}`,
             `${row.productName} ${getShortProviderTitle(row.provider)}`,
             `${format(row.start, "yyyy-MM")} ${format(row.end, "yyyy-MM")}`,
-            row.stateLabel,
             `${row.allocationQuota}`,
             `${row.productUsage}`,
             `${row.productAvailable}`,
@@ -687,8 +691,6 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                 return renderProductCell(row);
             case COLUMN_KEYS.period:
                 return renderPeriodCell(row);
-            case COLUMN_KEYS.state:
-                return renderStateCell(row);
             case COLUMN_KEYS.quota:
                 return renderNumber(row.allocationQuota, row.unit, "Quota for this allocation");
             case COLUMN_KEYS.usage:

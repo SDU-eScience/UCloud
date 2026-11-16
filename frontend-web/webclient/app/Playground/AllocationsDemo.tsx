@@ -1,5 +1,7 @@
 import * as React from "react";
 import {useCallback, useReducer, useRef, useState} from "react";
+import {Link} from "@/ui-components";
+import AppRoutes from "@/Routes";
 import {AllocationPage} from "@/Accounting/Allocations/AllocationPage";
 import {allocationCurrentCalendarYear} from "@/Accounting/Allocations/AllocationPeriodFilter";
 import {initialState, stateReducer} from "@/Accounting/Allocations/State";
@@ -59,8 +61,8 @@ const AllocationsDemo: React.FunctionComponent = () => {
     const onSubAllocationShortcut = useCallback(() => {}, []);
 
     const renderGrantLink = useCallback((grantId: number) => (
-        <a
-            href="#"
+        <Link
+            to={AppRoutes.grants.editor(grantId)}
             onClick={event => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -68,7 +70,7 @@ const AllocationsDemo: React.FunctionComponent = () => {
             }}
         >
             #{grantId}
-        </a>
+        </Link>
     ), []);
 
     return <AllocationPage

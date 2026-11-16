@@ -1,6 +1,7 @@
 import * as React from "react";
 import {formatNumber} from "@/Utilities/NumberFormatting";
 import {injectStyle} from "@/Unstyled";
+import {TooltipV2} from "@/ui-components/Tooltip";
 
 const AllocationAmountStyle = injectStyle("allocation-amount", k => `
     ${k} { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -15,10 +16,12 @@ export function AllocationAmount(props: {
     title?: string;
     negative?: boolean;
 }): React.ReactNode {
-    return <div className={AllocationAmountStyle} title={props.title} data-negative={props.negative}>
-        <span className="amount-value">{formatNumber(props.value, {precision: 2, removeTrailingZeros: true})}</span>
-        <span className="amount-unit">{props.unit}</span>
-    </div>;
+    return <TooltipV2 tooltip={props.title}>
+        <div className={AllocationAmountStyle} data-negative={props.negative}>
+            <span className="amount-value">{formatNumber(props.value, {precision: 2, removeTrailingZeros: true})}</span>
+            <span className="amount-unit">{props.unit}</span>
+        </div>
+    </TooltipV2>;
 }
 
 const AllocationUsageStyle = injectStyle("allocation-usage-cell", k => `
@@ -45,13 +48,15 @@ export function AllocationUsage(props: {
     const usage = formatNumber(props.usage, {precision: 2, removeTrailingZeros: true});
     const quota = formatNumber(props.quota, {precision: 2, removeTrailingZeros: true});
     const percentage = props.quota > 0 ? (props.usage / props.quota) * 100 : null;
-    const label = percentage === null ? "—" : `${Math.round(percentage)}%`;
+    const label = percentage === null ? "—" : `${formatNumber(Math.round(percentage))}%`;
     const title = props.title ?? `${usage} ${props.unit} used of ${quota} ${props.unit} (${label})`;
-    return <div className={AllocationUsageStyle} title={title} data-compact={props.compact} data-exhausted={props.quota > 0 && props.usage >= props.quota}>
-        <div className="usage-values"><span className="usage-value">{usage}</span><span className="usage-quota">{props.compact ? props.unit : `/ ${quota} ${props.unit}`}</span></div>
-        <div className="usage-bottom">
-            <span className="usage-track" aria-hidden="true"><span style={{width: `${Math.max(0, Math.min(100, percentage ?? 0))}%`}} /></span>
-            <span className="usage-percentage">{label}</span>
+    return <TooltipV2 tooltip={title}>
+        <div className={AllocationUsageStyle} data-compact={props.compact} data-exhausted={props.quota > 0 && props.usage >= props.quota}>
+            <div className="usage-values"><span className="usage-value">{usage}</span><span className="usage-quota">{props.compact ? props.unit : `/ ${quota} ${props.unit}`}</span></div>
+            <div className="usage-bottom">
+                <span className="usage-track" aria-hidden="true"><span style={{width: `${Math.max(0, Math.min(100, percentage ?? 0))}%`}} /></span>
+                <span className="usage-percentage">{label}</span>
+            </div>
         </div>
-    </div>;
+    </TooltipV2>;
 }
