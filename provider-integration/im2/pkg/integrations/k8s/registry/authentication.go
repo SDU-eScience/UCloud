@@ -401,7 +401,7 @@ func authorizedTokenAccess(identity controller.ApiTokenIdentity, scopes []regist
 		for _, action := range scope.Actions {
 			switch action {
 			case "pull":
-				canRead := (repository.Specification.Public && repository.Specification.PublicAccessEnabled) ||
+				canRead := repository.Specification.Public ||
 					controller.ResourceCanUse(actor, repository.Owner, repository.Permissions, true)
 				if canPull && canRead {
 					entry.Actions = append(entry.Actions, action)
@@ -424,7 +424,7 @@ func authorizedAnonymousTokenAccess(scopes []registryScopeEntry) []registryJWTAc
 	var result []registryJWTAccess
 	for _, scope := range scopes {
 		repository, ok := registryRetrieveRepository(repositoryCache, scope.Name)
-		if !ok || !repository.Specification.Public || !repository.Specification.PublicAccessEnabled {
+		if !ok || !repository.Specification.Public {
 			continue
 		}
 

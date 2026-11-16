@@ -323,7 +323,7 @@ func Parse(configDir string) bool {
 		var featureNames []string
 		cfgutil.Decode(filePath, features, &featureNames, &success)
 		for _, feature := range featureNames {
-			if !fndapi.FeatureIsValid(feature) {
+			if !fndapi.FeatureIsValidForConfig(feature) {
 				cfgutil.ReportError(filePath, features, "unknown feature: %v", feature)
 				success = false
 			}

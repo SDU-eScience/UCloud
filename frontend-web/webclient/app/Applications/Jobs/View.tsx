@@ -58,7 +58,6 @@ import * as JobViz from "@/Applications/Jobs/JobViz"
 import {VirtualMachineStatus} from "@/Applications/Jobs/VirtualMachines";
 import {openCreateApplicationVariant} from "@/Applications/Jobs/CreateApplicationVariant";
 import {BackgroundTask} from "@/Services/BackgroundTasks/BackgroundTask";
-import {Feature, hasFeature} from "@/Features";
 
 export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
@@ -1680,7 +1679,7 @@ const RunningButtonGroup: React.FunctionComponent<{
     const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
     const supportTerminal = !jobAuditLogIsEnabled && isSupported(backendType, support, "terminal");
-    const supportVariants = hasFeature(Feature.APPLICATION_FLAVORS) && backendType === "DOCKER" &&
+    const supportVariants = backendType === "DOCKER" &&
         support?.docker.applicationVariants === true && support?.docker.containerSnapshots === true &&
         job.owner.project != null && job.permissions.myself.includes("EDIT");
 

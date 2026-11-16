@@ -84,7 +84,6 @@ import {genericSet} from "@/Utilities/ReduxHooks";
 import {createPortal} from "react-dom";
 import {FileBrowserStatusBar, FileBrowserStatusData} from "./FileBrowserStatusBar";
 import {fetchAll} from "@/Utilities/PageUtilities";
-import {Feature, hasFeature} from "@/Features";
 import {terminalSetPageContext} from "@/Terminal/State";
 import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 import {FileTree} from "./FileTree";
@@ -182,7 +181,6 @@ function FileBrowse({opts, headerControls}: {
     const [statusBarTarget, setStatusBarTarget] = React.useState<HTMLElement | null>(null);
     const [statusBarData, setStatusBarData] = React.useState<FileBrowserStatusData | null>(null);
     const statusRequest = useRef(0);
-    const statusBarEnabled = hasFeature(Feature.FILE_BROWSER_STATUS_BAR);
 
     const isInitialMount = useRef<boolean>(true);
     useEffect(() => {
@@ -261,7 +259,7 @@ function FileBrowse({opts, headerControls}: {
                 browser.on("rowSelectionUpdated", updateStatusSelection);
 
                 const loadStatus = async (path: string, collection: FileCollection) => {
-                    if (!statusBarEnabled || opts?.embedded || opts?.isModal) return;
+                    if (opts?.embedded || opts?.isModal) return;
                     const requestId = ++statusRequest.current;
                     if (path === SEARCH) {
                         setStatusBarData(null);
@@ -1779,7 +1777,7 @@ function FileBrowse({opts, headerControls}: {
                 });
             });
 
-            if (statusBarEnabled && !opts?.embedded && !opts?.isModal) {
+            if (!opts?.embedded && !opts?.isModal) {
                 const statusHost = document.createElement("div");
                 statusHost.style.flexGrow = "0";
                 statusHost.style.flexShrink = "0";

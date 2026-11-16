@@ -13,9 +13,8 @@ type ContainerRepository struct {
 }
 
 type ContainerRepositorySpecification struct {
-	Name                string `json:"name"`
-	Public              bool   `json:"public"`
-	PublicAccessEnabled bool   `json:"publicAccessEnabled"`
+	Name   string `json:"name"`
+	Public bool   `json:"public"`
 	ResourceSpecification
 }
 
