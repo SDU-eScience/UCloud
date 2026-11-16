@@ -262,6 +262,14 @@ func doMove(request orc.FilesProviderMoveOrCopyRequest, updateTimestamps bool) *
 }
 
 func DoCreateFolder(internalPath string) *util.HttpError {
+	return doCreateFolder(rpc.Actor{}, internalPath)
+}
+
+func DoCreateFolderAs(actor rpc.Actor, internalPath string) *util.HttpError {
+	return doCreateFolder(actor, internalPath)
+}
+
+func doCreateFolder(actor rpc.Actor, internalPath string) *util.HttpError {
 	components := util.Components(internalPath)
 	componentsLength := len(components)
 
@@ -274,6 +282,7 @@ func DoCreateFolder(internalPath string) *util.HttpError {
 		return util.UserHttpError("Could not find directory")
 	}
 
+	createdLeaf := false
 	for i := 1; i < componentsLength; i++ {
 		err = unix.Mkdirat(fd, components[i], 0770)
 		didCreate := err == nil
@@ -290,8 +299,14 @@ func DoCreateFolder(internalPath string) *util.HttpError {
 		if err != nil {
 			return util.UserHttpError("Failed to create directory")
 		}
+		if didCreate && i == componentsLength-1 {
+			createdLeaf = true
+		}
 	}
 	_ = unix.Close(fd)
+	if createdLeaf {
+		activityRecordCreatedPathAs(actor, internalPath)
+	}
 	return nil
 }
 
@@ -305,15 +320,7 @@ func createFolder(actor rpc.Actor, request orc.FilesProviderCreateFolderRequest)
 		return util.PaymentError()
 	}
 
-	err := DoCreateFolder(internalPath)
-	if err == nil {
-		ActivityRecord(actor, ActivityEvent{
-			Kind:      ActivityDirect,
-			Operation: ActivityOperationCreate,
-			Targets:   []ActivityTarget{{UCloudPath: request.Id}},
-		})
-	}
-	return err
+	return DoCreateFolderAs(actor, internalPath)
 }
 
 func browseFiles(request orc.FilesProviderBrowseRequest) (fnd.PageV2[orc.ProviderFile], *util.HttpError) {
@@ -1376,15 +1383,7 @@ func createDrive(actor rpc.Actor, drive orc.Drive) *util.HttpError {
 		return util.PaymentError()
 	}
 
-	err := DoCreateFolder(localPath)
-	if err == nil {
-		ActivityRecord(actor, ActivityEvent{
-			Kind:      ActivityDirect,
-			Operation: ActivityOperationCreate,
-			Targets:   []ActivityTarget{{UCloudPath: "/" + drive.Id}},
-		})
-	}
-	return err
+	return DoCreateFolderAs(actor, localPath)
 }
 
 func deleteDrive(actor rpc.Actor, drive orc.Drive) *util.HttpError {

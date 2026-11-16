@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/shared/pkg/log"
@@ -155,6 +156,29 @@ func ActivityClassifyHeat(ucloudPath string) ActivityHeat {
 	}
 
 	return ActivityHeatCold
+}
+
+func activityRecordCreatedPath(internalPath string) {
+	activityRecordCreatedPathAs(rpc.Actor{}, internalPath)
+}
+
+func activityRecordCreatedPathAs(actor rpc.Actor, internalPath string) {
+	if !ctrl.RunsServerCode() {
+		return
+	}
+	drive, ok := driveFromInternalPath(internalPath)
+	if !ok {
+		return
+	}
+	ucloudPath, ok := InternalToUCloudWithDrive(drive, internalPath)
+	if !ok {
+		return
+	}
+	ActivityRecord(actor, ActivityEvent{
+		Kind:      ActivityDirect,
+		Operation: ActivityOperationCreate,
+		Targets:   []ActivityTarget{{UCloudPath: ucloudPath}},
+	})
 }
 
 func ActivityRecord(actor rpc.Actor, event ActivityEvent) {

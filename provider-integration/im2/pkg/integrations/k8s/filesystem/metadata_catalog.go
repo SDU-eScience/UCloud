@@ -371,6 +371,8 @@ func metadataSubmitScan(ucloudPath string, ensure bool, completion func(error, t
 	coverage := metadataHasCoverageForSubmission(drive.Id)
 	if !coverage {
 		internalPath, _, _ = UCloudToInternal(fmt.Sprintf("/%v", drive.Id))
+	} else {
+		internalPath = metadataResolveCatalogScanRoot(drive, internalPath)
 	}
 
 	metadataStartRuntime()
@@ -386,6 +388,39 @@ func metadataSubmitScan(ucloudPath string, ensure bool, completion func(error, t
 	}
 	metadataQueueChange(drive.Id, 1)
 	metadataRuntime.requests <- request
+}
+
+func metadataResolveCatalogScanRoot(drive *orc.Drive, internalPath string) string {
+	basePath, ok, _ := DriveToLocalPath(drive)
+	if !ok {
+		return internalPath
+	}
+	cleanBase := filepath.Clean(basePath)
+	relative, err := filepath.Rel(cleanBase, filepath.Clean(internalPath))
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return internalPath
+	}
+	components := metadataRelativeComponents(relative)
+	if len(components) == 0 {
+		return internalPath
+	}
+	database, release, err := metadataAcquireDatabase(metadataDatabasePath(drive.Id), false)
+	if err != nil {
+		return internalPath
+	}
+	defer release()
+	depth := 0
+	for depth < len(components) {
+		entry, present, readErr := metadataReadEntry(database, metadataPathKey(components[:depth+1]))
+		if readErr != nil || !present || entry.EntryType != MetaEntryDirectory {
+			break
+		}
+		depth++
+	}
+	if depth == len(components) {
+		return internalPath
+	}
+	return filepath.Join(cleanBase, filepath.Join(components[:depth+1]...))
 }
 
 func metadataEnsureIndex(driveId string) *metadataInitialization {
@@ -877,10 +912,18 @@ func metadataScanAndPublishWithCallback(ctx context.Context, scanPath, driveRoot
 	// scan. Otherwise a failed root scan can overwrite the only pending subtree journal.
 	metadataSetScanPhase(metrics, "recovery")
 	if err = metadataRecoverPendingAggregate(db); err != nil {
-		return err
+		if len(components) != 0 || !errors.Is(err, errMetadataAggregateRepairRequired) {
+			return err
+		}
+		log.Warn("Discarded an unusable pending aggregate update for drive %s: %s", filepath.Base(databasePath), err)
+		err = nil
 	}
 	if err = metadataRecoverPendingNameIndex(db); err != nil {
-		return err
+		if len(components) != 0 || !errors.Is(err, errMetadataNameRepairRequired) {
+			return err
+		}
+		log.Warn("Discarded an unusable pending NAME refresh for drive %s: %s", filepath.Base(databasePath), err)
+		err = nil
 	}
 	span := pebble.KeyRange{Start: rootKey, End: metadataPrefixSuccessor(rootKey)}
 	metadataSetScanPhase(metrics, "old_names")
@@ -1334,6 +1377,14 @@ func metadataPathComponents(key []byte) ([]string, error) {
 	return components, nil
 }
 
+func metadataPathDisplay(key []byte) string {
+	components, err := metadataPathComponents(key)
+	if err != nil {
+		return fmt.Sprintf("%x", key)
+	}
+	return "/" + filepath.ToSlash(filepath.Join(components...))
+}
+
 func metadataNameKey(pathKey []byte) ([]byte, error) {
 	basename, err := metadataPathBasename(pathKey)
 	if err != nil || basename == nil {
@@ -1633,10 +1684,10 @@ func metadataUpdateAncestors(db *pebble.DB, scanComponents []string, oldContribu
 			return err
 		}
 		if !present || ancestor.EntryType != MetaEntryDirectory {
-			return fmt.Errorf("%w: missing directory ancestor %x", errMetadataAggregateRepairRequired, key)
+			return fmt.Errorf("%w: missing directory ancestor %q", errMetadataAggregateRepairRequired, metadataPathDisplay(key))
 		}
 		if err = metadataApplyAggregateDelta(&ancestor, oldContribution, newContribution); err != nil {
-			return fmt.Errorf("%w: update ancestor PATH key %x: %v", errMetadataAggregateRepairRequired, key, err)
+			return fmt.Errorf("%w: update ancestor PATH key %q: %v", errMetadataAggregateRepairRequired, metadataPathDisplay(key), err)
 		}
 		ancestor.AggregateGeneration = generation
 		ancestor.AggregateObservedAt = time.Now().UnixNano()
@@ -1690,6 +1741,18 @@ func (pending *metadataPendingAggregate) decode(data []byte) error {
 	return nil
 }
 
+func metadataDiscardPendingAggregate(db *pebble.DB) error {
+	batch := db.NewBatch()
+	defer batch.Close()
+	if err := batch.Delete(metadataPendingAggregateKey, nil); err != nil {
+		return err
+	}
+	if err := batch.Delete(metadataAggregateVersionKey, nil); err != nil {
+		return err
+	}
+	return batch.Commit(pebble.Sync)
+}
+
 func metadataRecoverPendingAggregate(db *pebble.DB) error {
 	value, closer, err := db.Get(metadataPendingAggregateKey)
 	if errors.Is(err, pebble.ErrNotFound) {
@@ -1702,7 +1765,10 @@ func metadataRecoverPendingAggregate(db *pebble.DB) error {
 	_ = closer.Close()
 	var pending metadataPendingAggregate
 	if err = pending.decode(data); err != nil {
-		return fmt.Errorf("decode pending aggregate update: %w", err)
+		if discardErr := metadataDiscardPendingAggregate(db); discardErr != nil {
+			return discardErr
+		}
+		return fmt.Errorf("%w: pending aggregate update is invalid: %v", errMetadataAggregateRepairRequired, err)
 	}
 	root, present, err := metadataReadEntry(db, pending.rootKey)
 	if err != nil {
@@ -1713,9 +1779,19 @@ func metadataRecoverPendingAggregate(db *pebble.DB) error {
 	}
 	components, err := metadataPathComponents(pending.rootKey)
 	if err != nil {
-		return err
+		if discardErr := metadataDiscardPendingAggregate(db); discardErr != nil {
+			return discardErr
+		}
+		return fmt.Errorf("%w: pending aggregate root is invalid: %v", errMetadataAggregateRepairRequired, err)
 	}
-	return metadataUpdateAncestors(db, components, pending.old, pending.new, pending.generation)
+	err = metadataUpdateAncestors(db, components, pending.old, pending.new, pending.generation)
+	if err != nil && errors.Is(err, errMetadataAggregateRepairRequired) {
+		if discardErr := metadataDiscardPendingAggregate(db); discardErr != nil {
+			return discardErr
+		}
+		return fmt.Errorf("pending subtree %q: %w", metadataPathDisplay(pending.rootKey), err)
+	}
+	return err
 }
 
 func metadataEntryContribution(entry MetadataEntry, present bool) metadataAggregate {

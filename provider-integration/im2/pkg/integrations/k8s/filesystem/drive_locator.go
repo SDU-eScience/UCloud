@@ -22,6 +22,13 @@ const (
 	DriveDescriptorTypeShare
 )
 
+const (
+	driveMountHome        = "home"
+	driveMountProjects    = "projects"
+	driveMountMemberFiles = "Members' Files"
+	driveMountCollections = "collections"
+)
+
 type DriveDescriptor struct {
 	Type               DriveDescriptorType
 	PrimaryReference   string
@@ -139,6 +146,7 @@ func ParseDriveDescriptor(providerId util.Option[string]) (DriveDescriptor, bool
 }
 
 var shareCache = util.NewCache[string, orc.Share](1 * time.Minute)
+var driveByInternalPrefixCache = util.NewCache[string, *orc.Drive](1 * time.Minute)
 
 func DriveToLocalPath(drive *orc.Drive) (string, bool, *orc.Drive) {
 	descriptor, ok := ParseDriveDescriptor(util.OptValue(drive.ProviderGeneratedId))
@@ -152,14 +160,14 @@ func DriveToLocalPath(drive *orc.Drive) (string, bool, *orc.Drive) {
 	case DriveDescriptorTypeHome:
 		return filepath.Join(
 			mnt,
-			"home",
+			driveMountHome,
 			descriptor.PrimaryReference,
 		), true, drive
 
 	case DriveDescriptorTypeProjectRepo:
 		return filepath.Join(
 			mnt,
-			"projects",
+			driveMountProjects,
 			descriptor.PrimaryReference,
 			descriptor.SecondaryReference,
 		), true, drive
@@ -167,9 +175,9 @@ func DriveToLocalPath(drive *orc.Drive) (string, bool, *orc.Drive) {
 	case DriveDescriptorTypeMemberFiles:
 		return filepath.Join(
 			mnt,
-			"projects",
+			driveMountProjects,
 			descriptor.PrimaryReference,
-			"Members' Files",
+			driveMountMemberFiles,
 			descriptor.SecondaryReference,
 		), true, drive
 
@@ -191,10 +199,80 @@ func DriveToLocalPath(drive *orc.Drive) (string, bool, *orc.Drive) {
 	default:
 		return filepath.Join(
 			mnt,
-			"collections",
+			driveMountCollections,
 			drive.Id,
 		), true, drive
 	}
+}
+
+func driveFromInternalPath(internalPath string) (*orc.Drive, bool) {
+	mount := filepath.Clean(shared.ServiceConfig.FileSystem.MountPoint)
+	relative, err := filepath.Rel(mount, filepath.Clean(internalPath))
+	if err != nil || relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return nil, false
+	}
+	components := util.Components(relative)
+	if len(components) < 2 {
+		return nil, false
+	}
+
+	var key string
+	var driveId string
+	descriptor := DriveDescriptor{}
+	switch components[0] {
+	case driveMountHome:
+		key = strings.Join(components[:2], "/")
+		descriptor = DriveDescriptor{
+			Type:             DriveDescriptorTypeHome,
+			PrimaryReference: components[1],
+		}
+	case driveMountCollections:
+		key = strings.Join(components[:2], "/")
+		driveId = components[1]
+	case driveMountProjects:
+		if len(components) >= 4 && components[2] == driveMountMemberFiles {
+			key = strings.Join(components[:4], "/")
+			descriptor = DriveDescriptor{
+				Type:               DriveDescriptorTypeMemberFiles,
+				PrimaryReference:   components[1],
+				SecondaryReference: components[3],
+			}
+		} else if len(components) >= 3 {
+			key = strings.Join(components[:3], "/")
+			descriptor = DriveDescriptor{
+				Type:               DriveDescriptorTypeProjectRepo,
+				PrimaryReference:   components[1],
+				SecondaryReference: components[2],
+			}
+		} else {
+			return nil, false
+		}
+	default:
+		return nil, false
+	}
+
+	drive, _ := driveByInternalPrefixCache.Get(key, func() (*orc.Drive, error) {
+		if driveId != "" {
+			result, ok := ctrl.DriveRetrieve(driveId)
+			if !ok {
+				return nil, nil
+			}
+			return result, nil
+		}
+		providerId := descriptor.ToProviderId()
+		if !providerId.Present {
+			return nil, nil
+		}
+		result, ok := ctrl.DriveRetrieveByProviderId([]string{providerId.Value}, []string{""})
+		if !ok {
+			return nil, nil
+		}
+		return result, nil
+	})
+	if drive == nil {
+		return nil, false
+	}
+	return drive, true
 }
 
 func ResolveDrive(id string) (*orc.Drive, bool) {

@@ -320,6 +320,18 @@ func metadataApplyNameKeys(batch *pebble.Batch, path string, remove bool) error 
 	return nil
 }
 
+func metadataDiscardPendingNameIndex(db *pebble.DB) error {
+	batch := db.NewBatch()
+	defer batch.Close()
+	if err := batch.Delete(metadataPendingNameKey, nil); err != nil {
+		return err
+	}
+	if err := batch.Delete(metadataSearchIndexVersionKey, nil); err != nil {
+		return err
+	}
+	return batch.Commit(pebble.Sync)
+}
+
 func metadataRecoverPendingNameIndex(db *pebble.DB) error {
 	value, closer, err := db.Get(metadataPendingNameKey)
 	if errors.Is(err, pebble.ErrNotFound) {
@@ -331,7 +343,10 @@ func metadataRecoverPendingNameIndex(db *pebble.DB) error {
 	rootKey := append([]byte(nil), value...)
 	_ = closer.Close()
 	if len(rootKey) == 0 || rootKey[0] != MetaKeyspacePath {
-		return errors.New("invalid pending NAME refresh root")
+		if discardErr := metadataDiscardPendingNameIndex(db); discardErr != nil {
+			return discardErr
+		}
+		return fmt.Errorf("%w: invalid pending NAME refresh root", errMetadataNameRepairRequired)
 	}
 	span := pebble.KeyRange{Start: rootKey, End: metadataPrefixSuccessor(rootKey)}
 	batch := db.NewBatch()
@@ -345,7 +360,10 @@ func metadataRecoverPendingNameIndex(db *pebble.DB) error {
 		indexKeys, keyErr := metadataSearchIndexKeys(iter.Key())
 		if keyErr != nil {
 			_ = iter.Close()
-			return keyErr
+			if discardErr := metadataDiscardPendingNameIndex(db); discardErr != nil {
+				return discardErr
+			}
+			return fmt.Errorf("%w: %v", errMetadataNameRepairRequired, keyErr)
 		}
 		for _, indexKey := range indexKeys {
 			if err = batch.Set(indexKey, nil, nil); err != nil {

@@ -281,7 +281,7 @@ func ucxOnConnect(conn *ws.Conn) {
 				return ucxapi.Stack{}, err.AsError()
 			}
 			instanceFolder := filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", instanceId)
-			if err = filesystem.DoCreateFolder(instanceFolder); err != nil {
+			if err = filesystem.DoCreateFolderAs(rpc.Actor{Username: info.Owner.CreatedBy}, instanceFolder); err != nil {
 				return ucxapi.Stack{}, err.AsError()
 			}
 			var ok bool
@@ -290,12 +290,6 @@ func ucxOnConnect(conn *ws.Conn) {
 				return ucxapi.Stack{}, fmt.Errorf("internal error")
 			}
 		}
-
-		filesystem.ActivityRecord(rpc.Actor{Username: info.Owner.CreatedBy}, filesystem.ActivityEvent{
-			Kind:      filesystem.ActivityDirect,
-			Operation: filesystem.ActivityOperationCreate,
-			Targets:   []filesystem.ActivityTarget{{UCloudPath: ucloudPath}},
-		})
 
 		id, err := orcapi.StacksControlRequestDeletion.Invoke(orcapi.StacksControlRequestDeletionRequest{
 			Id:             instanceId,
@@ -571,7 +565,7 @@ func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, state
 		drive = memberDrive
 		requestedPath = filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", instanceId)
 	}
-	if err := filesystem.DoCreateFolder(requestedPath); err != nil {
+	if err := filesystem.DoCreateFolderAs(rpc.Actor{Username: owner.CreatedBy}, requestedPath); err != nil {
 		return util.Empty{}, err.AsError()
 	}
 
@@ -590,16 +584,8 @@ func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, state
 	}
 
 	parentPath := util.Parent(requestedPath)
-	if err := filesystem.DoCreateFolder(parentPath); err != nil {
+	if err := filesystem.DoCreateFolderAs(rpc.Actor{Username: owner.CreatedBy}, parentPath); err != nil {
 		return util.Empty{}, err.AsError()
-	}
-
-	if ucloudPath, ok := filesystem.InternalToUCloudWithDrive(drive, parentPath); ok {
-		filesystem.ActivityRecord(rpc.Actor{Username: owner.CreatedBy}, filesystem.ActivityEvent{
-			Kind:      filesystem.ActivityDirect,
-			Operation: filesystem.ActivityOperationCreate,
-			Targets:   []filesystem.ActivityTarget{{UCloudPath: ucloudPath}},
-		})
 	}
 
 	file, ok := filesystem.OpenFile(requestedPath, unix.O_CREAT|unix.O_WRONLY|writeFlag, perm)
@@ -612,6 +598,14 @@ func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, state
 	_, gerr := file.Write(data)
 	if gerr != nil {
 		return util.Empty{}, fmt.Errorf("unable to write data: %s", gerr)
+	}
+
+	if ucloudPath, ok := filesystem.InternalToUCloudWithDrive(drive, requestedPath); ok {
+		filesystem.ActivityRecord(rpc.Actor{Username: owner.CreatedBy}, filesystem.ActivityEvent{
+			Kind:      filesystem.ActivityDirect,
+			Operation: filesystem.ActivityOperationCreate,
+			Targets:   []filesystem.ActivityTarget{{UCloudPath: ucloudPath}},
+		})
 	}
 
 	return util.Empty{}, nil
