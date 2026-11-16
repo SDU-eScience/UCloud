@@ -53,6 +53,7 @@ export function AllocationPage(props: {
             {props.providerTools}
             <SubProjectList
                 {...props.subProjects}
+                demo={props.demo}
                 dateRange={props.dateRange}
                 selectedCategories={selectedCategories}
                 onCategoriesChange={setSelectedCategories}

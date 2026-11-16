@@ -1585,7 +1585,9 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                     size={15}
                                     checked={allFilteredSelected}
                                     onChange={toggleAllFiltered}
-                                    aria-label="Select all visible rows"
+                                    onClick={event => event.stopPropagation()}
+                                    handleWrapperClick={toggleAllFiltered}
+                                    aria-label="Select all matching rows"
                                 />
                             </div>
                         </TableHeaderCell> : null}
@@ -1714,6 +1716,11 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                             <Checkbox
                                                 size={15}
                                                 checked={selection!.selected.has(row.key)}
+                                                onClick={event => event.stopPropagation()}
+                                                handleWrapperClick={() => {
+                                                    store.setSelected(stateKey, row.key);
+                                                    toggleSelection(row.key);
+                                                }}
                                                 onChange={() => {
                                                     store.setSelected(stateKey, row.key);
                                                     toggleSelection(row.key);

@@ -69,6 +69,8 @@ import {getProviderTitle} from "@/Providers/ProviderTitle";
 import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
 import {AllocationGrid} from "@/Accounting/Allocations/AllocationGrid";
 import type {AllocationDateRange, AllocationEditRequest} from "@/Accounting/Allocations/AllocationGrid";
+import {BulkAllocationWizard} from "./BulkAllocationWizard";
+import {allocationCurrentCalendarYear} from "./AllocationPeriodFilter";
 
 const allocationFiltersModalStyle: ReactModal.Styles = {
     ...largeModalStyle,
@@ -1211,7 +1213,8 @@ export function SubProjectList({
     renderGrantLink,
     selectedCategories,
     onCategoriesChange,
-    periodControl
+    periodControl,
+    demo
 }: {
     projectId: string | undefined,
     onNewSubProject: () => Promise<void>,
@@ -1232,8 +1235,24 @@ export function SubProjectList({
     renderGrantLink?: (grantId: number) => React.ReactNode,
     selectedCategories?: string[],
     onCategoriesChange?: (categories: string[]) => void,
-    periodControl?: React.ReactNode
+    periodControl?: React.ReactNode,
+    demo?: boolean
 }): React.ReactNode {
+    const [allocationRecipients, setAllocationRecipients] = useState<AllocationDisplayTreeRecipient[] | null>(null);
+    React.useEffect(() => {
+        setAllocationRecipients(null);
+    }, [projectId]);
+    const allocationCategories = useMemo(() => {
+        const categories = new Map<string, ProductCategoryV2>();
+        for (const allocation of Object.values(state.yourAllocations)) {
+            for (const wallet of allocation.wallets) {
+                if (!wallet.category.freeToUse) {
+                    categories.set(`${wallet.category.provider}/${wallet.category.name}`, wallet.category);
+                }
+            }
+        }
+        return [...categories.values()];
+    }, [state.yourAllocations]);
     const rerender = useForcedRender();
     const setNodeStateHack = useCallback((action: TreeAction, reference: string, group?: string | null) => {
         setNodeState(action, reference, group);
@@ -1415,6 +1434,19 @@ export function SubProjectList({
     }, [dispatchEvent]);
 
     return <>
+        {allocationRecipients && projectId ? <BulkAllocationWizard
+            key={projectId}
+            projectId={projectId}
+            recipients={allocationRecipients}
+            categories={allocationCategories}
+            projectInfo={resolvedProjectInfo}
+            dateRange={dateRange ?? allocationCurrentCalendarYear()}
+            demo={demo}
+            onClose={changed => {
+                setAllocationRecipients(null);
+                if (changed) dispatchEvent({type: "Init"});
+            }}
+        /> : null}
         <div className={subProjectsStyle}>
             {projectId !== undefined && <>
                 <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
@@ -1425,6 +1457,7 @@ export function SubProjectList({
                     {state.remoteData.wallets === undefined ? <>
                         <div style={{padding: 20}}><HexSpin size={64} /></div>
                     </> : <AllocationGrid
+                        key={projectId}
                         recipients={state.subAllocations.recipients}
                         recipientIndices={state.filteredSubProjectIndices}
                         projectInfo={resolvedProjectInfo}
@@ -1436,6 +1469,7 @@ export function SubProjectList({
                         personalWorkspaces={!state.viewOnlyProjects}
                         onPersonalWorkspacesChange={togglePersonalWorkspaces}
                         onClearFilters={clearFilters}
+                        onAllocate={projectRole !== OldProjectRole.USER ? setAllocationRecipients : undefined}
                         toolbar={<Flex gap="8px">
                             <Button height={35} onClick={onNewSubProject} disabled={projectRole === OldProjectRole.USER}>
                                 <Icon name="heroPlus" mr={8} />New sub-project

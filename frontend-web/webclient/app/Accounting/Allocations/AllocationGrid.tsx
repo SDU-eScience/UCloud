@@ -12,7 +12,7 @@ import type {
     UcxTableCellRenderContext,
     UcxTableSelection,
 } from "@/UCX/UcxBrowser";
-import {Icon, Link} from "@/ui-components";
+import {Button, Icon, Link} from "@/ui-components";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
@@ -76,6 +76,7 @@ interface AllocationGridProps {
     onPersonalWorkspacesChange: () => void;
     onClearFilters?: () => void;
     toolbar?: React.ReactNode;
+    onAllocate?: (recipients: AllocationDisplayTreeRecipient[]) => void;
     periodControl?: React.ReactNode;
     emptyMessage?: string;
     onEdit: (request: AllocationEditRequest) => void;
@@ -91,6 +92,7 @@ interface AllocationGridRow {
     group: string;
     category: ProductCategoryV2;
     allocationId: number;
+    recipientIndex: number;
     start: number;
     end: number;
     grantId?: number;
@@ -501,6 +503,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                         group: `${workspace.title}\u0000${workspace.id}`,
                         category: group.category,
                         allocationId: allocation.allocationId,
+                        recipientIndex: recipientIdx,
                         start: allocation.start,
                         end: allocation.end,
                         grantId: allocation.grantedIn,
@@ -632,10 +635,39 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         });
     }, [store, columns, tableRows]);
 
+    useEffect(() => {
+        setSelected(previous => {
+            const next = new Set([...previous].filter(key => rowByKey.has(key)));
+            return next.size === previous.size ? previous : next;
+        });
+    }, [rowByKey]);
+
+    const selectedRecipients = useMemo(() => {
+        const indices = new Set<number>();
+        for (const row of rows) {
+            if (selected.has(row.key)) indices.add(row.recipientIndex);
+        }
+        return [...indices].map(index => props.recipients[index]);
+    }, [rows, selected, props.recipients]);
+
     const selection = useMemo((): UcxTableSelection => ({
         selected,
-        onChange: setSelected,
-    }), [selected]);
+        onChange: next => {
+            const changedGroups = new Map<string, boolean>();
+            for (const row of rows) {
+                if (next.has(row.key) !== selected.has(row.key)) {
+                    changedGroups.set(row.group, next.has(row.key));
+                }
+            }
+            const result = new Set(next);
+            for (const row of rows) {
+                const checked = changedGroups.get(row.group);
+                if (checked === true) result.add(row.key);
+                if (checked === false) result.delete(row.key);
+            }
+            setSelected(result);
+        },
+    }), [selected, rows]);
 
     const actionDefs = useMemo((): UcxTableActionDef[] => [
         {id: "edit", label: "Edit allocation", icon: "heroPencil", kind: "custom", shortcut: "e"},
@@ -716,7 +748,14 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             searchRef={searchRef}
             onSearchExit={() => store.viewFor("allocation-grid")?.focus()}
             periodControl={props.periodControl}
-            actions={props.toolbar}
+            actions={<div style={{display: "flex", flexWrap: "wrap", gap: 8}}>
+                {props.onAllocate ? <Button
+                    height={35}
+                    disabled={selectedRecipients.length === 0}
+                    onClick={() => props.onAllocate?.(selectedRecipients)}
+                ><Icon name="heroSquaresPlus" mr={8} />Allocate{selectedRecipients.length > 0 ? ` (${formatNumber(selectedRecipients.length)})` : ""}</Button> : null}
+                {props.toolbar}
+            </div>}
             products={products}
             providers={providers}
             selectedProducts={productKeys}
