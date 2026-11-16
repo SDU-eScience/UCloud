@@ -86,6 +86,98 @@ export default function ConfiguringTools({
     })) : [{id: modelId ?? "$MODEL_ID", title: "$MODEL_TITLE", contextWindow: undefined, maxOutputTokens: 16000, toolCalling: true, vision: false, reasoningEfforts: [], defaultReasoningEffort: ""}];
     const firstModelId = modelRefs[0]?.id ?? modelId ?? "$MODEL_ID";
 
+    const activeModel = modelId ? models.find(model => model.name === modelId) : undefined;
+    const canGenerateImages = activeModel?.capabilities.includes("TextToImage") ?? false;
+    const canEditImages = activeModel?.capabilities.includes("ImageToImage") ?? false;
+    const canTranscribe = activeModel?.capabilities.includes("SpeechToText") ?? false;
+    const canGenerateVideos = activeModel?.capabilities.includes("TextToVideo") ?? false;
+    const canGenerateVideosFromImages = activeModel?.capabilities.includes("ImageToVideo") ?? false;
+    const usesImageApi = canGenerateImages || canEditImages;
+    const usesVideoApi = canGenerateVideos || canGenerateVideosFromImages;
+    const usesNativeApi = usesImageApi || canTranscribe || usesVideoApi;
+
+    const nativeExamples: string[] = [];
+    if (canGenerateImages) {
+        nativeExamples.push(`# Generate an image
+curl "${resolvedServer}/images/generations" \\
+  -H "Authorization: Bearer ${apiToken}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "${firstModelId}",
+    "prompt": "A red cube on a white table",
+    "size": "1024x1024",
+    "n": 1
+  }'`);
+    }
+    if (canEditImages) {
+        nativeExamples.push(`# Edit an image
+curl "${resolvedServer}/images/edits" \\
+  -H "Authorization: Bearer ${apiToken}" \\
+  -F "model=${firstModelId}" \\
+  -F "image=@input.png" \\
+  -F "prompt=Replace the background with a blue sky" \\
+  -F "size=1024x1024"`);
+    }
+    if (canTranscribe) {
+        nativeExamples.push(`# Transcribe an audio file
+curl "${resolvedServer}/audio/transcriptions" \\
+  -H "Authorization: Bearer ${apiToken}" \\
+  -F "model=${firstModelId}" \\
+  -F "file=@audio.mp3" \\
+  -F "response_format=json"`);
+    }
+    if (canGenerateVideos) {
+        nativeExamples.push(`# Start a text-to-video job
+curl "${resolvedServer}/videos" \\
+  -H "Authorization: Bearer ${apiToken}" \\
+  -F "model=${firstModelId}" \\
+  -F "prompt=A red cube on a white table" \\
+  -F "size=1280x720" \\
+  -F "seconds=8"
+
+# Poll GET /videos/{id}, then download GET /videos/{id}/content`);
+    }
+    if (canGenerateVideosFromImages) {
+        nativeExamples.push(`# Start an image-to-video job
+curl "${resolvedServer}/videos" \\
+  -H "Authorization: Bearer ${apiToken}" \\
+  -F "model=${firstModelId}" \\
+  -F "prompt=Animate the input image" \\
+  -F "input_reference=@input.png" \\
+  -F "size=1280x720" \\
+  -F "seconds=8"
+
+# Poll GET /videos/{id}, then download GET /videos/{id}/content`);
+    }
+    const nativeExample = nativeExamples.join("\n\n");
+
+    const nativeApiTitle = usesVideoApi && !usesImageApi && !canTranscribe
+        ? "Video API"
+        : usesImageApi && !usesVideoApi && !canTranscribe
+            ? "Image API"
+            : canTranscribe && !usesImageApi && !usesVideoApi
+                ? "Speech-to-text API"
+                : "API";
+    const nativeApiCapabilities = [
+        canGenerateImages ? "image generation" : "",
+        canEditImages ? "image editing" : "",
+        canTranscribe ? "audio transcription" : "",
+        canGenerateVideos ? "text-to-video generation" : "",
+        canGenerateVideosFromImages ? "image-to-video generation" : "",
+    ].filter(capability => capability !== "");
+    const nativeApiPrefix = usesVideoApi && !usesImageApi && !canTranscribe
+        ? "Use the OpenAI-compatible video endpoints."
+        : canTranscribe && !usesImageApi && !usesVideoApi
+            ? "Use the OpenAI-compatible transcription endpoint."
+            : usesImageApi && !canTranscribe && !usesVideoApi
+                ? "Use the OpenAI-compatible image endpoints."
+                : "Use the OpenAI-compatible endpoints supported by this model.";
+    const nativeApiDescription = nativeApiCapabilities.length > 1
+        ? `${nativeApiPrefix} This model supports ` +
+            `${nativeApiCapabilities.slice(0, -1).join(", ")} and ` +
+            `${nativeApiCapabilities[nativeApiCapabilities.length - 1]}.`
+        : nativeApiPrefix;
+
     return <Box className={Style}>
         {error === "" ? null : <Text color="errorMain">{error}</Text>}
         <Flex gap="12px" alignItems="center" flexWrap="wrap" className="tile-and-buttons">
@@ -108,7 +200,19 @@ export default function ConfiguringTools({
             </Text>
         </Box>}
 
-        <Box mt={20} style={{display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 12}}>
+        {usesNativeApi ? (
+            <Box mt={20} style={{display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 12}}>
+                <Box>
+                    <Text fontWeight={600}>{nativeApiTitle}</Text>
+                    <Box mt={6}>
+                        <Text color="textSecondary">{nativeApiDescription}</Text>
+                    </Box>
+                    <Box mt={12}>
+                        <CodeSnippet lang="bash" children={nativeExample} />
+                    </Box>
+                </Box>
+            </Box>
+        ) : <Box mt={20} style={{display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 12}}>
             <ToolGuide id="generic" title="Generic OpenAI-compatible client" openTool={openTool} setOpenTool={setOpenTool}>
                 <CodeSnippet lang="bash" children={`curl "${resolvedServer}/chat/completions" \\
   -H "Authorization: Bearer ${apiToken}" \\
@@ -221,7 +325,7 @@ env_key = "UCLOUD_INFERENCE_TOK"`} />
                     <li>Keep the API key in the environment rather than hard-coding it in <code>config.toml</code>.</li>
                 </ul>
             </ToolGuide>
-        </Box>
+        </Box>}
     </Box>;
 }
 

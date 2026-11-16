@@ -1,6 +1,7 @@
 package util
 
 import (
+	"cmp"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -34,4 +35,14 @@ func RandomTokenNoTs(byteCount int) string {
 
 func SecureToken() string {
 	return RandomTokenNoTs(32)
+}
+
+func Clamp[T cmp.Ordered](val T, min T, max T) T {
+	if val < min {
+		return min
+	} else if val > max {
+		return max
+	} else {
+		return val
+	}
 }

@@ -264,7 +264,7 @@ func appEditorValidateCustom(
 	node *yaml.Node,
 ) ([]orcapi.AppEditorValidationError, string, orcapi.AppEditorCustomMetadata) {
 	var errors []orcapi.AppEditorValidationError
-	if coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories) != nil {
+	if coreutil.FeatureIsEnabled(actor, fndapi.FeatureCustomApplications) != nil {
 		return []orcapi.AppEditorValidationError{appEditorError("FEATURE_NOT_ENABLED", "custom", "This feature is not enabled", node)}, "", orcapi.AppEditorCustomMetadata{}
 	}
 	if !metadata.Present {
@@ -851,7 +851,7 @@ func appEditorDecodeDefault[T any](raw json.RawMessage, result *util.Option[T]) 
 
 func appEditorEligibility(actor rpc.Actor) orcapi.AppEditorCustomEligibilityResponse {
 	result := orcapi.AppEditorCustomEligibilityResponse{
-		CanCreate:  appCustomCanCreateGroup(actor) && coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories) == nil,
+		CanCreate:  appCustomCanCreateGroup(actor) && coreutil.FeatureIsEnabled(actor, fndapi.FeatureCustomApplications) == nil,
 		CanPublish: actor.Project.Present,
 	}
 	providers := map[string]bool{}

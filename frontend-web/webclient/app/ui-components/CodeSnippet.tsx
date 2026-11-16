@@ -12,14 +12,41 @@ const Style = injectStyle("code-snippet", k => `
         position: relative;
         min-width: 0;
     }
+`);
+
+const CopyOverlayStyle = injectStyle("code-snippet-copy-overlay", k => `
+    ${k} {
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: 1;
+        box-sizing: border-box;
+        width: 56px;
+        height: 54px;
+        border-top: 1px solid var(--borderColor);
+        border-right: 1px solid var(--borderColor);
+        border-top-right-radius: 8px;
+        border-bottom-left-radius: 8px;
+        pointer-events: none;
+    }
 
     ${k} > .code-snippet-copy-button {
         position: absolute;
         top: 11px;
         right: 16px;
-        z-index: 1;
+        pointer-events: auto;
     }
 `);
+
+export const CodeSnippetCopyOverlay: React.FunctionComponent<{onClick: () => void}> = ({onClick}) => {
+    const lightTheme = useIsLightThemeStored();
+    const theme = lightTheme ? atomOneLight : atomOneDark;
+    return <div className={CopyOverlayStyle} style={{background: theme["hljs"].background}}>
+        <div className="code-snippet-copy-button">
+            <CopyButton onClick={onClick} />
+        </div>
+    </div>;
+};
 
 const CodeSnippet: React.FunctionComponent<{
     children: React.ReactNode,
@@ -44,7 +71,7 @@ const CodeSnippet: React.FunctionComponent<{
             style={theme}
             customStyle={{
                 margin: 0,
-                padding: "16px 56px 16px 16px",
+                padding: "16px 64px 16px 16px",
                 borderRadius: 8,
                 maxHeight: maxHeight ?? undefined,
                 overflow: "auto",
@@ -55,9 +82,7 @@ const CodeSnippet: React.FunctionComponent<{
         >
             {code}
         </SyntaxHighlighter>
-        <div className="code-snippet-copy-button">
-            <CopyButton onClick={doCopy} />
-        </div>
+        <CodeSnippetCopyOverlay onClick={doCopy} />
     </div>;
 }
 

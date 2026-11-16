@@ -1,14 +1,12 @@
 package orchestrator
 
 import (
-	"fmt"
 	"net/http"
 	"regexp"
 	"slices"
 	"strings"
 	"sync"
 
-	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -69,10 +67,6 @@ func initContainerRepositories() {
 	})
 
 	orcapi.ContainerRepositoriesUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureContainerRepositories); err != nil {
-			return fndapi.BulkResponse[util.Empty]{}, err
-		}
-
 		for _, item := range request.Items {
 			if err := ResourceUpdateAcl(info.Actor, containerRepositoryType, item); err != nil {
 				return fndapi.BulkResponse[util.Empty]{}, err
@@ -83,6 +77,17 @@ func initContainerRepositories() {
 
 	orcapi.ContainerRepositoriesUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ContainerRepositoriesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
 		return util.Empty{}, ContainerRepositoryUpdateLabels(info.Actor, request)
+	})
+
+	orcapi.ContainerRepositoriesUpdatePublic.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ContainerRepositoriesUpdatePublicRequest]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		responses := make([]util.Empty, 0, len(request.Items))
+		for _, item := range request.Items {
+			if err := ContainerRepositoryUpdatePublic(info.Actor, item.Id, item.Public); err != nil {
+				return fndapi.BulkResponse[util.Empty]{}, err
+			}
+			responses = append(responses, util.Empty{})
+		}
+		return fndapi.BulkResponse[util.Empty]{Responses: responses}, nil
 	})
 
 	orcapi.ContainerRepositoriesRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.SupportByProvider[orcapi.FSSupport], *util.HttpError) {
@@ -113,59 +118,33 @@ func initContainerRepositories() {
 		), nil
 	})
 
-	orcapi.ContainerRepositoriesControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.ContainerRepositorySpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		providerId, _ := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
-		responses := make([]fndapi.FindByStringId, 0, len(request.Items))
+	orcapi.ContainerRepositoriesControlRegister.Handler(resourceControlRegisterServe[orcapi.ContainerRepositorySpecification, orcapi.ContainerRepository](
+		containerRepositoryType,
+		func(spec *orcapi.ContainerRepositorySpecification) *orcapi.ResourceSpecification {
+			return &spec.ResourceSpecification
+		},
+		func(item *orcapi.ProviderRegisteredResource[orcapi.ContainerRepositorySpecification]) (any, func(), *util.HttpError) {
+			item.Spec.Name = strings.TrimSpace(item.Spec.Name)
 
-		for _, reqItem := range request.Items {
-			if reqItem.Spec.Product.Provider != providerId {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+			if err := containerRepositoryValidateSpecification(item.Spec); err != nil {
+				return nil, nil, err
 			}
 
-			reqItem.Spec.Name = strings.TrimSpace(reqItem.Spec.Name)
-			if err := containerRepositoryValidateSpecification(reqItem.Spec); err != nil {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+			if !containerRepositoryReserve(item.Spec.Product.Provider, item.Spec.Name) {
+				return nil, nil, util.HttpErr(http.StatusConflict, "container repository name already exists")
 			}
 
-			if !containerRepositoryReserve(reqItem.Spec.Product.Provider, reqItem.Spec.Name) {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusConflict, "container repository name already exists")
+			rollback := func() {
+				containerRepositoryReleaseReservation(item.Spec.Product.Provider, item.Spec.Name)
 			}
 
-			var flags resourceCreateFlags
-			if reqItem.ProjectAllRead {
-				flags |= resourceCreateAllRead
-			}
-			if reqItem.ProjectAllWrite {
-				flags |= resourceCreateAllWrite
-			}
-
-			id, _, err := ResourceCreateEx[orcapi.ContainerRepository](
-				containerRepositoryType,
-				orcapi.ResourceOwner{
-					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
-					Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
-				},
-				nil,
-				reqItem.Spec.ResourceSpecification,
-				reqItem.ProviderGeneratedId,
-				&internalContainerRepository{Name: reqItem.Spec.Name},
-				flags,
-			)
-			if err != nil {
-				containerRepositoryReleaseReservation(reqItem.Spec.Product.Provider, reqItem.Spec.Name)
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
-			}
-
-			ResourceConfirm(containerRepositoryType, id)
-			responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
-		}
-
-		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
-	})
+			return &internalContainerRepository{Name: item.Spec.Name}, rollback, nil
+		},
+	))
 
 	orcapi.ContainerRepositoriesControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ContainerRepositoriesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
 		for _, reqItem := range request.Items {
-			if err := ResourceUpdateLabels(info.Actor, containerRepositoryType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider); err != nil {
+			if err := resourceUpdateLabelsFillReserved(info.Actor, containerRepositoryType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider); err != nil {
 				return util.Empty{}, err
 			}
 		}
@@ -174,10 +153,6 @@ func initContainerRepositories() {
 }
 
 func ContainerRepositoryCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ContainerRepositorySpecification]) ([]orcapi.ContainerRepository, *util.HttpError) {
-	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
-		return nil, err
-	}
-
 	if actor.Project.Present && !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
 		return nil, util.HttpErr(http.StatusForbidden, "you need project administrator privileges to do this operation")
 	}
@@ -201,7 +176,7 @@ func ContainerRepositoryCreate(actor rpc.Actor, request fndapi.BulkRequest[orcap
 			actor,
 			containerRepositoryType,
 			item.ResourceSpecification,
-			&internalContainerRepository{Name: item.Name},
+			&internalContainerRepository{Name: item.Name, Public: item.Public},
 			orcapi.ContainerRepositoriesProviderCreate,
 		)
 		if err != nil {
@@ -241,10 +216,6 @@ func ContainerRepositoryBrowse(actor rpc.Actor, request orcapi.ContainerReposito
 }
 
 func ContainerRepositoryDelete(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
-		return fndapi.BulkResponse[util.Empty]{}, err
-	}
-
 	responses := make([]util.Empty, 0, len(request.Items))
 	for _, item := range request.Items {
 		if err := ResourceDeleteThroughProvider[orcapi.ContainerRepository](actor, containerRepositoryType, item.Id, orcapi.ContainerRepositoriesProviderDelete); err != nil {
@@ -256,10 +227,6 @@ func ContainerRepositoryDelete(actor rpc.Actor, request fndapi.BulkRequest[fndap
 }
 
 func ContainerRepositoryUpdateLabels(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ContainerRepositoriesUpdateLabelsRequest]) *util.HttpError {
-	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
-		return err
-	}
-
 	for _, reqItem := range request.Items {
 		err := ResourceUpdateLabelsThroughProvider[orcapi.ContainerRepository](
 			actor,
@@ -274,6 +241,23 @@ func ContainerRepositoryUpdateLabels(actor rpc.Actor, request fndapi.BulkRequest
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func ContainerRepositoryUpdatePublic(actor rpc.Actor, id string, public bool) *util.HttpError {
+	ok := ResourceUpdate[orcapi.ContainerRepository](
+		actor,
+		containerRepositoryType,
+		ResourceParseId(id),
+		orcapi.PermissionAdmin,
+		func(r *resource, mapped orcapi.ContainerRepository) {
+			r.PublicRead = public
+			r.Extra.(*internalContainerRepository).Public = public
+		},
+	)
+	if !ok {
+		return util.HttpErr(http.StatusForbidden, "failed to update public access - permission denied")
 	}
 	return nil
 }
@@ -293,12 +277,13 @@ func ContainerRepositoryRetrieveProducts() orcapi.SupportByProvider[orcapi.FSSup
 }
 
 func ContainerRepositoryBrowseImages(actor rpc.Actor, request orcapi.ContainerRepositoriesBrowseImagesRequest) (fndapi.PageV2[orcapi.ContainerRepositoryImage], *util.HttpError) {
-	repository, _, _, err := ResourceRetrieveEx[orcapi.ContainerRepository](
+	repository, _, _, err := resourceRetrieveEx[orcapi.ContainerRepository](
 		actor,
 		containerRepositoryType,
 		ResourceParseId(request.RepositoryId),
 		orcapi.PermissionRead,
 		orcapi.ResourceFlagsIncludeAll(),
+		false,
 	)
 	if err != nil {
 		return fndapi.PageV2[orcapi.ContainerRepositoryImage]{}, err
@@ -322,10 +307,6 @@ func ContainerRepositoryBrowseImages(actor rpc.Actor, request orcapi.ContainerRe
 }
 
 func ContainerRepositoryDeleteImage(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ContainerRepositoriesDeleteImageRequest]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
-		return fndapi.BulkResponse[util.Empty]{}, err
-	}
-
 	result := fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, 0, len(request.Items))}
 	for _, item := range request.Items {
 		repository, _, _, err := ResourceRetrieveEx[orcapi.ContainerRepository](
@@ -442,7 +423,12 @@ func (i *containerRepositoryNameIndexer) Commit() {
 }
 
 type internalContainerRepository struct {
-	Name string
+	Name   string
+	Public bool
+}
+
+func (i *internalContainerRepository) ResourcePublicRead() bool {
+	return i.Public
 }
 
 func containerRepositoryLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource) {
@@ -460,7 +446,11 @@ func containerRepositoryLoad(tx *db.Transaction, ids []int64, resources map[Reso
 	)
 
 	for _, row := range rows {
-		resources[ResourceId(row.Resource)].Extra = &internalContainerRepository{Name: row.Name}
+		r := resources[ResourceId(row.Resource)]
+		r.Extra = &internalContainerRepository{
+			Name:   row.Name,
+			Public: r.PublicRead,
+		}
 	}
 }
 
@@ -475,6 +465,18 @@ func containerRepositoryPersist(b *db.Batch, r *resource) {
 	}
 
 	repository := r.Extra.(*internalContainerRepository)
+	db.BatchExec(
+		b,
+		`
+			update provider.resource
+			set public_read = :public_read
+			where id = :resource
+		`,
+		db.Params{
+			"public_read": r.PublicRead,
+			"resource":    r.Id,
+		},
+	)
 	db.BatchExec(
 		b,
 		`
@@ -504,6 +506,7 @@ func containerRepositoryTransform(
 		Resource: r,
 		Specification: orcapi.ContainerRepositorySpecification{
 			Name:                  repository.Name,
+			Public:                repository.Public,
 			ResourceSpecification: specification,
 		},
 		Status: orcapi.ContainerRepositoryStatus{},

@@ -52,10 +52,10 @@ The components are described below:
 | [Model catalog](../../glossary.md#model-catalog) | Holds the model entries in the `inference_model` table of the Integration Module database. |
 | [Model discovery](../../glossary.md#model-discovery) | Polls the backend for models, and creates or refreshes catalog entries. |
 | [Chat middleware](./middleware.md#chat-middleware) | Serves `/v1/chat/completions` and the chat call of the playground. It validates the request against the catalog, selects the endpoint, and streams the response. |
-| [Chat playground](../../glossary.md#chat-playground) | A UCX application with [threads](../../glossary.md#thread), [attachments](../../glossary.md#attachment), and tools. Threads are stored in the member filesystem. See [Chat Playground](./playground.md). |
-| [API tokens](../../glossary.md#api-token) | Inference keys with the `inference/use` permission. Tokens created from the model page expire after 90 days by default. UCloud/Core also issues tokens to jobs. |
-| [Audit](./observability.md) | Writes audit records for chat, response, and conversation access. |
-| [Metrics](./observability.md#metrics) | Exports Prometheus metrics for usage and latency. |
+| [Chat playground](../../glossary.md#chat-playground) | A UCX application with [threads](../../glossary.md#thread), [attachments](../../glossary.md#attachment), and tools. Threads are stored in the member drive. See [Chat Playground](./playground.md). |
+| [Provider API tokens](../../overview/provider-api-tokens.md) | Tokens with the `inference/use` permission. Tokens created from the model page expire after 90 days. UCloud/Core creates job-scoped tokens for jobs. |
+| [Audit](./audit.md) | Writes audit records for chat, response, and conversation access. |
+| [Metrics](./observability.md) | Exports Prometheus metrics for usage and latency. |
 
 ## Public surface
 
@@ -140,12 +140,12 @@ Admission control uses the wallet owner as the limit key when the request has no
 
 ## Storage
 
-All persisted chat content lives in member files, next to the files that the user or the project already has.
+All persisted chat content lives in the member drive, next to the files that the user or the project already has.
 This includes messages, attachments, and stored responses, not catalog or accounting metadata.
 A user can inspect, back up, or delete this content with ordinary file operations.
 
 ```text
-<member files>
+<member drive>
 └── Inference
     ├── Attachments
     │   └── <attachment id>
@@ -164,7 +164,7 @@ A user can inspect, back up, or delete this content with ordinary file operation
 - **Chats** holds one JSON file per playground thread. The store partitions the files by the UTC creation date of the
   thread, so the directory does not grow flat. These threads live until the user manually deletes them.
 - **Attachments** holds one file per request attachment, up to 64 MB, and a converted Markdown copy when the request
-  needs one. The Integration Module removes an attachment after 14 days without activity. A backend reads an
+  needs one. The Integration Module removes an attachment after 60 minutes without activity. A backend reads an
   attachment through a temporary download link, backed by a secure token.
 - **Resources** holds the state of the Responses API. The periodic drive scan deletes response and conversation files
   whose modification time is at least 30 days old.

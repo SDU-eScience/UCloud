@@ -310,7 +310,7 @@ const DocumentTypographyClass = injectStyle("document-typography", k => `
         color: var(--textSecondary);
         border-left: .25em solid var(--document-border, var(--borderColor));
         padding: 0 1em;
-        margin: 0;
+        margin: 16px 0;
     }
 
     ${k} ul, ${k} ol {

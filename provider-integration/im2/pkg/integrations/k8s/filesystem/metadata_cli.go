@@ -119,7 +119,7 @@ func MetadataCli(args []string) {
 		}
 		_, err := metadataCliScan.Invoke(metadataCliPathRequest{Path: args[1]})
 		cli.HandleError("submitting metadata scan", err)
-		termio.WriteLine("Scan submitted for %s", args[1])
+		termio.WriteLine("Scan submitted for %s", termio.EscapeName(args[1]))
 
 	case "stats":
 		if len(args) < 2 {
@@ -130,7 +130,7 @@ func MetadataCli(args []string) {
 		cli.HandleError("retrieving metadata directory stats", err)
 		frame := termio.Frame{}
 		frame.AppendTitle("Metadata directory stats")
-		frame.AppendField("Path", stats.Path)
+		frame.AppendField("Path", termio.EscapeName(stats.Path))
 		frame.AppendField("Logical size", metadataCliFormatBytes(stats.LogicalBytes))
 		frame.AppendField("Allocated size", metadataCliFormatBytes(stats.AllocatedBytes))
 		frame.AppendField("Files", fmt.Sprintf("%d", stats.FileCount))
@@ -158,7 +158,7 @@ func MetadataCli(args []string) {
 		table.AppendHeader("Logical size")
 		table.AppendHeader("Modified")
 		for _, result := range response.Results {
-			table.Cell("%s", result.Path)
+			table.Cell("%s", termio.EscapeName(result.Path))
 			table.Cell("%s", metadataCliEntryType(result.Entry.EntryType))
 			table.Cell("%s", metadataCliFormatBytes(result.Entry.LogicalSize))
 			table.Cell("%s", metadataCliFormatTimestamp(result.Entry.ModificationTime))

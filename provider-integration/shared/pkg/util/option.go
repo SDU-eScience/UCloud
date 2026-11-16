@@ -45,6 +45,10 @@ func (s Option[T]) GetOrDefault(t T) T {
 	return t
 }
 
+func (s Option[T]) IsZero() bool {
+	return !s.Present
+}
+
 func (s *Option[T]) Get() T {
 	return s.Value
 }

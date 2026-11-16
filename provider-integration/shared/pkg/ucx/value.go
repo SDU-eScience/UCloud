@@ -48,7 +48,7 @@ func ValueEncode(buf *util.UBuffer, v Value) {
 	case ValueF64:
 		buf.WriteU64(math.Float64bits(v.F64))
 	case ValueString:
-		buf.WriteString(v.String)
+		buf.WriteStringVarint(v.String)
 	case ValueBinary:
 		buf.WriteU32(uint32(len(v.Binary)))
 		buf.WriteBytes(v.Binary)
@@ -65,6 +65,15 @@ func ValueEncode(buf *util.UBuffer, v Value) {
 }
 
 func ValueDecode(buf *util.UBuffer) Value {
+	return valueDecode(buf, 0)
+}
+
+func valueDecode(buf *util.UBuffer, depth int) Value {
+	if depth > maxValueDepth {
+		buf.Error = fmt.Errorf("ucx: value exceeds maximum depth of %d", maxValueDepth)
+		return Value{}
+	}
+
 	k := ValueKind(buf.ReadU8())
 	result := Value{Kind: k}
 
@@ -77,17 +86,24 @@ func ValueDecode(buf *util.UBuffer) Value {
 	case ValueF64:
 		result.F64 = math.Float64frombits(buf.ReadU64())
 	case ValueString:
-		result.String = buf.ReadString()
+		result.String = readStringVarintLimited(buf)
 	case ValueBinary:
-		result.Binary = buf.ReadNext(int(buf.ReadU32()))
+		result.Binary = readBytesLimited(buf)
 	case ValueList:
 		count := buf.ReadU32()
+		if count > maxCollectionEntries {
+			buf.Error = fmt.Errorf("ucx: value list exceeds maximum entry count of %d", maxCollectionEntries)
+			return result
+		}
 		result.List = make([]Value, count)
 		for i := uint32(0); i < count; i++ {
-			result.List[i] = ValueDecode(buf)
+			result.List[i] = valueDecode(buf, depth+1)
+			if buf.Error != nil {
+				return result
+			}
 		}
 	case ValueObject:
-		result.Object = ValueMapDecode(buf)
+		result.Object = valueMapDecode(buf, depth+1)
 	default:
 		buf.Error = fmt.Errorf("unknown value kind: %d", k)
 	}
@@ -109,8 +125,8 @@ func StringMapEncode(buf *util.UBuffer, input map[string]string) {
 
 	buf.WriteU32(uint32(len(keys)))
 	for _, k := range keys {
-		buf.WriteString(k)
-		buf.WriteString(input[k])
+		buf.WriteStringVarint(k)
+		buf.WriteStringVarint(input[k])
 	}
 }
 
@@ -118,8 +134,8 @@ func StringMapDecode(buf *util.UBuffer) map[string]string {
 	count := buf.ReadU32()
 	result := make(map[string]string, count)
 	for i := uint32(0); i < count; i++ {
-		k := buf.ReadString()
-		v := buf.ReadString()
+		k := readStringVarintLimited(buf)
+		v := readStringVarintLimited(buf)
 		result[k] = v
 	}
 	return result
@@ -139,17 +155,34 @@ func ValueMapEncode(buf *util.UBuffer, input map[string]Value) {
 
 	buf.WriteU32(uint32(len(keys)))
 	for _, k := range keys {
-		buf.WriteString(k)
+		buf.WriteStringVarint(k)
 		ValueEncode(buf, input[k])
 	}
 }
 
 func ValueMapDecode(buf *util.UBuffer) map[string]Value {
+	return valueMapDecode(buf, 0)
+}
+
+func valueMapDecode(buf *util.UBuffer, depth int) map[string]Value {
+	if depth > maxValueDepth {
+		buf.Error = fmt.Errorf("ucx: value exceeds maximum depth of %d", maxValueDepth)
+		return nil
+	}
+
 	count := buf.ReadU32()
+	if count > maxCollectionEntries {
+		buf.Error = fmt.Errorf("ucx: value map exceeds maximum entry count of %d", maxCollectionEntries)
+		return nil
+	}
+
 	result := make(map[string]Value, count)
 	for i := uint32(0); i < count; i++ {
-		k := buf.ReadString()
-		v := ValueDecode(buf)
+		k := readStringVarintLimited(buf)
+		v := valueDecode(buf, depth+1)
+		if buf.Error != nil {
+			return result
+		}
 		result[k] = v
 	}
 	return result

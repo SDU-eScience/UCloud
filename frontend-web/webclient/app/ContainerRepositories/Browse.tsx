@@ -20,6 +20,8 @@ import {
     ContainerRepository,
     ContainerRepositoryImage,
     ContainerRepositoryImageLayer,
+    ContainerRepositoryPublicAccess,
+    ContainerRepositoryPublicAccessControl,
     ContainerRepositorySpecification,
     ContainerRepositorySupport,
 } from "@/UCloud/ContainerRepositoriesApi";
@@ -45,7 +47,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ProductSelector} from "@/Products/Selector";
-import {Box, Button, Flex, Input, Label, Text} from "@/ui-components";
+import {Box, Button, Divider, Flex, Input, Label, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {MandatoryField} from "@/UtilityComponents";
 import {PermissionsTable, ResourcePermissionEditor} from "@/Resource/PermissionEditor";
@@ -150,6 +152,21 @@ function isImageGroup(entry: BrowserEntry): entry is ImageGroupEntry {
 
 function isLayer(entry: BrowserEntry): entry is LayerEntry {
     return "entryType" in entry && entry.entryType === "layer";
+}
+
+function ContainerRepositoryPublicAccessDialog({repository, reload}: {
+    repository: ContainerRepository;
+    reload: () => void;
+}): React.ReactNode {
+    return <Box>
+        <Heading.h3>Public access</Heading.h3>
+        <Box mt={16}>
+            <ContainerRepositoryPublicAccess repository={repository} reload={reload} />
+        </Box>
+        <Flex justifyContent={"end"}>
+            <Button onClick={() => dialogStore.success()}>Close</Button>
+        </Flex>
+    </Box>;
 }
 
 export default function ContainerRepositoryBrowse({
@@ -849,35 +866,50 @@ export default function ContainerRepositoryBrowse({
                             if (create) create.onClick = () => openCreation(browser);
 
                             const permissionOp = operations.find(op => op.tag === PERMISSIONS_TAG)!;
-                            permissionOp.enabled = (selected, cb) => {
+                            permissionOp.enabled = (selected) => {
                                 if (selected.length !== 1) return false;
                                 const entry = selected[0] as ContainerRepository;
-
-                                return entry.owner.project != null &&
-                                    entry.permissions.myself.some(it => it === "ADMIN");
+                                return entry.permissions.myself.some(it => it === "ADMIN");
                             };
-                            permissionOp.onClick = ([resource]) => dialogStore.addDialog(
-                                <ResourcePermissionEditor
-                                    reload={() => browser.refresh()}
-                                    entity={resource as ContainerRepository}
-                                    api={ContainerRepositoriesApi}
-                                    accessDescription={
-                                        <Text mb="12px">
-                                            By default, only you and the project administrators can use this repository.
-                                            You can modify these permissions later on the <b>Properties</b> page.
-                                        </Text>
-                                    }
-                                    showMissingPermissionHelp={false}
-                                    noPermissionsWarning="Warning"
-                                    readLabel="Pull"
-                                    readIcon="heroArrowDownTray"
-                                    writeLabel="Push"
-                                    writeIcon="heroArrowUpTray"
-                                />,
-                                doNothing,
-                                true,
-                                slimModalStyle,
-                            );
+                            permissionOp.onClick = ([resource]) => {
+                                const repository = resource as ContainerRepository;
+                                if (repository.owner.project == null) {
+                                    dialogStore.addDialog(
+                                        <ContainerRepositoryPublicAccessDialog
+                                            repository={repository}
+                                            reload={() => browser.refresh()}
+                                        />,
+                                        doNothing,
+                                        true,
+                                        slimModalStyle,
+                                    );
+                                    return;
+                                }
+
+                                dialogStore.addDialog(
+                                    <ResourcePermissionEditor
+                                        reload={() => browser.refresh()}
+                                        entity={repository}
+                                        api={ContainerRepositoriesApi}
+                                        accessDescription={
+                                            <ContainerRepositoryPublicAccess
+                                                repository={repository}
+                                                reload={() => browser.refresh()}
+                                            />
+                                        }
+                                        permissionsLabel="Project group access"
+                                        showMissingPermissionHelp={false}
+                                        noPermissionsWarning="Warning"
+                                        readLabel="Pull"
+                                        readIcon="heroArrowDownTray"
+                                        writeLabel="Push"
+                                        writeIcon="heroArrowUpTray"
+                                    />,
+                                    doNothing,
+                                    true,
+                                    slimModalStyle,
+                                );
+                            };
 
                             const enabledOps = operations.filter(operation => operation.enabled(selected, callbacks, selected));
                             if (configureRegistryOp) enabledOps.push(configureRegistryOp as unknown as Operation<BrowserEntry, typeof callbacks>);
@@ -920,7 +952,7 @@ async function openCreation(browser: ResourceBrowser<BrowserEntry>): Promise<voi
         <ContainerRepositoryCreate
             products={products}
             onCancel={() => dialogStore.failure()}
-            onCreate={async (product, name, permissions) => {
+            onCreate={async (product, name, permissions, publicAccess) => {
                 const productReference = {
                     id: product.name,
                     category: product.category.name,
@@ -943,6 +975,7 @@ async function openCreation(browser: ResourceBrowser<BrowserEntry>): Promise<voi
                     const response = (await callAPI(ContainerRepositoriesApi.create(bulkRequestOf({
                         name,
                         product: productReference,
+                        public: publicAccess,
                     })))).responses[0] as unknown as FindByStringId;
                     repositoryBeingCreated.id = response.id;
 
@@ -981,7 +1014,7 @@ async function openCreation(browser: ResourceBrowser<BrowserEntry>): Promise<voi
 
 interface ContainerRepositoryCreateProps {
     products: ProductV2Storage[];
-    onCreate(product: ProductV2, name: string, permissions: ResourceAclEntry[]): Promise<void>;
+    onCreate(product: ProductV2, name: string, permissions: ResourceAclEntry[], publicAccess: boolean): Promise<void>;
     onCancel(): void;
 }
 
@@ -997,6 +1030,7 @@ function ContainerRepositoryCreate({products, onCreate, onCancel}: ContainerRepo
     const [product, setProduct] = React.useState<ProductV2 | null>(null);
     const [name, setName] = React.useState("");
     const [acl, setAcl] = React.useState<ResourceAclEntry[]>([]);
+    const [publicAccess, setPublicAccess] = React.useState(false);
     const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
     const project = useProject().fetch();
     const projectId = useProjectId();
@@ -1010,7 +1044,7 @@ function ContainerRepositoryCreate({products, onCreate, onCancel}: ContainerRepo
         event.stopPropagation();
         if (product && name.trim()) {
             try {
-                await onCreate(product, name.trim(), acl);
+                await onCreate(product, name.trim(), acl, publicAccess);
             } catch (error: any) {
                 const message = extractErrorCode(error) === 409
                     ? "The name selected must be globally unique at the service provider."
@@ -1048,8 +1082,14 @@ function ContainerRepositoryCreate({products, onCreate, onCancel}: ContainerRepo
             <ProductSelector products={products} selected={product} onSelect={setProduct} slim />
         </Box>
 
+        <ContainerRepositoryPublicAccessControl
+            checked={publicAccess}
+            onChange={setPublicAccess}
+        />
+
         {!projectId || !isAdminOrPI(project.status.myRole) ? null : <Box>
-            <Label>Choose access</Label>
+            <Divider mt={0} mb={16} />
+            <Label>Project group access</Label>
             <Box maxHeight="400px" overflowY="auto">
                 <p>
                     By default, only you and the project administrators can use this repository. You can modify these

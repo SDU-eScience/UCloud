@@ -442,11 +442,17 @@
                 loaded = true
             }
             mermaid.initialize(Object.assign({ startOnLoad: false, securityLevel: "strict", layout: "elk" }, themeConfig()))
-            for (const diagram of diagrams) {
+            for (let index = 0; index < diagrams.length; index++) {
+                const diagram = diagrams[index]
                 diagram.host.removeAttribute("data-processed")
-                diagram.host.textContent = diagram.source
+                const id = "mermaid-" + index + "-" + Date.now()
+                const rendered = await mermaid.render(id, diagram.source)
+                diagram.host.innerHTML = rendered.svg
+                diagram.host.setAttribute("data-processed", "true")
+                if (rendered.bindFunctions) {
+                    rendered.bindFunctions(diagram.host)
+                }
             }
-            await mermaid.run({ nodes: diagrams.map(function (diagram) { return diagram.host }) })
             for (const diagram of diagrams) {
                 styleDiagram(diagram.host)
             }

@@ -252,7 +252,7 @@ func JobResourceIsAccessible(owner orc.ResourceOwner, resource orc.AppParameterV
 
 		return true, "", JobResourceAccessibilityIssueNone
 
-	case orc.AppParameterValueTypePrivateNetwork:
+	case orc.AppParameterValueTypePrivateNetwork, orc.AppParameterValueTypeUCloudNetwork:
 		network, ok := PrivateNetworkRetrieve(resource.Id)
 		if !ok {
 			return false, "Private network is no longer valid. Was it deleted?", JobResourceAccessibilityIssueUnavailable

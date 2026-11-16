@@ -66,3 +66,7 @@ Audit: rpc.AuditRules{
 
 The following document describes how to verify that auditing works as intended:
 [Auditing Scenario](auditing-scenario.md).
+
+## Related
+
+- [Audit of AI inference](../k8s/inference/audit.md)

@@ -55,7 +55,7 @@ func ImagesValidateVariant(owner orc.ResourceOwner, image string, requireProject
 	if !ok {
 		return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusNotFound, "container image repository not found")
 	}
-	if !controller.ResourceCanUse(owner, repositoryResource.Owner, repositoryResource.Permissions, true) {
+	if !repositoryCanRead(repositoryResource, owner) {
 		return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusForbidden, "container image is not readable")
 	}
 	if requireWorkspaceOwner {
@@ -124,7 +124,7 @@ func ImagesValidateVariant(owner orc.ResourceOwner, image string, requireProject
 
 func InitScriptImagesResolve(owner orc.ResourceOwner, repositoryName, tag string) (string, int64, *util.HttpError) {
 	rootRepository, ok := controller.ContainerRepositoryRetrieveByRepository(repositoryName)
-	if !ok || !controller.ResourceCanUse(owner, rootRepository.Owner, rootRepository.Permissions, true) {
+	if !ok || !repositoryCanRead(rootRepository, owner) {
 		return "", 0, util.HttpErr(http.StatusForbidden, "container image repository is not available")
 	}
 	named, err := reference.WithName(repositoryName)
@@ -437,9 +437,12 @@ func imagesDescribeManifest(
 	return mediaType, nil
 }
 
-func imagesDelete(request orc.ContainerRepositoriesProviderDeleteImageRequest) *util.HttpError {
+func imagesDelete(request orc.ContainerRepositoriesProviderDeleteImageRequest, username string) *util.HttpError {
 	if request.Image != "" {
-		return imagesDeleteReference(request.Image)
+		return imagesDeleteReference(request.Image, username)
+	}
+	if !repositoryCanWrite(request.ResolvedRepository, username) {
+		return util.HttpErr(http.StatusForbidden, "container image is not writable")
 	}
 	return imagesDeleteTag(request.ResolvedRepository, request.Repository, request.Tag, false)
 }
@@ -476,7 +479,7 @@ func imagesDeleteTag(resolvedRepository orc.ContainerRepository, repositoryName,
 	return nil
 }
 
-func imagesDeleteReference(image string) *util.HttpError {
+func imagesDeleteReference(image string, username string) *util.HttpError {
 	canonicalPrefix, altPrefix, ok := imagesReferencePrefixes()
 	if !ok {
 		return util.ServerHttpError("invalid registry configuration")
@@ -499,6 +502,9 @@ func imagesDeleteReference(image string) *util.HttpError {
 	repository, ok := controller.ContainerRepositoryRetrieveByRepository(repositoryName)
 	if !ok {
 		return nil
+	}
+	if !repositoryCanWrite(repository, username) {
+		return util.HttpErr(http.StatusForbidden, "container image is not writable")
 	}
 	return imagesDeleteTag(repository, repositoryName, referenceText[tagIndex+1:], true)
 }

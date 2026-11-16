@@ -52,8 +52,8 @@ type inferenceActivityRow struct {
 	LastUsedAt  time.Time
 }
 
-func inferenceActivityRecord(chainKey string, usedAt time.Time) {
-	if chainKey == "" {
+func inferenceActivityRecord(username string, usedAt time.Time) {
+	if username == "" {
 		return
 	}
 
@@ -63,7 +63,7 @@ func inferenceActivityRecord(chainKey string, usedAt time.Time) {
 	if inferenceActivity.pending == nil {
 		inferenceActivity.pending = make(map[string]time.Time)
 	}
-	inferenceActivity.pending[chainKey] = usedAt
+	inferenceActivity.pending[username] = usedAt
 }
 
 func inferenceActivityFlushLoop() {

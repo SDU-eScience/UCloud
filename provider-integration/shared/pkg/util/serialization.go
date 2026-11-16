@@ -1,6 +1,11 @@
 package util
 
-import "reflect"
+import (
+	"encoding/json"
+	"reflect"
+
+	"ucloud.dk/shared/pkg/log"
+)
 
 // SanitizeMapForSerialization recursively removes non-serializable values from a map[string]any
 func SanitizeMapForSerialization(input map[string]any) map[string]any {
@@ -27,4 +32,20 @@ func IsSerializable(value any) bool {
 	default:
 		return true
 	}
+}
+
+func MustJsonMarshal(value any) []byte {
+	data, err := json.Marshal(value)
+	if err != nil {
+		log.Fatal("util: could not encode %T as JSON: %s", value, err)
+	}
+	return data
+}
+
+func MustJsonMarshalIndent(value any, prefix string, indent string) []byte {
+	data, err := json.MarshalIndent(value, prefix, indent)
+	if err != nil {
+		log.Fatal("util: could not encode %T as JSON: %s", value, err)
+	}
+	return data
 }

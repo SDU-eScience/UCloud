@@ -241,6 +241,38 @@ func StartScheduledJob(job *orc.Job, rank int, node string, cpuMillis int) *util
 		pod.Spec.Hostname += fmt.Sprintf("-%d", rank)
 	}
 
+	attachments, pnErr := shared.PrivateNetworkJobAttachments(job, rank)
+	if pnErr != nil {
+		return pnErr
+	}
+	for i := range attachments {
+		if attachments[i].NetworkType == orc.NetworkTypeInfiniband {
+			nadName, deviceErr := shared.PrivateNetworkInfinibandDeviceForNode(node)
+			if deviceErr != nil {
+				return deviceErr
+			}
+			attachments[i].NadName = nadName
+			break
+		}
+	}
+	if len(attachments) > 0 {
+		attachmentAnnotations, annErr := shared.PrivateNetworkAttachmentAnnotations(attachments)
+		if annErr != nil {
+			return annErr
+		}
+
+		for key, value := range attachmentAnnotations {
+			pod.ObjectMeta.Annotations[key] = value
+		}
+
+		for name, value := range shared.PrivateNetworkAttachmentEnvironmentVariables(attachments) {
+			userContainer.Env = append(userContainer.Env, core.EnvVar{
+				Name:  name,
+				Value: value,
+			})
+		}
+	}
+
 	// JobParameters.json
 	// -----------------------------------------------------------------------------------------------------------------
 	if rank == 0 && job.Status.JobParametersJson.Value.SiteVersion != 0 {
@@ -283,6 +315,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string, cpuMillis int) *util
 	addResource(core.ResourceMemory, memoryMegabytes, resource.Mega)
 	if gpus > 0 {
 		addResource(core.ResourceName(gpuType), gpus, 0)
+	}
+	if rdmaResource, ok := shared.PrivateNetworkJobRdmaResourceName(job); ok {
+		addResource(core.ResourceName(rdmaResource), 1, 0)
 	}
 
 	pod.Spec.NodeName = node
@@ -382,13 +417,13 @@ func StartScheduledJob(job *orc.Job, rank int, node string, cpuMillis int) *util
 
 	multiNodeScript := strings.Builder{}
 	{
-		introspectionToken := introspection.EnsureToken(job.Id, util.OptNone[string]())
+		introspectionToken, introspectionSrvToken := introspection.EnsureToken(job.Id, util.OptNone[string]())
 
 		appendLine := func(format string, args ...any) {
 			multiNodeScript.WriteString(fmt.Sprintf(format+"\n", args...))
 		}
 
-		appendLine("printf '%%s\\n' '%s' > /etc/ucloud/token", introspectionToken)
+		appendLine("printf '%%s\\n%%s\\n' '%s' '%s' > /etc/ucloud/token", introspectionToken, introspectionSrvToken)
 		appendLine("echo '%d' > /etc/ucloud/number_of_nodes.txt", job.Specification.Replicas)
 		for rank := 0; rank < job.Specification.Replicas; rank++ {
 			hostname := shared.JobHostName(job, rank)
@@ -483,6 +518,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string, cpuMillis int) *util
 			// Block errors on pod, but we do not immediately block on the rest.
 			return herr
 		}
+	}
+
+	if herr = stackDeclaredJobMutatePod(job, pod); herr != nil {
+		return herr
 	}
 
 	addSnapshotExcludedMounts(pod, userContainer)

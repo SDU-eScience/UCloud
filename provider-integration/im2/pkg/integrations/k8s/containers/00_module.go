@@ -403,6 +403,7 @@ func terminate(request controller.JobTerminateRequest) *util.HttpError {
 	controller.PublicIpUnbindFromJob(request.Job)
 	shared.ClearAssignedSshPort(request.Job)
 	shared.RemoveFromQueue(request.Job.Id)
+	controller.PrivateNetworkLeasesMarkReleasing(request.Job.Id)
 
 	// Cleaning up mount dirs
 	// -----------------------------------------------------------------------------------------------------------------

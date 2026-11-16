@@ -99,6 +99,7 @@ type DockerComposeService struct {
 	SecurityOpt     []string                               `yaml:"security_opt,omitempty"`
 	Privileged      bool                                   `yaml:"privileged,omitempty"`
 	Tmpfs           []string                               `yaml:"tmpfs"`
+	Entrypoint      []string                               `yaml:"entrypoint,omitempty"`
 	Command         []string                               `yaml:"command,omitempty"`
 	WorkingDir      string                                 `yaml:"working_dir,omitempty"`
 	Cgroup          string                                 `yaml:"cgroup,omitempty"`
@@ -107,9 +108,42 @@ type DockerComposeService struct {
 }
 
 type DockerComposeServiceNetwork struct {
-	Aliases []string `yaml:"aliases,omitempty"`
+	Aliases     []string `yaml:"aliases,omitempty"`
+	Ipv4Address string   `yaml:"ipv4_address,omitempty"`
+}
+
+type DockerComposeNetwork struct {
+	Ipam       DockerComposeIpam `yaml:"ipam,omitempty"`
+	DriverOpts map[string]string `yaml:"driver_opts,omitempty"`
+}
+
+type DockerComposeIpam struct {
+	Config []DockerComposeIpamConfig `yaml:"config,omitempty"`
+}
+
+type DockerComposeIpamConfig struct {
+	Subnet string `yaml:"subnet,omitempty"`
 }
 
 func Mount(volName string, mountPath string) string {
 	return fmt.Sprintf("%s:%s", volName, mountPath)
+}
+
+func pinnedNetwork(ipv4Address string) map[string]DockerComposeServiceNetwork {
+	return map[string]DockerComposeServiceNetwork{
+		"default": {Ipv4Address: ipv4Address},
+	}
+}
+
+func IntegratedApplicationsDir() string {
+	dir := os.Getenv("UCLOUD_INTEGRATED_APPLICATIONS_DIR")
+	if dir == "" {
+		dir = filepath.Join(RepoRoot, "integrated-applications")
+	}
+
+	info, err := os.Stat(dir)
+	if err != nil || !info.IsDir() {
+		return ""
+	}
+	return dir
 }

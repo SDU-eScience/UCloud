@@ -22,6 +22,7 @@ var ResourceCatalogs struct {
 	PublicIps   ResourceCatalog[orcapi.PublicIp, orcapi.PublicIPSpecification]
 	PublicLinks ResourceCatalog[orcapi.Ingress, orcapi.IngressSpecification]
 	Networks    ResourceCatalog[orcapi.PrivateNetwork, orcapi.PrivateNetworkSpecification]
+	Services    ResourceCatalog[orcapi.Service, orcapi.ServiceSpecification]
 }
 
 func initResourceCatalogs() {
@@ -120,6 +121,26 @@ func initResourceCatalogs() {
 			return spec.ResourceSpecification
 		},
 		RescToBase: func(spec orcapi.PrivateNetwork) orcapi.ResourceSpecification {
+			return spec.Specification.ResourceSpecification
+		},
+	}
+
+	ResourceCatalogs.Services = ResourceCatalog[orcapi.Service, orcapi.ServiceSpecification]{
+		Type: serviceType,
+		Retrieve: func(actor rpc.Actor, id string, flags orcapi.ResourceFlags) (orcapi.Service, *util.HttpError) {
+			return ServiceRetrieve(actor, orcapi.ServicesRetrieveRequest{Id: id, ServiceFlags: orcapi.ServiceFlags{ResourceFlags: flags}})
+		},
+		Browse: func(actor rpc.Actor, itemsPerPage int, next util.Option[string], flags orcapi.ResourceFlags) (fndapi.PageV2[orcapi.Service], *util.HttpError) {
+			return ServiceBrowse(actor, orcapi.ServicesBrowseRequest{Next: next, ItemsPerPage: itemsPerPage, ServiceFlags: orcapi.ServiceFlags{ResourceFlags: flags}}), nil
+		},
+		Delete: func(actor rpc.Actor, id string) *util.HttpError {
+			_, err := ServiceDelete(actor, fndapi.BulkRequestOf(fndapi.FindByStringId{Id: id}))
+			return err
+		},
+		SpecToBase: func(spec orcapi.ServiceSpecification) orcapi.ResourceSpecification {
+			return spec.ResourceSpecification
+		},
+		RescToBase: func(spec orcapi.Service) orcapi.ResourceSpecification {
 			return spec.Specification.ResourceSpecification
 		},
 	}

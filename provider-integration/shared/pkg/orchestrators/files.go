@@ -181,6 +181,7 @@ type FilesVisualizeResponse struct {
 	FileCount      uint64                     `json:"fileCount"`
 	DirectoryCount uint64                     `json:"directoryCount"`
 	Complete       bool                       `json:"complete"`
+	Indexing       util.Option[bool]          `json:"indexing"`
 }
 
 var FilesVisualize = rpc.Call[FilesVisualizeRequest, FilesVisualizeResponse]{

@@ -1,30 +1,31 @@
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
-import {useSelector} from "react-redux";
 import {editor} from "monaco-editor";
 import {Uri} from "monaco-editor";
-import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle} from "@/Unstyled";
-import {Box, Flex, FtIcon, Image, Select, Text, Input, Label, Button} from "@/ui-components";
+import {Box, Flex, FtIcon, Image, Text} from "@/ui-components";
 import {fileName, getParentPath, pathComponents} from "@/Utilities/FileUtilities";
-import {capitalized, copyToClipboard, createKeyboardShortcut, errorMessageOrDefault, extensionFromPath, extensionType, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
+import {capitalized, copyToClipboard, createKeyboardShortcut, errorMessageOrDefault, extensionFromPath, extensionType, getLanguageList, languageFromExtension} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {usePrettyFilePath} from "@/Files/FilePath";
 import {ActionEntry, ActionMenu} from "@/ui-components/Actions";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
-import EditorOption = editor.EditorOption;
 import {EditorSidebarNode, FileTree, VirtualFile} from "@/Files/FileTree";
 import {noopCall} from "@/Authentication/DataHook";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useBeforeUnload} from "react-router-dom";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
-import {initVimMode, VimMode} from "monaco-vim";
+import {CodeEditor} from "./CodeEditor";
+import {useMonaco} from "./Monaco";
+import {allowEditDialog} from "./EditorSettings";
+export {getMonaco, useMonaco, jinja2monarchTokens} from "./Monaco";
+export {allowEditing} from "./EditorSettings";
 import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
 import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
 import ITextModel = editor.ITextModel;
 import EndOfLineSequence = editor.EndOfLineSequence;
-import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
+import {sendFailureNotification, sendInformationNotification} from "@/Notifications";
 import {TabStrip} from "@/ui-components/TabStrip";
 import {IconButton} from "@/ui-components/IconButton";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
@@ -263,71 +264,6 @@ function toDisplayName(name: string): string {
     return capitalized(name);
 }
 
-const monacoCache = new AsyncCache<any>();
-
-export async function getMonaco() {
-    return monacoCache.retrieve("", async () => {
-        const monaco = await import("monaco-editor");
-
-
-        const editorWorker = (await import('monaco-editor/editor/editor.worker?worker')).default;
-        const jsonWorker = (await import('monaco-editor/language/json/json.worker?worker')).default;
-        const cssWorker = (await import('monaco-editor/language/css/css.worker?worker')).default;
-        const htmlWorker = (await import('monaco-editor/language/html/html.worker?worker')).default;
-        const tsWorker = (await import('monaco-editor/language/typescript/ts.worker?worker')).default;
-
-        populateLanguages(monaco.languages.getLanguages().map(l =>
-            ({language: l.id, extensions: l.extensions?.map(it => it.slice(1)) ?? []}))
-        );
-
-        self.MonacoEnvironment = {
-            getWorker: function (workerId, label) {
-                switch (label) {
-                    case 'json':
-                        return new jsonWorker();
-                    case 'css':
-                    case 'scss':
-                    case 'less':
-                        return new cssWorker();
-                    case 'html':
-                    case 'handlebars':
-                    case 'razor':
-                        return new htmlWorker();
-                    case 'typescript':
-                    case 'javascript':
-                        return new tsWorker();
-                    default:
-                        return new editorWorker();
-                }
-            }
-        };
-        return monaco;
-    })
-}
-
-export function useMonaco(active: boolean): any {
-    const didInit = useRef(false);
-    const [monacoInstance, setMonacoInstance] = useState<any>(undefined);
-    useEffect(() => {
-        if (!active) return;
-        if (didInit.current) return;
-        didInit.current = true;
-
-        let didCancel = false;
-        getMonaco().then((monaco) => {
-            if (didCancel) return;
-            setMonacoInstance(monaco);
-        });
-
-
-        return () => {
-            didCancel = true;
-        }
-    }, [active]);
-
-    return monacoInstance;
-}
-
 const EditorClass = injectStyle("editor", k => `
     ${k} {
         display: flex;
@@ -461,14 +397,14 @@ export const Editor: React.FunctionComponent<{
     const [languageList, setLanguageList] = React.useState(getLanguageList().map(l => ({language: l.language, displayName: toDisplayName(l.language)})));
     const [engine, setEngine] = useState<EditorEngine>(localStorage.getItem("editor-engine") as EditorEngine ?? "monaco");
     const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialFolderPath, props.initialFilePath));
-    const editorView = useRef<HTMLDivElement>(null);
     const editorRoot = useRef<HTMLDivElement>(null);
-    const currentTheme = useSelector((red: ReduxObject) => red.sidebar.theme);
     const monacoInstance = useMonaco(engine === "monaco");
     const [editor, setEditor] = useState<IStandaloneCodeEditor | null>(null);
     const [readOnlyMode, setReadOnlyMode] = useState(props.readOnly === true);
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const monacoRef = useRef<any>(null);
+    const ownedModels = useRef(new Map<string, ITextModel>());
+    const modelScope = React.useId();
     const [tabs, setTabs] = useState<{open: string[], closed: string[]}>({
         open: props.initialFilePath ? [state.currentPath] : [],
         closed: [],
@@ -489,11 +425,8 @@ export const Editor: React.FunctionComponent<{
     }
 
     const disposeModels = React.useCallback(() => {
-        if (monacoRef.current) {
-            for (const m of monacoRef.current.editor.getModels()) {
-                m.dispose();
-            }
-        }
+        for (const model of ownedModels.current.values()) model.dispose();
+        ownedModels.current.clear();
     }, []);
 
     const dirtyFilesRef = useRef(dirtyFiles);
@@ -551,11 +484,8 @@ export const Editor: React.FunctionComponent<{
     const engineRef = useRef<EditorEngine>("monaco");
     const stateRef = useRef<EditorState>(null);
     const tree = useRef<VirtualizedTreeApi | null>(null);
-    const [vimMode, setVimModeObject] = useState<any /* vimAdapter */>(null);
-    const [vimEditorMode, setVimEditorMode] = useState<string | null>(null);
 
     const editorRef = useRef<IStandaloneCodeEditor | null>(null);
-    const vimCommandBar = useRef<HTMLDivElement>(null);
     const showingCustomContent = useRef<boolean>(props.showCustomContent === true);
 
     useEffect(() => {
@@ -602,7 +532,8 @@ export const Editor: React.FunctionComponent<{
                 if (!editor) return;
                 const existingModel = getModelFromEditor(name);
                 if (!existingModel) {
-                    const model = monacoRef.current?.editor?.createModel(content, syntax, Uri.file(name)) as ITextModel;
+                    const model = monacoRef.current?.editor?.createModel(content, syntax, Uri.from({scheme: "ucloud-file-editor", authority: modelScope, path: name})) as ITextModel;
+                    ownedModels.current.set(name, model);
                     model.setEOL(EndOfLineSequence.LF);
                     model.onDidChangeContent(e => {
                         setDirtyFiles(f => {
@@ -641,7 +572,7 @@ export const Editor: React.FunctionComponent<{
     }, []);
 
     const getModelFromEditor = React.useCallback((path: string): editor.ITextModel | null => {
-        return monacoRef.current?.editor.getModel(Uri.file(path));
+        return ownedModels.current.get(path) ?? null;
     }, []);
 
     const openFile = useCallback(async (path: string, saveState: boolean): Promise<boolean> => {
@@ -675,15 +606,15 @@ export const Editor: React.FunctionComponent<{
             if (didUnmount.current) return true;
 
             if (!showingCustomContent.current) {
-                if (!SPECIAL_PATHS.includes(oldPath) && saveState) {
+                const oldModel = getModelFromEditor(oldPath);
+                const oldContent = oldModel?.getValue() ?? state.cachedFiles[oldPath];
+                const canSaveOldBuffer = !SPECIAL_PATHS.includes(oldPath) && saveState && typeof oldContent === "string";
+                if (canSaveOldBuffer) {
                     let editorState: editor.ICodeEditorViewState | null = null;
-                    const model = editor?.getModel();
-                    if (editor && model) {
+                    if (editor && oldModel && editor.getModel() === oldModel) {
                         editorState = editor.saveViewState();
                     }
 
-                    const cachedOldContent = state.cachedFiles[oldPath];
-                    const oldContent = !dirtyFilesRef.current.has(oldPath) && typeof cachedOldContent === "string" ? cachedOldContent : await readBuffer();
                     props.vfs.setDirtyFileContent(oldPath, oldContent);
                     dispatch({type: "EditorActionSaveState", editorState, oldContent, newPath: path});
                 } else {
@@ -833,80 +764,6 @@ export const Editor: React.FunctionComponent<{
         invalidateTree(props.initialFolderPath);
     }, []);
 
-    useLayoutEffect(() => {
-        const m = monacoInstance;
-        const node = editorView.current;
-        if (!m || !node) return;
-
-        m.editor.defineTheme('ucloud-dark', {
-            base: 'vs-dark',
-            inherit: true,
-            rules: [],
-            colors: {
-                'editor.background': '#21262D'
-            }
-        });
-
-        node.innerHTML = "";
-        node.getAttributeNames().forEach(n => {
-            if (n !== "class") node.removeAttribute(n);
-        });
-
-        // Register a new Jinja2 language
-        m.languages.register({id: "jinja2"});
-
-        // Define the syntax highlighting rules for Jinja2
-        m.languages.setMonarchTokensProvider('jinja2', jinja2monarchTokens);
-
-        const editor: IStandaloneCodeEditor = m.editor.create(node, {
-            language: languageFromExtension(extensionFromPath(state.currentPath)),
-            readOnly: props.readOnly,
-            readOnlyMessage: {
-                // Note(Jonas): Setting this to null will not behave well, so this seems the best.
-                value: ""
-            },
-            minimap: {enabled: false},
-            renderLineHighlight: "none",
-            fontFamily: "Jetbrains Mono",
-            fontSize: 14,
-            theme: currentTheme === "light" ? "light" : "ucloud-dark",
-            wordWrap: "off",
-            ...getEditorOptions(),
-        });
-
-        editor.updateOptions({readOnly: props.readOnly});
-
-        if (props.readOnly) {
-            setReadonlyWarning(editor, () => setReadOnlyMode(false));
-        }
-
-
-        setEditor(editor);
-        setReadOnlyMode(editor.getOption(EditorOption.readOnly));
-
-        const vimEnabled = getEditorOption("vim") === true;
-        mapStoredBindings();
-        if (vimEnabled) {
-            setVimModeObject(initVimMode(editor, vimCommandBar.current));
-        }
-    }, [monacoInstance]);
-
-    React.useEffect(() => {
-        if (!vimMode) {
-            setVimEditorMode(null);
-            return;
-        }
-
-        setVimEditorMode("NORMAL");
-        vimMode.on("vim-mode-change", (mode: unknown) => setVimEditorMode(vimModeLabel(mode)));
-        const onVimKeypress = () => {
-            if (!allowEditing() && editor) {
-                allowEditDialog(editor, () => setReadOnlyMode(false));
-            }
-        };
-        vimMode.on("vim-keypress", onVimKeypress);
-    }, [vimMode]);
-
     const initialOpenCompleted = useRef(false);
 
     useLayoutEffect(() => {
@@ -931,18 +788,6 @@ export const Editor: React.FunctionComponent<{
         };
     }, [state.sidebar.root]);
 
-    const setVimMode = React.useCallback((active: boolean) => {
-        setVimModeObject(vimModeObject => {
-            updateEditorSetting("vim", active);
-            if (active) {
-                return initVimMode(editorRef.current, vimCommandBar.current);
-            } else {
-                vimModeObject?.dispose();
-                return null;
-            }
-        })
-    }, []);
-
     const toggleReadOnlyMode = React.useCallback(() => {
         const currentEditor = editorRef.current;
         if (!currentEditor) return;
@@ -959,27 +804,6 @@ export const Editor: React.FunctionComponent<{
             setReadOnlyMode(true);
         }
     }, [props.readOnly, readOnlyMode]);
-
-    useEffect(() => {
-        const theme = currentTheme === "light" ? "light" : "ucloud-dark";
-        monacoInstance?.editor?.setTheme(theme);
-    }, [currentTheme]);
-
-    useEffect(() => {
-        const node = editorView.current;
-        if (!editor || !node) return;
-
-        const layout = () => editor.layout();
-        const observer = new ResizeObserver(layout);
-        observer.observe(node);
-        window.addEventListener("resize", layout);
-        layout();
-
-        return () => {
-            observer.disconnect();
-            window.removeEventListener("resize", layout);
-        };
-    }, [editor]);
 
     useLayoutEffect(() => {
         if (!props.showCustomContent && editor) {
@@ -1063,6 +887,7 @@ export const Editor: React.FunctionComponent<{
 
         if (props.vfs.isReal()) {
             getModelFromEditor(path)?.dispose();
+            ownedModels.current.delete(path);
             delete savedAtAltVersionId.current[path];
             setDirtyFiles(f => {
                 f.delete(path);
@@ -1145,8 +970,10 @@ export const Editor: React.FunctionComponent<{
                 So we copy the contents and langauge id, but we lose undo/redo-stack, sadly.
                 https://github.com/microsoft/monaco-editor/discussions/3751
             */
-            const newModel = monacoRef.current?.editor?.createModel(oldModel.getValue(), oldModel.getLanguageId(), Uri.file(args.newAbsolutePath));
-            if (editor.getModel()?.uri.path === Uri.file(args.oldAbsolutePath).path) {
+            const newModel = monacoRef.current?.editor?.createModel(oldModel.getValue(), oldModel.getLanguageId(), Uri.from({scheme: "ucloud-file-editor", authority: modelScope, path: args.newAbsolutePath}));
+            ownedModels.current.delete(args.oldAbsolutePath);
+            ownedModels.current.set(args.newAbsolutePath, newModel);
+            if (editor.getModel() === oldModel) {
                 editor.setModel(newModel);
                 openTab(args.newAbsolutePath);
             }
@@ -1191,33 +1018,6 @@ export const Editor: React.FunctionComponent<{
             closeTab(t, index);
         }
     }
-
-    // VimMode.Vim.defineEx(name, shorthand, callback);
-    VimMode.Vim.defineEx("write", "w", () => {
-        saveBufferIfNeeded();
-        props.onRequestSave(state.currentPath);
-        onFileSaved(state.currentPath);
-    });
-
-    VimMode.Vim.defineEx("quit", "q", (args, b, c) => {
-        const idx = tabs.open.findIndex(it => it === state.currentPath);
-        doClose(state.currentPath, idx);
-    });
-
-    VimMode.Vim.defineEx("x-write-and-quit", "x", () => {
-        saveBufferIfNeeded();
-        props.onRequestSave(state.currentPath).then(() => {
-            onFileSaved(state.currentPath);
-            const idx = tabs.open.findIndex(it => it === state.currentPath);
-            doClose(state.currentPath, idx);
-        });
-    });
-
-    VimMode.Vim.defineEx("e-open-file", "e", (a, b, c) => {
-        if (b.args) {
-            openTab(props.initialFolderPath + "/" + b.args.at(-1));
-        }
-    });
 
     // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
     const showEditorHelp = tabs.open.length === 0;
@@ -1290,37 +1090,32 @@ export const Editor: React.FunctionComponent<{
                 </Flex> : null}
             </div>
             <div className={"panels"}>
-                {isSettingsOpen ?
-                    <Flex gap={"32px"} maxHeight="100%" flexDirection={"column"} margin={64} width={"100%"} height={"100%"}>
-                        <MonacoEditorSettings editor={editor} setVimMode={setVimMode} onReadOnlyChange={setReadOnlyMode} />
-                    </Flex> : null}
-                <>
-                    {showEditorHelp ? help : null}
-                    <div style={{
-                        display: props.showCustomContent || showEditorHelp || specialPageOpen ? "none" : "block",
-                        width: "100%",
-                        height: "100%",
-                    }}>
-                        <div className={"code"} ref={editorView} onFocus={() => tree?.current?.deactivate?.()} />
-                    </div>
-
-                    <div style={{
-                        display: !specialPageOpen && props.showCustomContent && tabs.open.length > 0 ? "block" : "none",
-                        width: "100%",
-                        height: "100%",
-                        maxHeight: "100%",
-                        padding: "16px",
-                        overflow: "auto",
-                    }}>{props.customContent}</div>
-                </>
-            </div>
-            <div className={StatusBarWrapper}>
-                <div className={StatusBar}>
-                    <IconButton tooltip={`Toggle sidebar (${createKeyboardShortcut("1", ["ctrl", "alt"])})`} onClick={() => setSidebarOpen(open => !open)} icon="sidebar" color="textPrimary" noDefaultFill />
-                    <div ref={vimCommandBar} className={VimCommandBar} />
-                    <Flex alignItems="center" gap="18px" ml="auto">
+                <CodeEditor
+                    documentId={state.currentPath}
+                    manageModel={false}
+                    showToolbar={false}
+                    readOnly={readOnlyMode}
+                    settingsOpen={isSettingsOpen}
+                    onSettingsToggle={toggleSettings}
+                    onReadOnlyChange={setReadOnlyMode}
+                    onReady={instance => {
+                        editorRef.current = instance;
+                        setEditor(instance);
+                    }}
+                    onFocus={() => tree.current?.deactivate?.()}
+                    onSave={async () => {
+                        if (SPECIAL_PATHS.includes(state.currentPath)) return;
+                        await saveBufferIfNeeded();
+                        await props.onRequestSave(state.currentPath);
+                        onFileSaved(state.currentPath);
+                    }}
+                    onClose={() => doClose(state.currentPath, tabs.open.indexOf(state.currentPath))}
+                    onOpenFile={path => openTab(props.initialFolderPath + "/" + path)}
+                    showContent={props.showCustomContent || showEditorHelp}
+                    statusBarClassName={StatusBarWrapper}
+                    statusBarStart={<IconButton tooltip={`Toggle sidebar (${createKeyboardShortcut("1", ["ctrl", "alt"])})`} onClick={() => setSidebarOpen(open => !open)} icon="sidebar" color="textPrimary" noDefaultFill />}
+                    statusBarEnd={<>
                         {tabs.open.length === 0 || specialPageOpen || props.customContent ? null : <>
-                            {vimMode ? <span className={StatusModeBadge}>{vimEditorMode ?? "NORMAL"}</span> : null}
                             <EditorCursorPosition editor={editor} currentPath={state.currentPath} />
                             <Box className={SyntaxSelector} width={"fit-content"}>
                                 <RichSelect
@@ -1335,7 +1130,6 @@ export const Editor: React.FunctionComponent<{
                                 />
                             </Box>
                             <IconButton
-
                                 tooltip={readOnlyMode ? "Enable editing" : "Disable editing"}
                                 onClick={toggleReadOnlyMode}
                                 icon={readOnlyMode ? "heroLockClosed" : "heroLockOpen"}
@@ -1346,9 +1140,18 @@ export const Editor: React.FunctionComponent<{
                             {props.statusBar}
                             <IconButton tooltip="Settings" onClick={toggleSettings} icon="heroCog6Tooth" color="textPrimary" />
                         </Flex>
-
-                    </Flex>
-                </div>
+                    </>}
+                >
+                    {showEditorHelp ? help : null}
+                    <div style={{
+                        display: !specialPageOpen && props.showCustomContent && tabs.open.length > 0 ? "block" : "none",
+                        width: "100%",
+                        height: "100%",
+                        maxHeight: "100%",
+                        padding: "16px",
+                        overflow: "auto",
+                    }}>{props.customContent}</div>
+                </CodeEditor>
             </div>
         </div>
     </div>;
@@ -1546,22 +1349,6 @@ function EditorTabLabel({path, fullPath = false}: {path: string; fullPath?: bool
     return fileName(prettyFullPath);
 }
 
-const StatusBar = injectStyle("status-bar", k => `
-    ${k} {
-        display: flex;
-        align-items: center;
-        gap: 24px;
-        width: 100%;
-        height: 100%;
-    }
-
-    ${k} input {
-        background: transparent;
-        border: none;
-        color: var(--textPrimary);
-    }
-`);
-
 const StatusIconGroup = injectStyle("editor-status-icon-group", k => `
     ${k} {
         display: flex;
@@ -1589,43 +1376,6 @@ const StatusBarWrapper = injectStyle("status-bar-wrapper", k => `
         background: transparent;
         border: none;
     }
-`);
-
-const VimCommandBar = injectStyle("vim-command-bar", k => `
-    ${k} {
-        min-width: 0;
-        color: var(--textPrimary);
-        font-size: 12px;
-        white-space: nowrap;
-    }
-
-    ${k} > span:first-child,
-    ${k} > span:last-child {
-        display: none;
-    }
-
-    ${k} input {
-        width: 180px;
-        padding: 0;
-        outline: none;
-        font: inherit;
-    }
-`);
-
-const StatusModeBadge = injectStyle("editor-status-mode-badge", k => `
-    ${k} {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        height: 24px;
-        padding: 0 8px;
-        border-radius: 999px;
-        background: color-mix(in srgb, var(--textPrimary) 12%, transparent);
-        font-size: 12px;
-        line-height: 1;
-        white-space: nowrap;
-    }
-
 `);
 
 const StatusPosition = injectStyle("editor-status-position", k => `
@@ -1799,322 +1549,6 @@ function toIconPath(language: string): string {
     }
 
     return "/Images/file-icons/" + lang + ".svg";
-}
-
-export const jinja2monarchTokens = {
-    tokenizer: {
-        root: [
-            // Jinja2 variable tags: {{ variable }}
-            [/\{\{/, 'keyword.control', '@variable'],
-
-            // Jinja2 statement tags: {% statement %}
-            [/\{%/, 'keyword.control', '@statement'],
-
-            [/\{-/, 'keyword.control', '@template'],
-
-            // Jinja2 comment tags: {# comment #}
-            [/\{#/, 'comment.jinja2', '@comment'],
-
-            // Strings inside the templates
-            [/["']/, 'string'],
-
-            [/#.*$/, 'comment'],
-        ],
-
-        variable: [
-            // Closing of Jinja2 variable tags
-            [/}}/, 'keyword.control', '@pop'],
-
-            // Inside variables
-            [/./, 'variable'],
-        ],
-
-        statement: [
-            // Closing of Jinja2 statement tags
-            [/%}/, 'keyword.control', '@pop'],
-
-            // Inside statements
-            [/./, 'keyword'],
-        ],
-
-        comment: [
-            // Closing of Jinja2 comment tags
-            [/#}/, 'comment', '@pop'],
-
-            // Inside comments
-            [/./, 'comment'],
-        ],
-
-        template: [
-            // Closing of Jinja2 statement tags
-            [/-}/, 'keyword.control', '@pop'],
-
-            // Inside statements
-            [/./, 'keyword'],
-        ]
-    }
-};
-
-type EditorOptionPair<T extends EditorOption> = [string, T, editor.FindComputedEditorOptionValueById<T>[]];
-const AvailableSettings: [
-    EditorOptionPair<EditorOption.fontSize>,
-    EditorOptionPair<EditorOption.fontWeight>,
-    EditorOptionPair<EditorOption.wordWrap>,
-] = [
-        ["Font size", EditorOption.fontSize, [8, 10, 12, 14, 16, 18, 20, 22]],
-        ["Font weight", EditorOption.fontWeight, ["200", "400", "600", "800", "bold"]],
-        ["Word wrap", EditorOption.wordWrap, ["wordWrapColumn", "on", "off", "bounded"]],
-    ];
-
-function MonacoEditorSettings({editor, setVimMode, onReadOnlyChange}: {editor: IStandaloneCodeEditor | null, setVimMode(enable: boolean): void; onReadOnlyChange?: (readOnly: boolean) => void;}) {
-    const setOption = React.useCallback((setting: EditorOption, value: editor.FindComputedEditorOptionValueById<EditorOption>) => {
-        if (!editor) return;
-
-        const settingsChange = {
-            [EditorOption[setting]]: value
-        }
-
-        editor.updateOptions(settingsChange);
-        updateEditorSettings(settingsChange);
-    }, [editor]);
-
-    if (!editor) return null;
-
-    return <>
-        {AvailableSettings.map(([name, setting, options]) => <div key={setting}>
-            {name}
-            <Select defaultValue={editor.getOption(setting)} onChange={e => setOption(setting, e.target.value)}>
-                {options.map((opt: string | number) =>
-                    <option key={opt} value={opt}>{opt}</option>
-                )}
-            </Select>
-        </div>)}
-        <div>
-            Allow file editing
-            <Select defaultValue={allowEditing() ? "Allow" : "Disallow"} onChange={e => {
-                const canEdit = e.target.value === "Allow";
-                setOption(EditorOption.readOnly, !canEdit);
-                onReadOnlyChange?.(!canEdit);
-
-                if (!canEdit) setReadonlyWarning(editor, () => onReadOnlyChange?.(false));
-
-                setAllowEditing(canEdit.toString());
-            }}>
-                <option value={"Allow"}>Allow</option>
-                <option value={"Disallow"}>Disallow</option>
-            </Select>
-        </div>
-        <div>
-            Vim mode
-            <Select defaultValue={getEditorOption("vim") ? "Enabled" : "Disabled"} onChange={e => setVimMode(e.target.value === "Enabled")}>
-                <option value="Enabled">Enabled</option>
-                <option value="Disabled">Disabled</option>
-            </Select>
-        </div>
-        <VimKeyBindings />
-    </>;
-}
-
-interface VimBinding {
-    lhs: string;
-    rhs: string;
-    context: VimModes;
-    key: number;
-}
-type VimModes = "insert" | "normal" | "visual";
-
-
-function getStoredVimKeyBindings(): VimBinding[] {
-    const content = localStorage.getItem("vim-key-bindings") ?? JSON.stringify([{rhs: '', lhs: ''}]);
-    return JSON.parse(content).map((it: Omit<VimBinding, "key">) => ({...it, key: Math.random()}));
-}
-
-function storeVimKeyBindings(bindings: VimBinding[]): void {
-    localStorage.setItem("vim-key-bindings", JSON.stringify(bindings.map(it => ({
-        lhs: it.lhs,
-        rhs: it.rhs,
-        context: it.context
-    }))));
-}
-
-function mapStoredBindings(): void {
-    getStoredVimKeyBindings().forEach(binding => {
-        VimMode.Vim.map(binding.lhs, binding.rhs, binding.context);
-    })
-}
-
-function VimKeyBindings() {
-    const [vimKeybindings, setVimKeyBindings] = useState(() => {
-        const bindings = getStoredVimKeyBindings();
-        const [first] = bindings;
-        if (!first || first.lhs !== "") bindings.push({lhs: "", rhs: "", context: "normal", key: Math.random()});
-        return bindings;
-    });
-
-    const getRows = React.useCallback(() => {
-        const root = document.getElementsByClassName("vim-key-bindings").item(0);
-        if (!root) return [];
-        const result: VimBinding[] = [];
-        for (let i = 1; i < root.children.length; i++) {
-            const ruleWrapper = root.children.item(i);
-            const inputFields = ruleWrapper?.getElementsByTagName("input");
-            const contextSelect = ruleWrapper?.getElementsByTagName("select").item(0);
-            const lhs = inputFields?.item(0);
-            const rhs = inputFields?.item(1);
-            if (lhs?.value && rhs?.value && contextSelect?.value) {
-                const context = contextSelect.value as "normal" | "visual" | "insert";
-                result.push({lhs: lhs.value, rhs: rhs.value, context, key: Math.random()});
-            }
-        }
-        return result;
-    }, []);
-
-    const saveAndApplyKeyBindings = React.useCallback(() => {
-        setVimKeyBindings(allBindings => {
-
-            VimMode.Vim.mapclear("insert");
-            VimMode.Vim.mapclear("normal");
-            VimMode.Vim.mapclear("visual");
-
-            const rows = getRows();
-            for (const row of rows) {
-                VimMode.Vim.map(row.lhs, row.rhs, row.context);
-            }
-
-            storeVimKeyBindings(rows);
-            return rows;
-        });
-        sendSuccessNotification("Bindings updated");
-    }, []);
-
-    const unmapBinding = React.useCallback((key: number) => {
-        setVimKeyBindings(bindings => {
-            const binding = bindings.find(it => it.key === key);
-            if (binding) {
-                VimMode.Vim.unmap(binding.lhs, binding.context);
-            }
-            return [...bindings.filter(it => it.key !== key)]
-        });
-        setTimeout(() => saveAndApplyKeyBindings(), 0);
-    }, []);
-
-    React.useEffect(() => {
-        // Note(Jonas): If has no input field, or no empty input-field at the end, add it.
-        const last = vimKeybindings.at(-1);
-        if (!last) setVimKeyBindings([{lhs: "", rhs: "", context: "normal", key: Math.random()}]);
-        else if (last.lhs !== "" && last.rhs !== "") setVimKeyBindings(b => [...b, {lhs: "", rhs: "", context: "normal", key: Math.random()}]);
-    }, [vimKeybindings])
-
-    const addRowIfLast = React.useCallback((index: number, arrayLength: number) => {
-        if (index !== arrayLength - 1) return;
-        setVimKeyBindings(bindings => [...bindings, {lhs: "", rhs: "", context: "normal", key: Math.random()}]);
-    }, []);
-
-    if (!getEditorOption("vim")) return null;
-
-    return (
-        <div className="vim-key-bindings">
-            <Flex>Vim key bindings <Button onClick={saveAndApplyKeyBindings} ml="auto">Save key bindings</Button></Flex>
-            <code>:map {`{lhs}`} {`{rhs}`}</code>
-            {vimKeybindings.map((binding, index) => <Flex my="12px" key={binding.key}>
-                <Label mr="4px">
-                    Left-hand-side (lhs):
-                    <Input defaultValue={binding.lhs} onChange={() => {
-                        addRowIfLast(index, vimKeybindings.length);
-                    }} />
-                </Label>
-                <Label mr="4px">
-                    Right-hand-side (rhs):
-                    <Input defaultValue={binding.rhs} onChange={() => {
-                        addRowIfLast(index, vimKeybindings.length);
-                    }} />
-                </Label>
-                <Label mr="4px">
-                    Mode:
-                    <Select defaultValue={binding.context}>
-                        <option>normal</option>
-                        <option>insert</option>
-                        <option>visual</option>
-                    </Select>
-                </Label>
-                <Box ml="8px" mt="20px">
-                    <IconButton tooltip="Remove key binding" onClick={() => unmapBinding(binding.key)} icon="close" />
-                </Box>
-            </Flex>)
-            }
-        </div >
-    );
-}
-
-interface StoredSettings {
-    fontSize?: number;
-    fontWeight?: string;
-    wordWrap?: string;
-    vim?: boolean;
-}
-
-const PreviewEditorSettingsLocalStorageKey = "PreviewEditorSettings";
-function getEditorOptions(): StoredSettings {
-    return JSON.parse(localStorage.getItem(PreviewEditorSettingsLocalStorageKey) ?? "{}");
-}
-
-function getEditorOption<K extends keyof StoredSettings>(key: K): StoredSettings[K] {
-    return getEditorOptions()[key];
-}
-
-function updateEditorSettings(settings: StoredSettings): void {
-    const opts = getEditorOptions();
-    storeEditorSettings({...opts, ...settings});
-}
-
-function updateEditorSetting<K extends keyof StoredSettings>(key: K, value: StoredSettings[K]): void {
-    const opts = getEditorOptions();
-    opts[key] = value;
-    storeEditorSettings(opts);
-}
-
-function storeEditorSettings(settings: StoredSettings): void {
-    localStorage.setItem(PreviewEditorSettingsLocalStorageKey, JSON.stringify(settings));
-}
-
-const ALLOW_EDITING_KEY = "EDITOR:ALWAYS_ALLOW_EDITING_KEY"
-export function allowEditing() {
-    return localStorage.getItem(ALLOW_EDITING_KEY) === "true";
-}
-
-function setAllowEditing(doAllow: string) {
-    localStorage.setItem(ALLOW_EDITING_KEY, doAllow);
-}
-
-function setReadonlyWarning(editor: IStandaloneCodeEditor, onReadOnlyChange?: () => void) {
-    editor.onDidAttemptReadOnlyEdit(e => {
-        allowEditDialog(editor, onReadOnlyChange);
-    });
-}
-
-function allowEditDialog(editor: IStandaloneCodeEditor, onReadOnlyChange?: () => void) {
-    addStandardDialog({
-        title: "Enable editing?",
-        message: "Editing files is disabled. This can be changed later in settings. Enable?",
-        confirmText: "Enable",
-        onConfirm() {
-            editor.updateOptions({readOnly: false});
-            setAllowEditing(true.toString());
-            onReadOnlyChange?.();
-        },
-        cancelText: "Dismiss",
-        addToFront: true,
-    });
-}
-
-function vimModeLabel(mode: unknown): string {
-    const modeInfo = typeof mode === "object" && mode !== null ? mode as {mode?: unknown; subMode?: unknown} : undefined;
-    const name = typeof mode === "string" ? mode : typeof modeInfo?.mode === "string" ? modeInfo.mode : "normal";
-    if (name === "visual") {
-        if (modeInfo?.subMode === "linewise") return "VISUAL LINE";
-        if (modeInfo?.subMode === "blockwise") return "VISUAL BLOCK";
-    }
-    return name.toUpperCase();
 }
 
 function virtualFileSort(a: VirtualFile, b: VirtualFile): number {

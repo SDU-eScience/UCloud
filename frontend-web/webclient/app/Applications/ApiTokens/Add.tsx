@@ -466,6 +466,8 @@ export function ServiceProviderSelector({
     renderSelectedRow = ServiceProviderItem,
     showLabel = true,
     reserveLabelSpace = true,
+    focusable,
+    triggerAriaLabel,
     ...dataAttributes
 }: {
     onSelect: (el: {key: string, title: string}) => void;
@@ -475,6 +477,8 @@ export function ServiceProviderSelector({
     renderSelectedRow?: (props: RichSelectProps<{key: string, title: string}>) => React.ReactNode
     showLabel?: boolean;
     reserveLabelSpace?: boolean;
+    focusable?: boolean;
+    triggerAriaLabel?: string;
 } & DataAttributes) {
     const serviceProvidersWithTitles = React.useMemo(() =>
         serviceProviders.map(({ key }) => ({ key, title: getProviderTitle(key) })),
@@ -489,6 +493,8 @@ export function ServiceProviderSelector({
             selected={({key: serviceProvider, title: getProviderTitle(serviceProvider)})}
             items={serviceProvidersWithTitles}
             keys={["key", "title"]}
+            focusable={focusable}
+            triggerAriaLabel={triggerAriaLabel}
             {...dataAttributes}
             RenderRow={renderRow}
             onSelect={onSelect}

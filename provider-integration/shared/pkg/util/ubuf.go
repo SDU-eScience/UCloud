@@ -3,6 +3,7 @@ package util
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 )
 
 // NOTE(Dan): This is a simple wrapper around a buffer providing convenient functions for dealing with binary messages
@@ -186,6 +187,55 @@ func (b *UBuffer) WriteString(val string) {
 	if err != nil {
 		b.Error = err
 	}
+}
+
+func (b *UBuffer) WriteUvarint(val uint64) {
+	var tmp [binary.MaxVarintLen64]byte
+	n := binary.PutUvarint(tmp[:], val)
+	b.WriteBytes(tmp[:n])
+}
+
+func (b *UBuffer) ReadUvarint() uint64 {
+	var result uint64
+	var shift uint
+	for {
+		next := b.ReadU8()
+		if b.Error != nil {
+			return 0
+		}
+
+		result |= uint64(next&0x7f) << shift
+		if next&0x80 == 0 {
+			return result
+		}
+
+		shift += 7
+		if shift >= 64 {
+			b.Error = errors.New("uvarint overflow")
+			return 0
+		}
+	}
+}
+
+func (b *UBuffer) WriteStringVarint(val string) {
+	valBytes := []byte(val)
+	b.WriteUvarint(uint64(len(valBytes)))
+	_, err := b._buf.Write(valBytes)
+	if err != nil {
+		b.Error = err
+	}
+}
+
+func (b *UBuffer) ReadStringVarint() string {
+	size := b.ReadUvarint()
+	if b.Error != nil || size == 0 {
+		return ""
+	}
+
+	output := make([]byte, size)
+	next := b._buf.Next(int(size))
+	copy(output, next)
+	return string(output)
 }
 
 func (b *UBuffer) WriteBytes(val []byte) {

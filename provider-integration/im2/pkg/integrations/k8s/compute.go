@@ -64,6 +64,7 @@ func InitCompute() controller.JobsService {
 			Delete:           deleteIngress,
 			OnUpdatedLabels:  nil,
 			RetrieveProducts: retrieveIngressProducts,
+			SetTarget:        serviceIngressSetTarget,
 		},
 		Licenses: controller.LicenseService{
 			Create:           activateLicense,
@@ -76,6 +77,21 @@ func InitCompute() controller.JobsService {
 			Delete:           shared.PrivateNetworkDelete,
 			OnUpdatedLabels:  nil,
 			RetrieveProducts: shared.PrivateNetworkRetrieveProducts,
+		},
+		PrivateNetworkIps: controller.PrivateNetworkIpService{
+			Create:           createPrivateNetworkIp,
+			Delete:           deletePrivateNetworkIp,
+			OnUpdatedLabels:  nil,
+			RetrieveProducts: retrievePrivateNetworkIpProducts,
+		},
+		Services: controller.ServiceService{
+			Create:           serviceCreate,
+			Delete:           serviceDelete,
+			Update:           serviceUpdateSpec,
+			UpdateMembers:    serviceUpdateMembers,
+			OnUpdatedLabels:  serviceOnUpdatedLabels,
+			UpdateAcl:        serviceUpdateAcl,
+			RetrieveProducts: serviceRetrieveProducts,
 		},
 	}
 }
@@ -98,6 +114,7 @@ func InitComputeLater() {
 	initScriptImagesStartMaintenance()
 
 	initJobQueue()
+	ServicesStartLoop()
 
 	go func() {
 		nodes = shared.NewResourceTracker[*k8score.Node](
@@ -212,7 +229,7 @@ func createIngress(ingress *orc.Ingress) *util.HttpError {
 		return util.UserHttpError("Public link must only contain letters a-z, numbers (0-9), dashes and underscores.")
 	}
 
-	db.NewTx0(func(tx *db.Transaction) {
+	domainOwner, domainOk := db.NewTx2(func(tx *db.Transaction) (string, bool) {
 		db.Exec(
 			tx,
 			`
@@ -224,7 +241,24 @@ func createIngress(ingress *orc.Ingress) *util.HttpError {
 				"owner":  owner,
 			},
 		)
+
+		row, ok := db.Get[struct{ Owner string }](
+			tx,
+			`
+				select owner from ingresses where domain = :domain
+			`,
+			db.Params{"domain": domain},
+		)
+		if !ok {
+			return "", false
+		}
+
+		return row.Owner, true
 	})
+
+	if !domainOk || domainOwner != owner {
+		return util.UserHttpError("The domain is already in use by someone else.")
+	}
 
 	status := util.Option[string]{}
 	status.Set("Public link is ready for use")
@@ -266,6 +300,7 @@ func deleteIngress(ingress *orc.Ingress) *util.HttpError {
 		)
 	})
 
+	serviceReconcileLinkTargets()
 	accountPublicLinks(ingress.Owner)
 	return result
 }
@@ -395,9 +430,19 @@ func submit(job orc.Job) (util.Option[string], *util.HttpError) {
 		return util.OptNone[string](), util.UserHttpError("This project is not allowed to use virtual machines")
 	}
 
+	_, pnErr := controller.PrivateNetworkJobAllocateLeases(&job)
+	if pnErr != nil {
+		return util.OptNone[string](), pnErr
+	}
+
+	controller.PrivateNetworkSyncAssignedIps(&job)
+
 	controller.JobTrackNew(job)
 	delayed, herr := initScriptImagesPrepare(&job, false)
 	if herr != nil {
+		copied := job
+		copied.Status.State = orc.JobStateFailure
+		controller.JobTrackNew(copied)
 		return util.OptNone[string](), herr
 	}
 	if !delayed {

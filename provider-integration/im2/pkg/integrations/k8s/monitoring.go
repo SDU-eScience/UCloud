@@ -32,6 +32,7 @@ import (
 
 var nextAccounting time.Time
 var nextMountReport time.Time
+var nextPublicLinkReconcile time.Time
 
 // NOTE(Dan): This must only be used by code invoked from the goroutine in loopMonitoring. None of the code is
 // thread-safe.
@@ -311,7 +312,8 @@ func vmDetachLockedResources(job *orc.Job) (int, *util.HttpError) {
 		case orc.AppParameterValueTypeNetwork,
 			orc.AppParameterValueTypeIngress,
 			orc.AppParameterValueTypeLicense,
-			orc.AppParameterValueTypePrivateNetwork:
+			orc.AppParameterValueTypePrivateNetwork,
+			orc.AppParameterValueTypeUCloudNetwork:
 			accessible, _, _ := controller.JobResourceIsAccessible(job.Owner, resource)
 			shouldDetach = !accessible
 
@@ -597,6 +599,19 @@ func loopMonitoring() {
 					}
 				}
 
+				rdmaResource := shared.PrivateNetworkRdmaResourceName()
+				if rdmaResource != "" && shared.PrivateNetworkInfinibandNodeValid(node) {
+					rdmaCap := k8sCapacity.Name(k8score.ResourceName(rdmaResource), k8sresource.DecimalSI)
+					if rdmaCap != nil {
+						capacity.Resources[rdmaResource] = int(rdmaCap.Value())
+					}
+
+					rdmaLim := k8sAllocatable.Name(k8score.ResourceName(rdmaResource), k8sresource.DecimalSI)
+					if rdmaLim != nil {
+						limits.Resources[rdmaResource] = int(rdmaLim.Value())
+					}
+				}
+
 				_, isMachineCategory := shared.ServiceConfig.Compute.Machines[catGroup.Category]
 				if isMachineCategory {
 					limits.CpuMillis = max(0, limits.CpuMillis-shared.SystemReservedCpuMillisForCategory(catGroup.Category))
@@ -685,6 +700,8 @@ func loopMonitoring() {
 	containers.Monitor(tracker, containerJobs)
 	metricMonitoring.WithLabelValues("ContainerMonitor").Observe(timer.Mark().Seconds())
 
+	shared.PrivateNetworkReconcile()
+
 	timer.Mark()
 	kubevirtJobs := map[string]*orc.Job{}
 	for jobId, job := range activeJobs {
@@ -692,7 +709,7 @@ func loopMonitoring() {
 			kubevirtJobs[jobId] = job
 		}
 	}
-	kubevirt.Monitor(tracker, kubevirtJobs)
+	vmNodeAssignments := kubevirt.Monitor(tracker, kubevirtJobs)
 	metricMonitoring.WithLabelValues("VirtualMachineMonitor").Observe(timer.Mark().Seconds())
 	publishNodeLifecycleEvents(tracker, nodeLifecycleEvents)
 
@@ -921,6 +938,13 @@ func loopMonitoring() {
 		if len(kubevirtStarted) > 0 {
 			kubevirt.OnStart(kubevirtStarted)
 		}
+
+		for _, job := range containersStarted {
+			controller.IngressAutoRegister(&job)
+		}
+		for _, job := range kubevirtStarted {
+			controller.IngressAutoRegister(&job)
+		}
 	}()
 
 	// Accounting
@@ -966,6 +990,19 @@ func loopMonitoring() {
 		metricMonitoring.WithLabelValues("JobAccounting").Observe(timer.Mark().Seconds())
 	}
 
+	// Public link self-healing
+	// -----------------------------------------------------------------------------------------------------------------
+	if now.After(nextPublicLinkReconcile) {
+		timer.Mark()
+		for _, job := range activeJobs {
+			if job.Status.State == orc.JobStateRunning {
+				controller.IngressAutoRegister(job)
+			}
+		}
+		nextPublicLinkReconcile = now.Add(30 * time.Second)
+		metricMonitoring.WithLabelValues("PublicLinkReconcile").Observe(timer.Mark().Seconds())
+	}
+
 	// Node remaining capacity calculation
 	// -----------------------------------------------------------------------------------------------------------------
 	// The following snippet of code will calculate exactly how many resources are left on the node based directly
@@ -986,9 +1023,32 @@ func loopMonitoring() {
 
 	timer.Mark()
 	{
+		groupsByNode := map[string]map[string]util.Empty{}
+		addAntiAffinityGroup := func(job *orc.Job, nodeName string) {
+			if job == nil || nodeName == "" {
+				return
+			}
+			group := shared.JobAntiAffinityGroup(job)
+			if !group.Present {
+				return
+			}
+			groups := groupsByNode[nodeName]
+			if groups == nil {
+				groups = map[string]util.Empty{}
+				groupsByNode[nodeName] = groups
+			}
+			groups[group.Value] = util.Empty{}
+		}
+		for jobId, nodeName := range vmNodeAssignments {
+			addAntiAffinityGroup(kubevirtJobs[jobId], nodeName)
+		}
+		for _, pod := range schedulingPods {
+			addAntiAffinityGroup(activeJobs[pod.Labels["ucloud.dk/jobId"]], pod.Spec.NodeName)
+		}
 		advertisedCpuByNode := map[string]int{}
 		for _, sched := range schedulers {
 			for _, replica := range sched.Replicas {
+				addAntiAffinityGroup(activeJobs[replica.JobId], replica.Node)
 				advertisedCpuByNode[replica.Node] += replica.AdvertisedCpuMillis
 				key := schedulerReplicaKey{
 					JobId: replica.JobId,
@@ -1004,6 +1064,7 @@ func loopMonitoring() {
 		}
 		for _, sched := range schedulers {
 			for nodeName, node := range sched.Nodes {
+				sched.SynchronizeNodeAntiAffinity(nodeName, groupsByNode[nodeName])
 				sched.SynchronizeNodeUsage(nodeName, podUsageByNode[nodeName])
 				node.AdvertisedCpuRemainingMillis = node.Capacity.CpuMillis - advertisedCpuByNode[nodeName]
 			}
@@ -1038,7 +1099,8 @@ func loopMonitoring() {
 			}
 
 			sched.RegisterJobInQueue(entry.Id, shared.JobDimensions(entry),
-				entry.Specification.Replicas, entry, entry.CreatedAt, timeAllocationOrDefault(entry.Specification.TimeAllocation))
+				entry.Specification.Replicas, shared.JobAntiAffinityGroup(entry), entry, entry.CreatedAt,
+				timeAllocationOrDefault(entry.Specification.TimeAllocation))
 
 			if !sched.JobInQueue(entry.Id) {
 				shared.RequestSchedule(entry)
@@ -1203,8 +1265,8 @@ func loopMonitoring() {
 			Replicas:            2,
 		}
 
-		anyAvailable := sched.trySchedule(singleEntry, allNodes, true) != nil
-		moreAvailable := sched.trySchedule(doubleEntry, allNodes, true) != nil
+		anyAvailable := sched.trySchedule(singleEntry, allNodes, true, nil) != nil
+		moreAvailable := sched.trySchedule(doubleEntry, allNodes, true, nil) != nil
 
 		status := orc.JobQueueFull
 		if anyAvailable && moreAvailable {

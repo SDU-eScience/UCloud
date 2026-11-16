@@ -129,7 +129,7 @@ func Launch() {
 
 	fmt.Printf("UCloud/IM starting up... [2/4] Getting things ready\n")
 
-	gatewayConfigChannel := make(chan []byte)
+	gatewayConfigChannel := make(chan []byte, 1024)
 	if mode == cfg.ServerModeServer {
 		gateway.Initialize(gateway.Config{
 			ListenAddress: "0.0.0.0",

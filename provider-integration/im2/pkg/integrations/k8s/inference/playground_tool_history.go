@@ -41,12 +41,40 @@ func playgroundToolHistoryRecord(name, arguments, output, status string) map[str
 	if status != "" {
 		record["tool_status"] = status
 	}
-	for _, key := range []string{"url", "document_id", "query", "format"} {
+	for _, key := range []string{
+		"url",
+		"document_id",
+		"query",
+		"format",
+		"image_id",
+		"file_id",
+		"language",
+		"model",
+	} {
 		if value, ok := args[key].(string); ok && value != "" {
 			record[key] = value
 		}
 	}
-	for _, key := range []string{"url", "document_id", "query", "format", "status", "error", "timed_out", "expires_at", "next_cursor", "download_truncated", "truncated"} {
+	for _, key := range []string{
+		"url",
+		"document_id",
+		"query",
+		"format",
+		"status",
+		"error",
+		"timed_out",
+		"expires_at",
+		"next_cursor",
+		"download_truncated",
+		"truncated",
+		"image_id",
+		"model",
+		"model_title",
+		"file_id",
+		"file_name",
+		"transcript_saved",
+		"text_omitted",
+	} {
 		if value, ok := result[key]; ok {
 			record[key] = value
 		}

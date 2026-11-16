@@ -273,6 +273,9 @@ func handleSession(ctx context.Context, s *vmaSession, token string, serverToken
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
+	ttyTerminate := make(chan struct{})
+	defer close(ttyTerminate)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -313,7 +316,7 @@ func handleSession(ctx context.Context, s *vmaSession, token string, serverToken
 						Token: ttyToken,
 					}
 
-					handleTtySession(ttySession)
+					handleTtySession(ttySession, ttyTerminate)
 				}()
 			}
 		case <-ticker.C:

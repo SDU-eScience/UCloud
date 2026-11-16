@@ -36,6 +36,7 @@ export interface TabStripItem {
     closeIconOnHover?: IconName;
     closeLabel: string;
     closeTooltip?: React.ReactNode;
+    showClose?: boolean;
 }
 
 export function TabStrip({
@@ -123,6 +124,8 @@ export function TabStrip({
             }
 
             if (close) {
+                const activeItem = items[activeIndex];
+                if (activeItem?.showClose === false) return;
                 event.preventDefault();
                 event.stopPropagation();
                 onClose(activeId!);
@@ -367,7 +370,7 @@ export function TabStrip({
                 style={baseSlot && left !== undefined ? {transform: `translateX(${left - baseSlot.left}px)`} : undefined}
                 onPointerDown={e => beginDrag(e, item.id)}
                 onMouseDown={e => {
-                    if (e.button === 1 && !(e.target as HTMLElement).closest(".tab-strip-close")) {
+                    if (e.button === 1 && item.showClose !== false && !(e.target as HTMLElement).closest(".tab-strip-close")) {
                         e.preventDefault();
                         onClose(item.id);
                     }
@@ -391,7 +394,7 @@ export function TabStrip({
             >
                 {item.icon ? <span className="tab-strip-icon">{item.icon}</span> : null}
                 <TabStripTitle title={item.title} tooltip={item.tooltip} />
-                <TooltipV2 tooltip={item.closeTooltip} side="top" contentWidth={150} triggerClassName={`${CloseTooltipTrigger} tab-strip-close-tooltip`}>
+                {item.showClose === false ? null : <TooltipV2 tooltip={item.closeTooltip} side="top" contentWidth={150} triggerClassName={`${CloseTooltipTrigger} tab-strip-close-tooltip`}>
                     <button
                         type="button"
                         className="tab-strip-close"
@@ -405,7 +408,7 @@ export function TabStrip({
                     >
                         <Icon name={closeIcon} size={10} />
                     </button>
-                </TooltipV2>
+                </TooltipV2>}
             </div>;
         })}
     </div>;

@@ -35,7 +35,7 @@ import {
     type InvocationParameters,
     type InvocationScopeEntry,
 } from "@/Applications/Creator/InvocationScope";
-import {jinja2monarchTokens} from "@/Editor/Editor";
+import {jinja2monarchTokens} from "@/Editor/Monaco";
 
 // Language definition
 // -------------------------------------------------------------------------------------------------------------------
@@ -253,9 +253,6 @@ export const bashJinjaLanguageConfiguration = {
 
 // Language and theme registration guards
 // -------------------------------------------------------------------------------------------------------------------
-// The file editor (`Editor/Editor.tsx`) also defines the `ucloud-dark` theme and registers the
-// `jinja2` language, but it does so inline on its own mount. The creator editors must not assume
-// the file editor is mounted, and must not register the language twice.
 
 let jinja2Registered = false;
 let bashJinjaRegistered = false;

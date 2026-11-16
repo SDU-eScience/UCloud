@@ -10,15 +10,24 @@ import (
 const FeaturesContext = "features"
 
 const (
-	FeatureContainerRepositories = "container-repositories"
+	FeatureCustomApplications = "custom-applications"
 )
 
 var FeatureOptions = []string{
-	FeatureContainerRepositories,
+	FeatureCustomApplications,
+}
+
+var featureOptionsRemoved = []string{
+	"container-repositories",
+	"application-flavors",
 }
 
 func FeatureIsValid(feature string) bool {
 	return slices.Contains(FeatureOptions, feature)
+}
+
+func FeatureIsValidForConfig(feature string) bool {
+	return FeatureIsValid(feature) || slices.Contains(featureOptionsRemoved, feature)
 }
 
 type FeatureGrant struct {

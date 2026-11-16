@@ -52,17 +52,21 @@ type playgroundPersistedThread struct {
 }
 
 type playgroundPersistedMessage struct {
-	Role         string                      `json:"role"`
-	Content      string                      `json:"content"`
-	Synthetic    bool                        `json:"synthetic,omitempty"`
-	Reasoning    string                      `json:"reasoning,omitempty"`
-	Parts        []playgroundChatMessagePart `json:"parts,omitempty"`
-	GeneratedAt  string                      `json:"generatedAt,omitempty"`
-	ModelName    string                      `json:"modelName,omitempty"`
-	StartedAt    string                      `json:"startedAt,omitempty"`
-	FirstTokenAt string                      `json:"firstTokenAt,omitempty"`
-	FinishedAt   string                      `json:"finishedAt,omitempty"`
-	OutputTokens int64                       `json:"outputTokens,omitempty"`
+	Role                string                      `json:"role"`
+	Content             string                      `json:"content"`
+	Synthetic           bool                        `json:"synthetic,omitempty"`
+	Reasoning           string                      `json:"reasoning,omitempty"`
+	Parts               []playgroundChatMessagePart `json:"parts,omitempty"`
+	GeneratedAt         string                      `json:"generatedAt,omitempty"`
+	ModelName           string                      `json:"modelName,omitempty"`
+	StartedAt           string                      `json:"startedAt,omitempty"`
+	FirstTokenAt        string                      `json:"firstTokenAt,omitempty"`
+	FinishedAt          string                      `json:"finishedAt,omitempty"`
+	OutputTokens        int64                       `json:"outputTokens,omitempty"`
+	ImageReference      string                      `json:"imageReference,omitempty"`
+	DirectImage         bool                        `json:"directImage,omitempty"`
+	AudioReference      string                      `json:"audioReference,omitempty"`
+	DirectTranscription bool                        `json:"directTranscription,omitempty"`
 }
 
 // Public summaries and load
@@ -297,18 +301,32 @@ func playgroundThreadRead(path string) (playgroundChatThread, bool) {
 func playgroundThreadPersisted(thread playgroundChatThread) playgroundPersistedThread {
 	messages := make([]playgroundPersistedMessage, 0, len(thread.Messages))
 	for _, msg := range thread.Messages {
+		parts := slices.Clone(msg.Parts)
+		for i := range parts {
+			if parts[i].Kind == "image" && parts[i].ImagePath != "" {
+				parts[i].Url = ""
+			}
+			if parts[i].FilePath != "" {
+				parts[i].Url = ""
+				parts[i].TranscriptUrl = ""
+			}
+		}
 		messages = append(messages, playgroundPersistedMessage{
-			Role:         msg.Role,
-			Content:      msg.Content,
-			Synthetic:    msg.Synthetic,
-			Reasoning:    msg.Reasoning,
-			Parts:        msg.Parts,
-			GeneratedAt:  playgroundFormatTime(msg.GeneratedAt),
-			ModelName:    msg.ModelName,
-			StartedAt:    playgroundFormatTime(msg.StartedAt),
-			FirstTokenAt: playgroundFormatTime(msg.FirstTokenAt),
-			FinishedAt:   playgroundFormatTime(msg.FinishedAt),
-			OutputTokens: msg.OutputTokens,
+			Role:                msg.Role,
+			Content:             msg.Content,
+			Synthetic:           msg.Synthetic,
+			Reasoning:           msg.Reasoning,
+			Parts:               parts,
+			GeneratedAt:         playgroundFormatTime(msg.GeneratedAt),
+			ModelName:           msg.ModelName,
+			StartedAt:           playgroundFormatTime(msg.StartedAt),
+			FirstTokenAt:        playgroundFormatTime(msg.FirstTokenAt),
+			FinishedAt:          playgroundFormatTime(msg.FinishedAt),
+			OutputTokens:        msg.OutputTokens,
+			ImageReference:      msg.ImageReference,
+			DirectImage:         msg.DirectImage,
+			AudioReference:      msg.AudioReference,
+			DirectTranscription: msg.DirectTranscription,
 		})
 	}
 	return playgroundPersistedThread{
@@ -348,17 +366,21 @@ func playgroundThreadFromPersisted(persisted playgroundPersistedThread) (playgro
 			parts = playgroundChatMessageParts(msg.Content, msg.Reasoning)
 		}
 		messages = append(messages, playgroundChatMessage{
-			Role:         msg.Role,
-			Content:      msg.Content,
-			Synthetic:    msg.Synthetic,
-			Reasoning:    msg.Reasoning,
-			Parts:        parts,
-			GeneratedAt:  generatedAt,
-			ModelName:    msg.ModelName,
-			StartedAt:    startedAt,
-			FirstTokenAt: firstTokenAt,
-			FinishedAt:   finishedAt,
-			OutputTokens: msg.OutputTokens,
+			Role:                msg.Role,
+			Content:             msg.Content,
+			Synthetic:           msg.Synthetic,
+			Reasoning:           msg.Reasoning,
+			Parts:               parts,
+			GeneratedAt:         generatedAt,
+			ModelName:           msg.ModelName,
+			StartedAt:           startedAt,
+			FirstTokenAt:        firstTokenAt,
+			FinishedAt:          finishedAt,
+			OutputTokens:        msg.OutputTokens,
+			ImageReference:      msg.ImageReference,
+			DirectImage:         msg.DirectImage,
+			AudioReference:      msg.AudioReference,
+			DirectTranscription: msg.DirectTranscription,
 		})
 	}
 

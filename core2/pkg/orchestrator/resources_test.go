@@ -504,7 +504,7 @@ func TestResourceRemovesDeletedProjectGroupFromAcl(t *testing.T) {
 	initResourceTest(t)
 
 	owner := actor("owner", "project")
-	id, _, err := ResourceCreateEx[TestResource](
+	id, _, err := resourceCreateEx[TestResource](
 		testResource,
 		orcapi.ResourceOwner{CreatedBy: owner.Username, Project: util.OptValue("project")},
 		[]orcapi.ResourceAclEntry{
@@ -532,7 +532,7 @@ func TestResourceBrowseFilterLabels(t *testing.T) {
 		id, _, err := ResourceCreate[TestResource](
 			*owner,
 			testResource,
-			orcapi.ResourceSpecification{Labels: labels},
+			orcapi.ResourceSpecification{ServerLabels: labels},
 			&TestResourceData{A: 1, B: 1},
 		)
 		if assert.Nil(t, err) {

@@ -3,12 +3,15 @@ package job_introspection
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/netip"
 	"slices"
 	"strings"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
@@ -70,15 +73,17 @@ func InitServerHandlers() {
 		networksBySubdomain := map[string]*IntrospectedNetwork{}
 
 		for _, resc := range job.Specification.Resources {
-			if resc.Type == orc.AppParameterValueTypePrivateNetwork {
-				network, ok := ctrl.PrivateNetworkRetrieve(resc.Id)
-				if ok {
-					networksBySubdomain[network.Specification.Subdomain] = &IntrospectedNetwork{
-						Id:        network.Id,
-						Name:      network.Specification.Name,
-						Subdomain: network.Specification.Subdomain,
-						Members:   nil,
-					}
+			if !orc.IsNetworkValue(resc) {
+				continue
+			}
+
+			network, ok := ctrl.PrivateNetworkRetrieve(resc.Id)
+			if ok {
+				networksBySubdomain[network.Status.Subdomain] = &IntrospectedNetwork{
+					Id:        network.Id,
+					Name:      network.Specification.Name,
+					Subdomain: network.Status.Subdomain,
+					Members:   nil,
 				}
 			}
 		}
@@ -86,17 +91,21 @@ func InitServerHandlers() {
 		pods := shared.JobPods.List()
 		for _, pod := range pods {
 			for subdomain, network := range networksBySubdomain {
-				if _, ok := pod.Labels[shared.PrivateNetworkLabel(subdomain)]; ok {
-					memberId := pod.Labels["ucloud.dk/jobId"]
-					member, ok := ctrl.JobRetrieve(memberId)
-					if ok {
-						network.Members = append(network.Members, IntrospectedNetworkMember{
-							Id:     member.Id,
-							Name:   pod.Spec.Hostname,
-							Fqdn:   fmt.Sprintf("%s.%s.%s.svc.cluster.local", pod.Spec.Hostname, pod.Spec.Subdomain, shared.ServiceConfig.Compute.Namespace),
-							Labels: member.Specification.Labels,
-						})
-					}
+				if pod.Labels[shared.PrivateNetworkLabel(subdomain)] != "true" &&
+					pod.Labels[shared.PrivateNetworkMembershipLabel(network.Id)] != "true" {
+					continue
+				}
+
+				memberId := pod.Labels["ucloud.dk/jobId"]
+				member, ok := ctrl.JobRetrieve(memberId)
+				if ok {
+					network.Members = append(network.Members, IntrospectedNetworkMember{
+						Id:        member.Id,
+						Name:      pod.Spec.Hostname,
+						Fqdn:      fmt.Sprintf("%s.%s.%s.svc.cluster.local", pod.Spec.Hostname, pod.Spec.Subdomain, shared.ServiceConfig.Compute.Namespace),
+						Labels:    member.Specification.Labels,
+						Addresses: privateNetworkMemberAddresses(pod, network.Subdomain),
+					})
 				}
 			}
 		}
@@ -150,9 +159,14 @@ func InitServerHandlers() {
 	})
 }
 
-func EnsureToken(jobId string, vmaSrvToken util.Option[string]) string {
+func EnsureToken(jobId string, vmaSrvToken util.Option[string]) (string, string) {
 	newToken := util.SecureToken()
-	token, _ := db.NewTx2(func(tx *db.Transaction) (string, bool) {
+	newSrvToken := util.SecureToken()
+	if vmaSrvToken.Present {
+		newSrvToken = vmaSrvToken.Value
+	}
+
+	token, srvToken, _ := db.NewTx3(func(tx *db.Transaction) (string, string, bool) {
 		db.Exec(
 			tx,
 			`
@@ -163,21 +177,61 @@ func EnsureToken(jobId string, vmaSrvToken util.Option[string]) string {
 			db.Params{
 				"job_id":        jobId,
 				"token":         newToken,
-				"vma_srv_token": optStringToSql(vmaSrvToken),
+				"vma_srv_token": optStringToSql(util.OptValue(newSrvToken)),
 			},
 		)
 
-		row, rowOk := db.Get[struct{ Token string }](
+		row, rowOk := db.Get[struct {
+			Token       string
+			VmaSrvToken sql.Null[string]
+		}](
 			tx,
 			`
-				select token
+				select token, vma_srv_token
 				from k8s.job_introspection_tokens
 				where job_id = :job_id
 			`,
 			db.Params{"job_id": jobId},
 		)
-		return row.Token, rowOk
+
+		srv := ""
+		if row.VmaSrvToken.Valid {
+			srv = row.VmaSrvToken.V
+		}
+		return row.Token, srv, rowOk
 	})
+	return token, srvToken
+}
+
+func UcxSessionToken(jobId string) string {
+	token, srvToken, ok := db.NewTx3(func(tx *db.Transaction) (string, string, bool) {
+		row, rowOk := db.Get[struct {
+			Token       string
+			VmaSrvToken sql.Null[string]
+		}](
+			tx,
+			`
+				select token, vma_srv_token
+				from k8s.job_introspection_tokens
+				where job_id = :job_id
+			`,
+			db.Params{"job_id": jobId},
+		)
+
+		srv := ""
+		if row.VmaSrvToken.Valid {
+			srv = row.VmaSrvToken.V
+		}
+		return row.Token, srv, rowOk
+	})
+
+	if !ok {
+		return ""
+	}
+
+	if srvToken != "" {
+		return srvToken
+	}
 	return token
 }
 
@@ -223,7 +277,7 @@ func Authenticate(token string) (string, util.Option[string], bool) {
 	return db.NewTx3(func(tx *db.Transaction) (string, util.Option[string], bool) {
 		row, ok := db.Get[struct {
 			JobId       string
-			VmaSrvToken sql.NullString
+			VmaSrvToken sql.Null[string]
 		}](
 			tx,
 			`
@@ -235,7 +289,7 @@ func Authenticate(token string) (string, util.Option[string], bool) {
 		)
 
 		if ok {
-			return row.JobId, util.SqlNullStringToOpt(row.VmaSrvToken), true
+			return row.JobId, util.SqlNullToOpt(row.VmaSrvToken), true
 		}
 		return "", util.OptNone[string](), false
 	})
@@ -253,9 +307,48 @@ func serviceIp(jobId string) string {
 	return service.Spec.ClusterIP
 }
 
-func optStringToSql(value util.Option[string]) sql.NullString {
-	if value.Present {
-		return sql.NullString{String: value.Value, Valid: true}
+type introspectedNetworkStatusEntry struct {
+	Name      string   `json:"name"`
+	Interface string   `json:"interface"`
+	Ips       []string `json:"ips"`
+	Mac       string   `json:"mac"`
+}
+
+func privateNetworkMemberAddresses(pod *corev1.Pod, subdomain string) []string {
+	raw := pod.Annotations[shared.PrivateNetworkNetworkStatusAnnotation]
+	if raw == "" {
+		return nil
 	}
-	return sql.NullString{}
+
+	var entries []introspectedNetworkStatusEntry
+	if err := json.Unmarshal([]byte(raw), &entries); err != nil {
+		return nil
+	}
+
+	for _, entry := range entries {
+		nadName := entry.Name
+		if name, _, found := strings.Cut(entry.Name, "/"); found {
+			nadName = name
+		}
+		if nadName != subdomain {
+			continue
+		}
+
+		addresses := make([]string, 0, len(entry.Ips))
+		for _, ip := range entry.Ips {
+			if parsed, err := netip.ParseAddr(ip); err == nil && parsed.Is4() {
+				addresses = append(addresses, ip)
+			}
+		}
+		return addresses
+	}
+
+	return nil
+}
+
+func optStringToSql(value util.Option[string]) sql.Null[string] {
+	if value.Present {
+		return sql.Null[string]{V: value.Value, Valid: true}
+	}
+	return sql.Null[string]{}
 }

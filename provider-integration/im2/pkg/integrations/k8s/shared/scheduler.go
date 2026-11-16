@@ -233,11 +233,36 @@ func RegisterJobDimensionMapper(categoryName string, mapper JobDimensionMapper) 
 func JobDimensions(job *orc.Job) SchedulerDimensions {
 	prod := &job.Status.ResolvedProduct.Value
 	mapper, hasMapper := jobDimensionMappers[prod.Category.Name]
+	var dims SchedulerDimensions
 	if hasMapper {
-		return mapper(job)
+		dims = mapper(job)
 	} else {
-		return JobDimensionsFromProductOnly(prod)
+		dims = JobDimensionsFromProductOnly(prod)
 	}
+
+	if rdmaResource, ok := PrivateNetworkJobRdmaResourceName(job); ok {
+		dims = dims.Clone()
+		if dims.Resources == nil {
+			dims.Resources = map[string]int{}
+		}
+		dims.Resources[rdmaResource] += 1
+	}
+
+	return dims
+}
+
+func JobAntiAffinityGroup(job *orc.Job) util.Option[string] {
+	if job == nil {
+		return util.OptNone[string]()
+	}
+
+	group := strings.TrimSpace(job.Specification.Labels[orc.ResourceLabelAntiAffinityGroup])
+	if group == "" {
+		return util.OptNone[string]()
+	}
+
+	workspace := job.Owner.Project.GetOrDefault(job.Owner.CreatedBy)
+	return util.OptValue(workspace + "/" + group)
 }
 
 func JobDimensionsFromProductOnly(prod *apm.ProductV2) SchedulerDimensions {

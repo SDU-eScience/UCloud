@@ -190,9 +190,7 @@ func metadataMergeRunBatch(paths []string, outputPath string) error {
 			return readErr
 		}
 	}
-	if err = writer.Flush(); err == nil {
-		err = file.Sync()
-	}
+	err = writer.Flush()
 	closeErr := file.Close()
 	if err == nil {
 		err = closeErr
@@ -218,17 +216,11 @@ func metadataSpoolOldNameKeys(db *pebble.DB, span pebble.KeyRange, path string) 
 			_ = file.Close()
 			return keyErr
 		}
-		for _, indexKey := range indexKeys {
-			var length [10]byte
-			n := binary.PutUvarint(length[:], uint64(len(indexKey)))
-			if _, err = writer.Write(length[:n]); err == nil {
-				_, err = writer.Write(indexKey)
-			}
-			if err != nil {
-				_ = iter.Close()
-				_ = file.Close()
-				return err
-			}
+		err = metadataWriteNameKeys(writer, indexKeys)
+		if err != nil {
+			_ = iter.Close()
+			_ = file.Close()
+			return err
 		}
 	}
 	if err = iter.Error(); err == nil {
@@ -239,9 +231,6 @@ func metadataSpoolOldNameKeys(db *pebble.DB, span pebble.KeyRange, path string) 
 	if err == nil {
 		err = writer.Flush()
 	}
-	if err == nil {
-		err = file.Sync()
-	}
 	closeErr := file.Close()
 	if err == nil {
 		err = closeErr
@@ -249,91 +238,98 @@ func metadataSpoolOldNameKeys(db *pebble.DB, span pebble.KeyRange, path string) 
 	return err
 }
 
-func metadataRefreshNameIndex(db *pebble.DB, span pebble.KeyRange, oldNamesPath string) error {
-	batch := db.NewBatch()
-	defer batch.Close()
-	commitBatch := func() error {
-		if batch.Empty() {
-			return nil
-		}
-		if err := batch.Commit(pebble.Sync); err != nil {
+func metadataWriteNameKeys(writer *bufio.Writer, keys [][]byte) error {
+	var length [10]byte
+	for _, key := range keys {
+		n := binary.PutUvarint(length[:], uint64(len(key)))
+		_, err := writer.Write(length[:n])
+		if err != nil {
 			return err
 		}
-		batch.Reset()
-		return nil
+		_, err = writer.Write(key)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
+}
 
-	oldNames, err := os.Open(oldNamesPath)
+func metadataRefreshNameIndex(db *pebble.DB, oldNamesPath, newNamesPath string) error {
+	batch := db.NewBatch()
+	defer batch.Close()
+	err := metadataApplyNameKeys(batch, oldNamesPath, true)
 	if err != nil {
 		return err
 	}
-	reader := bufio.NewReaderSize(oldNames, 256*1024)
+	return metadataApplyNameKeys(batch, newNamesPath, false)
+}
+
+func metadataApplyNameKeys(batch *pebble.Batch, path string, remove bool) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	reader := bufio.NewReaderSize(file, 256*1024)
+	var key []byte
 	for count := 0; ; count++ {
 		length, readErr := binary.ReadUvarint(reader)
 		if errors.Is(readErr, io.EOF) {
 			break
 		}
 		if readErr != nil {
-			_ = oldNames.Close()
 			return readErr
 		}
-		key := make([]byte, int(length))
-		if _, readErr = io.ReadFull(reader, key); readErr != nil {
-			_ = oldNames.Close()
+		if cap(key) < int(length) {
+			key = make([]byte, int(length))
+		} else {
+			key = key[:int(length)]
+		}
+		_, readErr = io.ReadFull(reader, key)
+		if readErr != nil {
 			return readErr
 		}
-		if err = batch.Delete(key, nil); err != nil {
-			_ = oldNames.Close()
+		if remove {
+			err = batch.Delete(key, nil)
+		} else {
+			err = batch.Set(key, nil, nil)
+		}
+		if err != nil {
 			return err
 		}
 		if count%10_000 == 9_999 {
-			if err = commitBatch(); err != nil {
-				_ = oldNames.Close()
+			err = batch.Commit(pebble.NoSync)
+			if err != nil {
 				return err
 			}
+			batch.Reset()
 		}
 	}
-	if err = oldNames.Close(); err != nil {
+	err = file.Close()
+	if err != nil {
 		return err
 	}
-	if err = commitBatch(); err != nil {
+	if batch.Empty() {
+		return nil
+	}
+	err = batch.Commit(pebble.NoSync)
+	if err != nil {
 		return err
 	}
+	batch.Reset()
+	return nil
+}
 
-	iter, err := db.NewIter(&pebble.IterOptions{LowerBound: span.Start, UpperBound: span.End})
-	if err != nil {
+func metadataDiscardPendingNameIndex(db *pebble.DB) error {
+	batch := db.NewBatch()
+	defer batch.Close()
+	if err := batch.Delete(metadataPendingNameKey, nil); err != nil {
 		return err
 	}
-	count := 0
-	for valid := iter.First(); valid; valid = iter.Next() {
-		indexKeys, keyErr := metadataSearchIndexKeys(iter.Key())
-		if keyErr != nil {
-			_ = iter.Close()
-			return keyErr
-		}
-		for _, indexKey := range indexKeys {
-			if err = batch.Set(indexKey, nil, nil); err != nil {
-				_ = iter.Close()
-				return err
-			}
-			count++
-			if count%10_000 == 0 {
-				if err = commitBatch(); err != nil {
-					_ = iter.Close()
-					return err
-				}
-			}
-		}
-	}
-	if err = iter.Error(); err == nil {
-		err = iter.Close()
-	} else {
-		_ = iter.Close()
-	}
-	if err != nil {
+	if err := batch.Delete(metadataSearchIndexVersionKey, nil); err != nil {
 		return err
 	}
-	return commitBatch()
+	return batch.Commit(pebble.Sync)
 }
 
 func metadataRecoverPendingNameIndex(db *pebble.DB) error {
@@ -347,7 +343,10 @@ func metadataRecoverPendingNameIndex(db *pebble.DB) error {
 	rootKey := append([]byte(nil), value...)
 	_ = closer.Close()
 	if len(rootKey) == 0 || rootKey[0] != MetaKeyspacePath {
-		return errors.New("invalid pending NAME refresh root")
+		if discardErr := metadataDiscardPendingNameIndex(db); discardErr != nil {
+			return discardErr
+		}
+		return fmt.Errorf("%w: invalid pending NAME refresh root", errMetadataNameRepairRequired)
 	}
 	span := pebble.KeyRange{Start: rootKey, End: metadataPrefixSuccessor(rootKey)}
 	batch := db.NewBatch()
@@ -361,7 +360,10 @@ func metadataRecoverPendingNameIndex(db *pebble.DB) error {
 		indexKeys, keyErr := metadataSearchIndexKeys(iter.Key())
 		if keyErr != nil {
 			_ = iter.Close()
-			return keyErr
+			if discardErr := metadataDiscardPendingNameIndex(db); discardErr != nil {
+				return discardErr
+			}
+			return fmt.Errorf("%w: %v", errMetadataNameRepairRequired, keyErr)
 		}
 		for _, indexKey := range indexKeys {
 			if err = batch.Set(indexKey, nil, nil); err != nil {
@@ -370,7 +372,8 @@ func metadataRecoverPendingNameIndex(db *pebble.DB) error {
 			}
 			count++
 			if count%10_000 == 0 {
-				if err = batch.Commit(pebble.Sync); err != nil {
+				err = batch.Commit(pebble.NoSync)
+				if err != nil {
 					_ = iter.Close()
 					return err
 				}
@@ -397,21 +400,13 @@ func metadataRecoverPendingNameIndex(db *pebble.DB) error {
 	return batch.Commit(pebble.Sync)
 }
 
-func metadataRefreshNameIndexAsync(databasePath, driveID string, span pebble.KeyRange, oldNamesPath, tempDir, scanPath string) {
+func metadataRefreshNameIndexAndFinish(db *pebble.DB, databasePath, driveId string, span pebble.KeyRange, oldNamesPath, newNamesPath, scanPath string, refreshDone chan struct{}) error {
 	defer func() {
-		if value, ok := metadataNameRefreshes.LoadAndDelete(databasePath); ok {
-			close(value.(chan struct{}))
-		}
+		metadataNameRefreshes.CompareAndDelete(databasePath, refreshDone)
+		close(refreshDone)
 	}()
-	defer os.RemoveAll(tempDir)
-	db, releaseDatabase, err := metadataAcquireDatabase(databasePath, false)
-	if err != nil {
-		log.Warn("Metadata NAME refresh for %s failed: %s", scanPath, err)
-		metadataRecordNameRefreshFinished(driveID, err)
-		return
-	}
-	defer releaseDatabase()
-	if err = metadataRefreshNameIndex(db, span, oldNamesPath); err == nil {
+	err := metadataRefreshNameIndex(db, oldNamesPath, newNamesPath)
+	if err == nil {
 		batch := db.NewBatch()
 		if len(span.Start) == 1 {
 			err = batch.Set(metadataSearchIndexVersionKey, metadataSearchIndexVersion, nil)
@@ -427,11 +422,12 @@ func metadataRefreshNameIndexAsync(databasePath, driveID string, span pebble.Key
 	if err != nil {
 		// PATH is authoritative and already published. Search can verify and prune stale NAME hits.
 		log.Warn("Metadata NAME refresh for %s failed: %s", scanPath, err)
-		metadataRecordNameRefreshFinished(driveID, err)
-		return
+		metadataRecordNameRefreshFinished(driveId, err)
+		return err
 	}
 	pathBytes, _ := db.EstimateDiskUsage([]byte{MetaKeyspacePath}, []byte{MetaKeyspaceName})
 	nameBytes, _ := db.EstimateDiskUsage([]byte{MetaKeyspaceName}, []byte{MetaKeyspaceTrigram + 1})
-	metadataRecordDatabaseSize(driveID, db.Metrics().DiskSpaceUsage(), pathBytes, nameBytes)
-	metadataRecordNameRefreshFinished(driveID, nil)
+	metadataRecordDatabaseSize(driveId, db.Metrics().DiskSpaceUsage(), pathBytes, nameBytes)
+	metadataRecordNameRefreshFinished(driveId, nil)
+	return nil
 }

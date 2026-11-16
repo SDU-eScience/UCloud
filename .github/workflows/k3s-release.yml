@@ -1,0 +1,41 @@
+name: k3s release update
+
+on:
+  schedule:
+    - cron: "37 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: k3s-release-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Check for new k3s releases
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update release catalog
+        id: update
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          K3S_RELEASE_PR_BODY_PATH: ${{ runner.temp }}/k3s-release-pr-body.md
+        run: python3 .github/scripts/update-k3s-catalog.py
+
+      - name: Create pull request
+        if: steps.update.outputs.updated == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/k3s-release
+          delete-branch: true
+          commit-message: "Add k3s releases ${{ steps.update.outputs.versions }}"
+          title: "Add k3s releases ${{ steps.update.outputs.versions }}"
+          body-path: ${{ runner.temp }}/k3s-release-pr-body.md

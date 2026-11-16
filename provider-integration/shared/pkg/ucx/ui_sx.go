@@ -142,6 +142,10 @@ func SxZIndex(value int64) SxOption     { return sxInt("zIndex", value) }
 func SxWidthAuto() SxOption             { return sxString("width", "auto") }
 func SxHeightAuto() SxOption            { return sxString("height", "auto") }
 func SxHeightRaw(value string) SxOption { return sxString("height", value) }
+func SxMinHeightRaw(value string) SxOption {
+	return sxString("minHeight", value)
+}
+func SxBoxSizing(value string) SxOption { return sxString("boxSizing", value) }
 func SxHeightVh(value int64) SxOption   { return sxString("height", fmt.Sprintf("%dvh", value)) }
 func SxWidthPercent(value int64) SxOption {
 	return sxString("width", fmt.Sprintf("%d%%", value))

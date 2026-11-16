@@ -1,10 +1,10 @@
 import * as React from "react";
-import {Icon} from "@/ui-components";
+import {Box, Flex, Icon, Label, Text} from "@/ui-components";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductStorage} from "@/Accounting";
 import {Operation} from "@/ui-components/Operation";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {apiBrowse, apiUpdate} from "@/Authentication/DataHook";
+import {apiBrowse, apiUpdate, useCloudCommand} from "@/Authentication/DataHook";
 import {BulkRequest, BulkResponse, PageV2, PaginationRequestV2} from "@/UCloud";
 import {
     CREATE_TAG,
@@ -17,9 +17,17 @@ import {
     ResourceStatus,
     ResourceUpdate,
 } from "@/UCloud/ResourceApi";
+import {bulkRequestOf} from "@/UtilityFunctions";
+import {Toggle} from "@/ui-components/Toggle";
 
 export interface ContainerRepositorySpecification extends ResourceSpecification {
     name: string;
+    public?: boolean;
+}
+
+export interface UpdateContainerRepositoryPublicRequest {
+    id: string;
+    public: boolean;
 }
 
 export type ContainerRepositoryStatus = ResourceStatus;
@@ -118,6 +126,13 @@ class ContainerRepositoriesApi extends ResourceApi<
         return apiUpdate(request, this.baseContext, "deleteImage");
     }
 
+    updatePublic(request: BulkRequest<UpdateContainerRepositoryPublicRequest>): APICallParameters<
+        BulkRequest<UpdateContainerRepositoryPublicRequest>,
+        BulkResponse<Record<string, never>>
+    > {
+        return apiUpdate(request, this.baseContext, "updatePublic");
+    }
+
     retrieveOperations(): Operation<
         ContainerRepository,
         ResourceBrowseCallbacks<ContainerRepository, ProductStorage>
@@ -153,5 +168,71 @@ class ContainerRepositoriesApi extends ResourceApi<
 }
 
 const api = new ContainerRepositoriesApi();
+
+export function ContainerRepositoryPublicAccessControl({
+    checked,
+    onChange,
+    disabled = false,
+}: {
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+    disabled?: boolean;
+}): React.ReactNode {
+    return <Flex alignItems={"center"} justifyContent={"space-between"} gap={"16px"}>
+        <Box minWidth={0}>
+            <Label>Public access</Label>
+            <Text>
+                Allow anyone to pull images by a known tag in the entire repository. Public access does not permit browsing or listing image tags.
+            </Text>
+        </Box>
+        <Box flexShrink={0}>
+            <Toggle
+                checked={checked}
+                onChange={() => onChange(!checked)}
+                disabled={disabled}
+            />
+        </Box>
+    </Flex>;
+}
+
+export function ContainerRepositoryPublicAccess({repository, reload}: {
+    repository: ContainerRepository;
+    reload: () => void;
+}): React.ReactNode {
+    const [commandLoading, invokeCommand] = useCloudCommand();
+    const [publicAccess, setPublicAccess] = React.useState(repository.specification.public === true);
+
+    React.useEffect(() => {
+        setPublicAccess(repository.specification.public === true);
+    }, [repository]);
+
+    const update = async (next: boolean) => {
+        if (commandLoading) return;
+        const previous = publicAccess;
+        setPublicAccess(next);
+        try {
+            const result = await invokeCommand(api.updatePublic(bulkRequestOf({
+                id: repository.id,
+                public: next,
+            })));
+            if (result == null) {
+                setPublicAccess(previous);
+                return;
+            }
+            reload();
+        } catch {
+            setPublicAccess(previous);
+        }
+    };
+
+    return <Box mb={16}>
+        <ContainerRepositoryPublicAccessControl
+            checked={publicAccess}
+            onChange={update}
+            disabled={commandLoading}
+        />
+    </Box>;
+}
+
 export {api};
 export default api;

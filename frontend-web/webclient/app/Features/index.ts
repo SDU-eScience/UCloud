@@ -8,13 +8,7 @@ export enum Feature {
 
     REORDER_APP_GROUP,
 
-    STACKS,
-
-    INFERENCE,
-
-    FILE_BROWSER_STATUS_BAR,
-
-    CONTAINER_REPOSITORIES,
+    CUSTOM_APPLICATIONS,
 }
 
 enum Environment {
@@ -71,26 +65,8 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithFlag: allDevEnvironments,
     },
 
-    "stacks": {
-        feature: Feature.STACKS,
-        showWithoutFlag: allDevEnvironments,
-        showWithFlag: allEnvironments,
-    },
-
-    "inference": {
-        feature: Feature.INFERENCE,
-        showWithoutFlag: allEnvironments,
-        showWithFlag: allEnvironments,
-    },
-
-    "file-browser-status-bar": {
-        feature: Feature.FILE_BROWSER_STATUS_BAR,
-        showWithoutFlag: allDevEnvironments,
-        showWithFlag: allEnvironments,
-    },
-
-    "container-repositories": {
-        feature: Feature.CONTAINER_REPOSITORIES,
+    "custom-applications": {
+        feature: Feature.CUSTOM_APPLICATIONS,
         useBackend: true,
     }
 };

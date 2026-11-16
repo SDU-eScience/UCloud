@@ -95,7 +95,6 @@ func StreamingExecute(title string, command []string, opts ExecuteOptions) Execu
 	errBuilder := &bytes.Buffer{}
 	messageChan := make(chan string, 128)
 
-	wg := sync.WaitGroup{}
 	readerWg := sync.WaitGroup{}
 
 	launchReader := func(pipe io.ReadCloser, builder *bytes.Buffer) {
@@ -120,34 +119,29 @@ func StreamingExecute(title string, command []string, opts ExecuteOptions) Execu
 	launchReader(outPipe, outBuilder)
 	launchReader(errPipe, errBuilder)
 
+	consumerDone := make(chan struct{})
 	if !opts.Silent {
 		if HasPty {
-			wg.Add(1)
 			go func() {
-				defer wg.Done()
+				defer close(consumerDone)
 				LogOutputTui(&mutableTitle, messageChan)
 			}()
 		} else {
-			wg.Add(1)
+			fmt.Println(title)
+
 			go func() {
-				defer wg.Done()
+				defer close(consumerDone)
 
-				fmt.Println(title)
-
-				for {
-					msg, ok := <-messageChan
-					if !ok {
-						break
-					}
-
+				for msg := range messageChan {
 					fmt.Print(msg)
 				}
 			}()
 		}
 	} else {
 		go func() {
+			defer close(consumerDone)
+
 			for range messageChan {
-				// Do nothing
 			}
 		}()
 	}
@@ -157,35 +151,54 @@ func StreamingExecute(title string, command []string, opts ExecuteOptions) Execu
 		log.Fatal("Exec: %v: %s", err)
 	}
 
-	readerWg.Wait()
+	readersDone := make(chan struct{})
+	go func() {
+		defer close(readersDone)
+		readerWg.Wait()
+	}()
+
+	select {
+	case <-readersDone:
+	case <-consumerDone:
+		go func() {
+			for range messageChan {
+			}
+		}()
+
+		readerWg.Wait()
+	}
+
 	_ = cmd.Wait()
 	code := cmd.ProcessState.ExitCode()
+
 	if !opts.ContinueOnFailure && code != 0 {
-		if opts.Silent {
+		if opts.Silent || !HasPty {
 			fmt.Printf("Process failed with exit code %d\n", code)
 			os.Exit(1)
-		} else {
-			if HasPty {
-				mutableTitle = "❌ " + title
+		}
 
-				messageChan <- "\n\n"
-				messageChan <- fmt.Sprintf("Process failed with exit code %d\n", code)
-				messageChan <- fmt.Sprintf("Command: %#v\n", command)
-				if opts.WorkingDir.Present {
-					messageChan <- fmt.Sprintf("Dir: %v\n", opts.WorkingDir.Value)
-				}
-				if len(opts.Environment) > 0 {
-					messageChan <- fmt.Sprintf("Env: %#v\n", opts.Environment)
-				}
-			} else {
-				fmt.Printf("Process failed with exit code %d\n", code)
-				os.Exit(1)
+		mutableTitle = "❌ " + title
+
+		stream := func(message string) {
+			select {
+			case messageChan <- message:
+			case <-consumerDone:
 			}
 		}
-	} else {
-		close(messageChan)
+
+		stream("\n\n")
+		stream(fmt.Sprintf("Process failed with exit code %d\n", code))
+		stream(fmt.Sprintf("Command: %#v\n", command))
+		if opts.WorkingDir.Present {
+			stream(fmt.Sprintf("Dir: %v\n", opts.WorkingDir.Value))
+		}
+		if len(opts.Environment) > 0 {
+			stream(fmt.Sprintf("Env: %#v\n", opts.Environment))
+		}
 	}
-	wg.Wait()
+
+	close(messageChan)
+	<-consumerDone
 
 	return ExecuteResponse{
 		ExitCode: code,

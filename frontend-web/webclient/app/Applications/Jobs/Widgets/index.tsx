@@ -54,6 +54,7 @@ const WidgetBody: React.FunctionComponent<WidgetProps> = props => {
         case "network_ip":
             return <NetworkIPParameter {...props} parameter={props.parameter} />;
         case "private_network":
+        case "ucloud_network":
             return <PrivateNetworkParameter {...props} parameter={props.parameter} />;
         case "workflow":
             return <WorkflowParameter {...props} parameter={props.parameter} />;
@@ -217,7 +218,7 @@ export function FieldRow(props: {
                 <Markdown>{props.description}</Markdown>
             </div>}
         </div>
-        <div className={FieldControlClass}>
+        <div className={FieldControlClass} data-has-action={action ? "true" : "false"}>
             <div className={FieldControlBodyClass}>{props.control}</div>
             {!action ? null : <Button type="button" color="secondaryMain" onClick={runAction}>
                 {actionLabel}
@@ -408,7 +409,6 @@ const FieldRowClass = injectStyleSimple("job-field-row", `
     display: grid;
     grid-template-columns: minmax(180px, 2fr) minmax(240px, 3fr);
     min-height: 64px;
-    background: var(--backgroundCard);
     column-gap: 24px;
 
     &:has(> div:nth-child(2) > div:first-child :focus) > div:first-child {
@@ -437,6 +437,10 @@ const FieldControlClass = injectStyleSimple("job-field-control", `
     align-items: start;
     min-width: 0;
     padding: 10px 0;
+
+    &[data-has-action="false"] {
+        grid-template-columns: minmax(0, 1fr);
+    }
 `);
 
 const FieldControlBodyClass = injectStyleSimple("job-field-control-body", `
@@ -473,7 +477,8 @@ const DefaultParameterTitle: Record<string, string> = {
     "input_directory": "Folder name",
     "ingress": "Public link",
     "network_ip": "Public IP",
-    "private_network": "Private network"
+    "private_network": "Network",
+    "ucloud_network": "Network"
 };
 
 function WidgetLabel(props: {parameter: ApplicationParameter; bold?: boolean; title?: string}): React.ReactNode {
@@ -485,6 +490,7 @@ function WidgetLabel(props: {parameter: ApplicationParameter; bold?: boolean; ti
         case "input_file":
         case "network_ip":
         case "private_network":
+        case "ucloud_network":
             const title = suppliedTitle ?? (props.parameter.title ? props.parameter.title : DefaultParameterTitle[props.parameter.type]);
             return <Label htmlFor={widgetId(props.parameter) + "visual"} style={style}> {title}</Label >
     }
@@ -617,7 +623,8 @@ export function clearWidgetValue(parameter: ApplicationParameter): void {
     if (parameter.type === "peer") {
         ids.push(widgetId(parameter) + "name", widgetId(parameter) + "job");
     } else if (parameter.type === "input_directory" || parameter.type === "input_file" ||
-        parameter.type === "ingress" || parameter.type === "network_ip" || parameter.type === "private_network") {
+        parameter.type === "ingress" || parameter.type === "network_ip" ||
+        parameter.type === "private_network" || parameter.type === "ucloud_network") {
         ids.push(widgetId(parameter) + "visual");
     }
     if (parameter.type === "ingress") ids.push(widgetId(parameter) + "-port");

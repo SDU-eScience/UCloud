@@ -92,6 +92,12 @@ func Init() {
 	initPrivateNetworks()
 	times["PrivateNetworks"] = t.Mark()
 
+	initPrivateNetworkIps()
+	times["PrivateNetworkIps"] = t.Mark()
+
+	initServices()
+	times["Services"] = t.Mark()
+
 	initResourceCatalogs()
 	times["ResourceCatalogs"] = t.Mark()
 

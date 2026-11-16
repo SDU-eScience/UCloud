@@ -149,6 +149,7 @@ var metadataCollectedMetrics = struct {
 }{drives: map[string]MetadataCatalogMetrics{}}
 
 var errMetadataCatalogNotFound = errors.New("metadata catalog has not been created")
+var errMetadataIndexIncomplete = errors.New("storage metadata index is not ready")
 
 func MetadataLookupDirectoryStats(ucloudPath string) (result MetadataDirectoryStats, found bool, err error) {
 	startedAt := time.Now()
@@ -177,29 +178,18 @@ func MetadataLookupDirectoryStats(ucloudPath string) (result MetadataDirectorySt
 		return result, false, err
 	}
 	defer closeDB()
-	entry, found, err := metadataReadEntry(db, metadataPathKey(components))
+	snapshot := metadataNewQuerySnapshot(db)
+	defer snapshot.Close()
+	entry, found, err := metadataReadEntry(snapshot, metadataPathKey(components))
 	if err != nil || !found {
 		return result, found, err
 	}
 	if entry.EntryType != MetaEntryDirectory {
 		return result, false, fmt.Errorf("%q is not a directory", ucloudPath)
 	}
-	_, rootCloser, rootErr := db.Get(metadataPathKey(nil))
-	complete := rootErr == nil
-	if rootCloser != nil {
-		_ = rootCloser.Close()
-	}
-	if rootErr != nil && !errors.Is(rootErr, pebble.ErrNotFound) {
-		return result, false, rootErr
-	}
-	_, pendingCloser, pendingErr := db.Get(metadataPendingAggregateKey)
-	if pendingCloser != nil {
-		_ = pendingCloser.Close()
-	}
-	if pendingErr == nil {
-		complete = false
-	} else if !errors.Is(pendingErr, pebble.ErrNotFound) {
-		return result, false, pendingErr
+	complete, err := metadataAggregatesComplete(snapshot)
+	if err != nil {
+		return result, false, err
 	}
 	return MetadataDirectoryStats{
 		Path:                    ucloudPath,
@@ -223,11 +213,15 @@ func metadataLookupRecursiveSizes(drive *orc.Drive, internalPaths []string) (res
 	startedAt := time.Now()
 	defer func() { metadataRecordQuery(drive.Id, "recursive_sizes", time.Since(startedAt), err) }()
 
-	driveRoot, ok, _ := DriveToLocalPath(drive)
+	visibleRoot, ok, catalogDrive := DriveToLocalPath(drive)
 	if !ok {
 		return result, fmt.Errorf("drive %q is not available on this provider", drive.Id)
 	}
-	db, closeDB, err := metadataOpenDatabaseForQuery(drive.Id)
+	driveRoot, ok, _ := DriveToLocalPath(catalogDrive)
+	if !ok {
+		return result, fmt.Errorf("drive %q is not available on this provider", catalogDrive.Id)
+	}
+	db, closeDB, err := metadataOpenDatabaseForQuery(catalogDrive.Id)
 	if err != nil {
 		if errors.Is(err, errMetadataCatalogNotFound) {
 			return result, nil
@@ -235,13 +229,22 @@ func metadataLookupRecursiveSizes(drive *orc.Drive, internalPaths []string) (res
 		return result, err
 	}
 	defer closeDB()
+	snapshot := metadataNewQuerySnapshot(db)
+	defer snapshot.Close()
+	complete, err := metadataAggregatesComplete(snapshot)
+	if err != nil || !complete {
+		return result, err
+	}
 
 	for _, internalPath := range internalPaths {
+		if !metadataPathContains(visibleRoot, internalPath) {
+			return result, errors.New("path is outside the requested drive")
+		}
 		components, componentErr := metadataComponentsBelowDrive(internalPath, driveRoot)
 		if componentErr != nil {
 			return result, componentErr
 		}
-		entry, found, readErr := metadataReadEntry(db, metadataPathKey(components))
+		entry, found, readErr := metadataReadEntry(snapshot, metadataPathKey(components))
 		if readErr != nil {
 			return result, readErr
 		}
@@ -274,43 +277,159 @@ func MetadataSearchByNamePrefix(ctx context.Context, folder, prefix string, limi
 	if err != nil {
 		return false, err
 	}
+	visibleDrive, _, ok := ResolveDriveByUCloudPath(folder)
+	if !ok {
+		return false, fmt.Errorf("unknown UCloud path %q", folder)
+	}
+	visibleRoot, ok, _ := DriveToLocalPath(visibleDrive)
+	if !ok || !metadataPathContains(visibleRoot, internalPath) {
+		return false, errors.New("search path is outside the requested drive")
+	}
+	visibleComponents, err := metadataComponentsBelowDrive(visibleRoot, driveRoot)
+	if err != nil {
+		return false, err
+	}
 
 	db, closeDB, err := metadataOpenDatabaseForQuery(driveID)
 	if err != nil {
 		if errors.Is(err, errMetadataCatalogNotFound) {
-			return false, nil
+			return false, errMetadataIndexIncomplete
 		}
 		return false, err
 	}
 	defer closeDB()
-	pendingBefore, err := metadataNameRefreshPending(db)
+	snapshot := metadataNewQuerySnapshot(db)
+	defer snapshot.Close()
+	complete, err = metadataAggregatesCompleteForSearch(snapshot, folderComponents)
 	if err != nil {
 		return false, err
 	}
-	if err = metadataSearchByNamePrefixInDB(ctx, db, driveID, folderComponents, prefix, limit, emit); err != nil {
-		return false, err
-	}
-	pendingAfter, err := metadataNameRefreshPending(db)
+	pending, err := metadataNameRefreshAffectsSearch(snapshot, folderComponents)
 	if err != nil {
 		return false, err
 	}
-	return !pendingBefore && !pendingAfter, nil
+	if !complete || pending {
+		return false, errMetadataIndexIncomplete
+	}
+	err = metadataSearchByNamePrefixInReader(ctx, snapshot, db, driveID, folderComponents, prefix, limit, func(result MetadataSearchResult) bool {
+		components := strings.Split(strings.TrimPrefix(result.Path, "/"+driveID+"/"), "/")
+		path, ok := metadataVisiblePath(visibleDrive.Id, visibleComponents, components)
+		if !ok {
+			return true
+		}
+		result.Path = path
+		return emit(result)
+	})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
-func metadataNameRefreshPending(db *pebble.DB) (bool, error) {
-	_, closer, err := db.Get(metadataPendingNameKey)
+func metadataAggregatesComplete(reader pebble.Reader) (bool, error) {
+	verified, err := metadataAggregatesVerified(reader)
+	if err != nil || !verified {
+		return false, err
+	}
+	_, closer, err := reader.Get(metadataPendingAggregateKey)
 	if closer != nil {
 		_ = closer.Close()
 	}
 	if errors.Is(err, pebble.ErrNotFound) {
-		current, versionErr := metadataSearchIndexCurrent(db)
+		return true, nil
+	}
+	return false, err
+}
+
+func metadataAggregatesVerified(reader pebble.Reader) (bool, error) {
+	_, closer, err := reader.Get(metadataPathKey(nil))
+	if closer != nil {
+		_ = closer.Close()
+	}
+	if errors.Is(err, pebble.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	value, closer, err := reader.Get(metadataAggregateVersionKey)
+	if errors.Is(err, pebble.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	current := bytes.Equal(value, metadataAggregateVersion)
+	_ = closer.Close()
+	if !current {
+		return false, nil
+	}
+	return true, nil
+}
+
+func metadataAggregatesCompleteForSearch(reader pebble.Reader, folderComponents []string) (bool, error) {
+	verified, err := metadataAggregatesVerified(reader)
+	if err != nil || !verified {
+		return false, err
+	}
+	value, closer, err := reader.Get(metadataPendingAggregateKey)
+	if errors.Is(err, pebble.ErrNotFound) {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	data := append([]byte(nil), value...)
+	_ = closer.Close()
+	var pending metadataPendingAggregate
+	err = pending.decode(data)
+	if err != nil {
+		return false, err
+	}
+	components, err := metadataPathComponents(pending.rootKey)
+	if err != nil {
+		return false, err
+	}
+	return !metadataComponentsOverlap(components, folderComponents), nil
+}
+
+func metadataNameRefreshAffectsSearch(reader pebble.Reader, folderComponents []string) (bool, error) {
+	current, err := metadataSearchIndexCurrent(reader)
+	if err != nil || !current {
+		return true, err
+	}
+	value, closer, err := reader.Get(metadataPendingNameKey)
+	if errors.Is(err, pebble.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return true, err
+	}
+	rootKey := append([]byte(nil), value...)
+	if closer != nil {
+		_ = closer.Close()
+	}
+	components, err := metadataPathComponents(rootKey)
+	if err != nil {
+		return true, err
+	}
+	return metadataComponentsOverlap(components, folderComponents), nil
+}
+
+func metadataNameRefreshPending(reader pebble.Reader) (bool, error) {
+	_, closer, err := reader.Get(metadataPendingNameKey)
+	if closer != nil {
+		_ = closer.Close()
+	}
+	if errors.Is(err, pebble.ErrNotFound) {
+		current, versionErr := metadataSearchIndexCurrent(reader)
 		return !current, versionErr
 	}
 	return err == nil, err
 }
 
-func metadataSearchIndexCurrent(db *pebble.DB) (bool, error) {
-	value, closer, err := db.Get(metadataSearchIndexVersionKey)
+func metadataSearchIndexCurrent(reader pebble.Reader) (bool, error) {
+	value, closer, err := reader.Get(metadataSearchIndexVersionKey)
 	if errors.Is(err, pebble.ErrNotFound) {
 		return false, nil
 	}
@@ -322,6 +441,10 @@ func metadataSearchIndexCurrent(db *pebble.DB) (bool, error) {
 }
 
 func metadataSearchByNamePrefixInDB(ctx context.Context, db *pebble.DB, driveID string, folderComponents []string, prefix string, limit int, emit func(MetadataSearchResult) bool) (err error) {
+	return metadataSearchByNamePrefixInReader(ctx, db, db, driveID, folderComponents, prefix, limit, emit)
+}
+
+func metadataSearchByNamePrefixInReader(ctx context.Context, reader pebble.Reader, db *pebble.DB, driveID string, folderComponents []string, prefix string, limit int, emit func(MetadataSearchResult) bool) (err error) {
 	if limit <= 0 {
 		return errors.New("search limit must be positive")
 	}
@@ -330,7 +453,7 @@ func metadataSearchByNamePrefixInDB(ctx context.Context, db *pebble.DB, driveID 
 	stopped := false
 	searchIndex := func(keyspace byte, indexPrefix []byte, matches func([]byte) bool) error {
 		lower := append([]byte{keyspace}, indexPrefix...)
-		iter, iterErr := db.NewIter(&pebble.IterOptions{LowerBound: lower, UpperBound: metadataPrefixSuccessor(lower)})
+		iter, iterErr := reader.NewIter(&pebble.IterOptions{LowerBound: lower, UpperBound: metadataPrefixSuccessor(lower)})
 		if iterErr != nil {
 			return iterErr
 		}
@@ -345,7 +468,7 @@ func metadataSearchByNamePrefixInDB(ctx context.Context, db *pebble.DB, driveID 
 			if keyErr != nil {
 				return keyErr
 			}
-			entry, present, readErr := metadataReadEntry(db, pathKey)
+			entry, present, readErr := metadataReadEntry(reader, pathKey)
 			if readErr != nil {
 				return readErr
 			}
@@ -418,6 +541,21 @@ func metadataComponentsContain(parent, child []string) bool {
 	return true
 }
 
+func metadataComponentsOverlap(first, second []string) bool {
+	return metadataComponentsContain(first, second) || metadataComponentsContain(second, first)
+}
+
+func metadataVisiblePath(driveId string, visibleRoot, components []string) (string, bool) {
+	if !metadataComponentsContain(visibleRoot, components) {
+		return "", false
+	}
+	path := "/" + driveId
+	if len(components) > len(visibleRoot) {
+		path += "/" + strings.Join(components[len(visibleRoot):], "/")
+	}
+	return path, true
+}
+
 func MetadataCatalogMetricsForDrive(driveID string) (result MetadataCatalogMetrics, err error) {
 	startedAt := time.Now()
 	defer func() { metadataRecordQuery(driveID, "metrics", time.Since(startedAt), err) }()
@@ -481,9 +619,22 @@ func metadataOpenDatabaseForQuery(driveID string) (*pebble.DB, func(), error) {
 	return metadataAcquireDatabase(databasePath, false)
 }
 
+func metadataNewQuerySnapshot(db *pebble.DB) *pebble.EventuallyFileOnlySnapshot {
+	return db.NewEventuallyFileOnlySnapshot([]pebble.KeyRange{
+		{
+			Start: []byte{0x00},
+			End:   []byte{MetaKeyspaceTrigram + 1},
+		},
+	})
+}
+
 func metadataWarmDatabase(drive *orc.Drive) {
 	go func() {
-		_, closeDB, err := metadataOpenDatabaseForQuery(drive.Id)
+		_, ok, catalogDrive := DriveToLocalPath(drive)
+		if !ok {
+			return
+		}
+		_, closeDB, err := metadataOpenDatabaseForQuery(catalogDrive.Id)
 		if err != nil {
 			return
 		}

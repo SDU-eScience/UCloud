@@ -49,7 +49,7 @@ A thread is one conversation: a title, the messages, the model, and the token us
 [inference sandbox](../../glossary.md#inference-sandbox) may use the internet.
 
 The playground creates a thread when the user sends the first message, and it holds the thread in memory while the
-browser session is open. It writes the thread to the member files at most every five seconds while the session is open,
+browser session is open. It writes the thread to the member drive at most every five seconds while the session is open,
 and once when the session ends. A write replaces the file of the thread.
 
 A thread holds at most 8 MB of JSON, and the title is cut at 80 characters. A user can delete a thread, and the platform
@@ -58,7 +58,7 @@ then removes its file. Threads stay until the user deletes them.
 ## Attachments
 
 A user can add a file to a message. The playground sends the file in chunks of at most 8 MB, and the file must stay
-under 64 MB. A copy stays in the member files, so that the user and the model can read it again later.
+under 64 MB. A copy stays in the member drive, so that the user and the model can read it again later.
 
 | Content | How it reaches the model |
 |---------|--------------------------|
@@ -71,10 +71,10 @@ on the Kubernetes cluster of the provider, with a limit of 120 seconds. The play
 and it reports an error when the task does not finish.
 
 A backend reads an image, a video, or an audio file through a download link with an unguessable token, because a backend
-has no UCloud credentials. The link works while the file stays in the member files.
+has no UCloud credentials. The link works while the file stays in the member drive.
 
-The platform removes an attachment after 14 days without activity, and a user can delete an attachment earlier. The
-cleanup runs once an hour, and it removes the Markdown copy of a converted document too.
+The platform removes an attachment after 60 minutes without activity, and a user can delete an attachment earlier. The
+cleanup runs every 15 minutes, and it removes the Markdown copy of a converted document too.
 
 ## Tools
 

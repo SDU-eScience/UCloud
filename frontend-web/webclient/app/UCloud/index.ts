@@ -1583,6 +1583,7 @@ export type AppParameterValue =
     | AppParameterValueNS.Workflow
     | AppParameterValueNS.ModuleList
     | AppParameterValueNS.PrivateNetwork
+    | AppParameterValueNS.UCloudNetwork
     | AppParameterValueNS.ApiServer
     ;
 export interface SimpleDuration {
@@ -2725,6 +2726,13 @@ export interface ModuleList {
 export interface PrivateNetwork {
     id: string,
     type: ("private_network"),
+    ips?: string[],
+}
+
+export interface UCloudNetwork {
+    id: string,
+    type: ("ucloud_network"),
+    ips?: string[],
 }
 
 export interface ApiServer {
@@ -5456,7 +5464,7 @@ export interface ProductsBrowseRequest {
     itemsToSkip?: number /* int64 */,
     filterName?: string,
     filterProvider?: string,
-    filterProductType?: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "INFERENCE" | "NETWORK_IP" | "PRIVATE_NETWORK"),
+    filterProductType?: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "INFERENCE" | "NETWORK_IP" | "PRIVATE_NETWORK" | "PRIVATE_NETWORK_IP"),
     filterCategory?: string,
     filterUsable?: boolean,
     includeBalance?: boolean,

@@ -1,6 +1,11 @@
 package shared
 
-import "testing"
+import (
+	"testing"
+
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
+)
 
 func TestSchedulerDimensionsMapArithmetic(t *testing.T) {
 	base := SchedulerDimensions{
@@ -62,5 +67,27 @@ func TestSchedulerDimensionsSatisfiesChecksAllRequestedResources(t *testing.T) {
 	missingKeyRequest := SchedulerDimensions{Resources: map[string]int{"amd.com/gpu": 1}}
 	if available.Satisfies(missingKeyRequest) {
 		t.Fatalf("expected missing resource key to fail satisfy check")
+	}
+}
+
+func TestJobAntiAffinityGroupIsNamespacedByWorkspace(t *testing.T) {
+	job := &orc.Job{}
+	job.Specification.Labels = map[string]string{orc.ResourceLabelAntiAffinityGroup: "cluster-control-plane"}
+
+	job.Owner.CreatedBy = "alice"
+	group := JobAntiAffinityGroup(job)
+	if group.Value != "alice/cluster-control-plane" {
+		t.Errorf("expected a personal job to be namespaced by its user, got %q", group.Value)
+	}
+
+	job.Owner.Project = util.OptValue("project-1")
+	group = JobAntiAffinityGroup(job)
+	if group.Value != "project-1/cluster-control-plane" {
+		t.Errorf("expected a project job to be namespaced by its project, got %q", group.Value)
+	}
+
+	job.Specification.Labels = map[string]string{}
+	if JobAntiAffinityGroup(job).Present {
+		t.Errorf("expected a job without the anti-affinity label to have no group")
 	}
 }

@@ -68,7 +68,7 @@ func ComposeUp(noRecreate bool) {
 		command = append(command, "--no-recreate")
 	}
 
-	StreamingExecute("Starting compose cluster", command, ExecuteOptions{})
+	StreamingExecute("Starting compose cluster", command, ExecuteOptions{ContinueOnFailure: true})
 }
 
 func ComposeDown(delete bool) {
@@ -82,7 +82,7 @@ func ComposeDown(delete bool) {
 	if delete {
 		title = "Deleting compose cluster"
 	}
-	StreamingExecute(title, command, ExecuteOptions{})
+	StreamingExecute(title, command, ExecuteOptions{ContinueOnFailure: true})
 }
 
 func ComposeClusterExists() bool {

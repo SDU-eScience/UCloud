@@ -700,15 +700,24 @@ func a2YamlValidateDocumentFields(node *yaml.Node) error {
 		{Name: "vnc", Fields: []string{"enabled", "port", "password"}},
 		{Name: "ssh", Fields: []string{"mode"}},
 		{Name: "inference", Fields: []string{"mode"}},
-		{Name: "ucx", Fields: []string{"executable"}},
+		{Name: "ucx", Fields: []string{"executable", "disasterRecovery"}},
 	}
 	for _, section := range sections {
 		if err := a2YamlValidateFields(a2YamlMappingValue(node, section.Name), section.Name, section.Fields...); err != nil {
 			return err
 		}
 	}
-	executable := a2YamlMappingValue(a2YamlMappingValue(node, "ucx"), "executable")
-	return a2YamlValidateFields(executable, "ucx.executable", "manifestUrl", "publicKey", "binaryName")
+	ucxSection := a2YamlMappingValue(node, "ucx")
+	executable := a2YamlMappingValue(ucxSection, "executable")
+	if err := a2YamlValidateFields(executable, "ucx.executable", "manifestUrl", "publicKey", "binaryName"); err != nil {
+		return err
+	}
+	disasterRecovery := a2YamlMappingValue(ucxSection, "disasterRecovery")
+	if err := a2YamlValidateFields(disasterRecovery, "ucx.disasterRecovery", "enabled", "job"); err != nil {
+		return err
+	}
+	disasterRecoveryJob := a2YamlMappingValue(disasterRecovery, "job")
+	return a2YamlValidateFields(disasterRecoveryJob, "ucx.disasterRecovery.job", "image", "cpu", "memoryInGigs", "args", "port")
 }
 
 func (y *A2Yaml) UnmarshalYAML(n *yaml.Node) error {
@@ -1210,6 +1219,9 @@ func (y *A2Yaml) Normalize() (Application, *util.HttpError) {
 	if validationErr := ValidateUcxExecutableMetadataSection(y.Ucx, "ucx.executable"); validationErr != nil {
 		err = util.MergeHttpErr(err, validationErr)
 	}
+	if validationErr := ValidateUcxDisasterRecoverySection(y.Ucx); validationErr != nil {
+		err = util.MergeHttpErr(err, validationErr)
+	}
 
 	if err != nil {
 		return Application{}, err
@@ -1354,6 +1366,38 @@ func ValidateUcxExecutableMetadataSection(ucx util.Option[UcxDescription], path 
 	}
 	if strings.TrimSpace(executable.BinaryName) == "" {
 		return util.HttpErr(http.StatusBadRequest, "%s.binaryName is required", path)
+	}
+
+	return nil
+}
+
+func ValidateUcxDisasterRecoverySection(ucx util.Option[UcxDescription]) *util.HttpError {
+	if !ucx.Present || !ucx.Value.DisasterRecovery.Present {
+		return nil
+	}
+
+	disasterRecovery := ucx.Value.DisasterRecovery.Value
+	if !disasterRecovery.Enabled {
+		return nil
+	}
+
+	if !ucx.Value.Executable.Present {
+		return util.HttpErr(http.StatusBadRequest, "ucx.executable is required when ucx.disasterRecovery is enabled")
+	}
+	if strings.TrimSpace(disasterRecovery.Job.Image) == "" {
+		return util.HttpErr(http.StatusBadRequest, "ucx.disasterRecovery.job.image is required")
+	}
+	if disasterRecovery.Job.Cpu < 1 {
+		return util.HttpErr(http.StatusBadRequest, "ucx.disasterRecovery.job.cpu must be at least 1")
+	}
+	if disasterRecovery.Job.MemoryInGigs < 1 {
+		return util.HttpErr(http.StatusBadRequest, "ucx.disasterRecovery.job.memoryInGigs must be at least 1")
+	}
+	if len(disasterRecovery.Job.Args) == 0 {
+		return util.HttpErr(http.StatusBadRequest, "ucx.disasterRecovery.job.args must be a non-empty list")
+	}
+	if disasterRecovery.Job.Port <= 0 || disasterRecovery.Job.Port > 65535 {
+		return util.HttpErr(http.StatusBadRequest, "ucx.disasterRecovery.job.port must be between 1 and 65535")
 	}
 
 	return nil

@@ -135,8 +135,7 @@ const Core = (): React.ReactNode => {
                     <Route path={"/drives/*"} element={React.createElement(requireAuth(DrivesRouter))} />
                     <Route path={AppRoutes.files.visualize()} element={React.createElement(requireAuth(FilesVisualization))} />
                     <Route path="/files/*" element={React.createElement(requireAuth(FilesRouter))} />
-                    {hasFeature(Feature.CONTAINER_REPOSITORIES) ?
-                        <Route path={`${AppRoutes.containerRepositories.browse()}/*`} element={React.createElement(requireAuth(ContainerRepositoryBrowse))} /> : null}
+                    <Route path={`${AppRoutes.containerRepositories.browse()}/*`} element={React.createElement(requireAuth(ContainerRepositoryBrowse))} />
 
                     <Route path={AppRoutes.users.registration()} element={<Registration />} />
                     <Route path={AppRoutes.users.verifyEmail()} element={<VerifyEmail />} />
@@ -159,9 +158,8 @@ const Core = (): React.ReactNode => {
                            element={React.createElement(requireAuth(CategoryCreate))} />
                     <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(ApplicationSearch))} />
 
-                    {!hasFeature(Feature.CONTAINER_REPOSITORIES) ? null :
-                        <Route path={AppRoutes.apps.creator()}
-                           element={React.createElement(requireAuth(ApplicationCreator))} />}
+                    <Route path={AppRoutes.apps.creator()}
+                       element={React.createElement(requireAuth(ApplicationCreator))} />
 
                     <Route path={`${AppRoutes.compute.jobs()}/*`}
                            element={React.createElement(requireAuth(JobsOnlyRouter))} />
@@ -175,6 +173,7 @@ const Core = (): React.ReactNode => {
                     <Route path={"/public-links/*"} element={React.createElement(requireAuth(PublicLinksRouter))} />
                     <Route path="/licenses/*" element={React.createElement(requireAuth(LicenseRouter))} />
                     <Route path="/public-ips/*" element={React.createElement(requireAuth(NetworkIPsRouter))} />
+                    <Route path="/networks/*" element={React.createElement(requireAuth(PrivateNetworksRouter))} />
                     <Route path="/private-networks/*" element={React.createElement(requireAuth(PrivateNetworksRouter))} />
 
                     <Route path={AppRoutes.resources.sshKeys()} element={React.createElement(requireAuth(SSHKeyBrowse))} />

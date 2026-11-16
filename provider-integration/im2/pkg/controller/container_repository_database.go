@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"net/http"
 	"strings"
 	"sync"
 
@@ -95,7 +96,9 @@ func ContainerRepositoryRetrieveByRepository(repositoryName string) (orc.Contain
 	request.IncludeOthers = true
 	repository, err := orc.ContainerRepositoriesControlRetrieve.Invoke(request)
 	if err != nil {
-		ContainerRepositoryRemove(id)
+		if err.StatusCode == http.StatusNotFound {
+			ContainerRepositoryRemove(id)
+		}
 		return orc.ContainerRepository{}, false
 	}
 

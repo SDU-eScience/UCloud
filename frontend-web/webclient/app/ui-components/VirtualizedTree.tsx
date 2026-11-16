@@ -1,6 +1,6 @@
 import * as React from "react";
 import AutoSizer from "react-virtualized-auto-sizer";
-import {FixedSizeList, ListChildComponentProps} from "react-window";
+import {VariableSizeList, ListChildComponentProps} from "react-window";
 import {injectStyle} from "@/Unstyled";
 
 export interface VirtualizedTreeApi {
@@ -30,6 +30,7 @@ interface VirtualizedTreeProps<T> {
     ariaLabel(node: T): string;
     label?: string;
     initialExpandedIds?: readonly string[];
+    forcedExpandedIds?: readonly string[];
     initialFocusedId?: string;
     initialSelectedId?: string;
     initialSelectedIds?: readonly string[];
@@ -38,8 +39,11 @@ interface VirtualizedTreeProps<T> {
     selectionMode?: VirtualizedTreeSelectionMode;
     selectionFollowsFocus?: boolean;
     rowHeight?: number;
+    rowHeightOf?(node: T): number;
     indent?: number;
     overscanCount?: number;
+    activateOnSingleClick?: boolean;
+    isDisabled?(node: T): boolean;
     onActivate?(node: T): void;
     onKeyboardActivate?(node: T): void;
     onPrefetch?(node: T): void;
@@ -57,7 +61,9 @@ interface RowData<T> {
     ariaLabel(node: T): string;
     focusedId?: string;
     selectedIds: ReadonlySet<string>;
-    select(row: VirtualizedTreeRow<T>): void;
+    activateOnSingleClick: boolean;
+    isDisabled?(node: T): boolean;
+    select(row: VirtualizedTreeRow<T>, focus?: boolean): void;
     toggle(row: VirtualizedTreeRow<T>): void;
     activate(row: VirtualizedTreeRow<T>): void;
     hover(row: VirtualizedTreeRow<T>): void;
@@ -128,7 +134,7 @@ function flattenVisibleNodes<T>(
 
 export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactNode {
     const rootRef = React.useRef<HTMLDivElement>(null);
-    const listRef = React.useRef<FixedSizeList<RowData<T>>>(null);
+    const listRef = React.useRef<VariableSizeList<RowData<T>>>(null);
     const hoverTimer = React.useRef<number | undefined>(undefined);
     const typeahead = React.useRef("");
     const typeaheadTimer = React.useRef<number | undefined>(undefined);
@@ -136,6 +142,12 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
     const selectionFollowsFocus = props.selectionFollowsFocus ?? selectionMode === "single";
     const controlledSelection = props.selectedId !== undefined || props.selectedIds !== undefined;
     const [expanded, setExpanded] = React.useState<Set<string>>(() => new Set(props.initialExpandedIds));
+    const effectiveExpanded = React.useMemo(() => {
+        if (props.forcedExpandedIds === undefined || props.forcedExpandedIds.length === 0) return expanded;
+        const next = new Set(expanded);
+        for (const id of props.forcedExpandedIds) next.add(id);
+        return next;
+    }, [expanded, props.forcedExpandedIds]);
     const [focusedId, setFocusedId] = React.useState(props.initialFocusedId ?? props.initialSelectedId);
     const [selectedIds, setSelectedIds] = React.useState<Set<string>>(() => {
         if (selectionMode === "none") return new Set();
@@ -154,11 +166,11 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
 
     const rows = React.useMemo(() => flattenVisibleNodes(
         props.nodes,
-        expanded,
+        effectiveExpanded,
         props.getId,
         props.getChildren,
         props.isBranch,
-    ), [props.nodes, expanded, props.getId, props.getChildren, props.isBranch]);
+    ), [props.nodes, effectiveExpanded, props.getId, props.getChildren, props.isBranch]);
 
     const focusedIndex = rows.findIndex(row => row.id === focusedId);
 
@@ -175,9 +187,9 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
 
     React.useEffect(() => {
         for (const row of rows) {
-            if (expanded.has(row.id)) prefetch(row);
+            if (effectiveExpanded.has(row.id)) prefetch(row);
         }
-    }, [expanded, prefetch, rows]);
+    }, [effectiveExpanded, prefetch, rows]);
 
     const updateSelection = React.useCallback((next: Set<string>) => {
         setSelectedIds(next);
@@ -189,15 +201,15 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
         listRef.current?.scrollToItem(focusedIndex, "smart");
     }, [controlledSelection, focusedIndex]);
 
-    const focusRow = React.useCallback((row: VirtualizedTreeRow<T>, select = selectionFollowsFocus) => {
+    const focusRow = React.useCallback((row: VirtualizedTreeRow<T>, select = selectionFollowsFocus, focus = true) => {
         setFocusedId(row.id);
         if (select && selectionMode !== "none") updateSelection(new Set([row.id]));
         prefetch(row);
-        rootRef.current?.focus({preventScroll: true});
+        if (focus) rootRef.current?.focus({preventScroll: true});
     }, [prefetch, selectionFollowsFocus, selectionMode, updateSelection]);
 
-    const pointerSelect = React.useCallback((row: VirtualizedTreeRow<T>) => {
-        focusRow(row, true);
+    const pointerSelect = React.useCallback((row: VirtualizedTreeRow<T>, focus = true) => {
+        focusRow(row, true, focus);
     }, [focusRow]);
 
     const toggleSelection = React.useCallback((row: VirtualizedTreeRow<T>) => {
@@ -213,7 +225,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
     const toggle = React.useCallback((row: VirtualizedTreeRow<T>) => {
         if (!props.isBranch(row.node)) return;
         prefetch(row);
-        const isCollapsing = expanded.has(row.id);
+        const isCollapsing = effectiveExpanded.has(row.id);
         if (isCollapsing && focusedId !== undefined && focusedId !== row.id && containsNode(props.getChildren(row.node), focusedId, props.getId, props.getChildren)) {
             setFocusedId(row.id);
             if (selectionFollowsFocus && selectionMode !== "none") updateSelection(new Set([row.id]));
@@ -224,7 +236,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
             else next.add(row.id);
             return next;
         });
-    }, [expanded, focusedId, prefetch, props.getChildren, props.getId, props.isBranch, selectionFollowsFocus, selectionMode, updateSelection]);
+    }, [effectiveExpanded, focusedId, prefetch, props.getChildren, props.getId, props.isBranch, selectionFollowsFocus, selectionMode, updateSelection]);
 
     const activate = React.useCallback((row: VirtualizedTreeRow<T>) => {
         props.onActivate?.(row.node);
@@ -370,7 +382,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
 
     const itemData = React.useMemo<RowData<T>>(() => ({
         rows,
-        expanded,
+        expanded: effectiveExpanded,
         focusedId,
         selectedIds,
         indent: props.indent ?? 16,
@@ -378,12 +390,24 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
         isBranch: props.isBranch,
         renderNode: props.renderNode,
         ariaLabel: props.ariaLabel,
+        activateOnSingleClick: props.activateOnSingleClick === true,
+        isDisabled: props.isDisabled,
         select: pointerSelect,
         toggle,
         activate,
         hover,
         contextMenu,
-    }), [rows, expanded, focusedId, selectedIds, props.indent, props.getChildren, props.isBranch, props.renderNode, props.ariaLabel, pointerSelect, toggleSelection, toggle, activate, hover, contextMenu]);
+    }), [rows, effectiveExpanded, focusedId, selectedIds, props.indent, props.getChildren, props.isBranch, props.renderNode, props.ariaLabel, props.activateOnSingleClick, props.isDisabled, pointerSelect, toggleSelection, toggle, activate, hover, contextMenu]);
+
+    const rowHeight = props.rowHeight ?? 28;
+    const rowHeightOf = React.useCallback((index: number): number => {
+        if (!props.rowHeightOf) return rowHeight;
+        return props.rowHeightOf(rows[index].node) || rowHeight;
+    }, [props.rowHeightOf, rows, rowHeight]);
+
+    React.useEffect(() => {
+        listRef.current?.resetAfterIndex(0);
+    }, [rows]);
 
     return <div
         ref={rootRef}
@@ -402,18 +426,18 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
         onKeyDown={onKeyDown}
     >
         <AutoSizer>
-            {({height, width}) => <FixedSizeList
+            {({height, width}) => <VariableSizeList
                 ref={listRef}
                 height={height}
                 width={width}
                 itemCount={rows.length}
-                itemSize={props.rowHeight ?? 28}
+                itemSize={rowHeightOf}
                 itemData={itemData}
                 itemKey={(index, data) => data.rows[index].id}
                 overscanCount={props.overscanCount ?? 8}
             >
                 {VirtualizedTreeItem}
-            </FixedSizeList>}
+            </VariableSizeList>}
         </AutoSizer>
     </div>;
 }
@@ -424,6 +448,8 @@ function VirtualizedTreeItem<T>({index, style, data}: ListChildComponentProps<Ro
     const selected = data.selectedIds.has(row.id);
     const branch = data.isBranch(row.node);
     const expanded = branch && data.expanded.has(row.id);
+    const disabled = data.isDisabled?.(row.node) === true;
+    const singleClickActivate = data.activateOnSingleClick && !branch && !disabled;
 
     return <div style={style}>
         <div
@@ -438,11 +464,17 @@ function VirtualizedTreeItem<T>({index, style, data}: ListChildComponentProps<Ro
             aria-expanded={branch ? expanded : undefined}
             data-selected={selected ? "true" : undefined}
             data-focused={focused ? "true" : undefined}
+            data-activate-on-single-click={singleClickActivate ? "true" : undefined}
             style={{paddingLeft: `${(row.depth - 1) * data.indent + 6}px`}}
             onPointerDown={event => {
-                if (event.button === 0) data.select(row);
+                if (event.button !== 0) return;
+                if (singleClickActivate && event.pointerType === "mouse") event.preventDefault();
+                data.select(row, !singleClickActivate);
             }}
-            onDoubleClick={() => data.activate(row)}
+            onClick={event => {
+                if (singleClickActivate && event.detail === 1) data.activate(row);
+            }}
+            onDoubleClick={singleClickActivate ? undefined : () => data.activate(row)}
             onMouseEnter={() => data.hover(row)}
             onContextMenu={event => data.contextMenu(event, row)}
         >
@@ -480,11 +512,17 @@ const VirtualizedTreeClass = injectStyle("virtualized-tree", k => `
         background: var(--rowHover);
     }
 
-    ${k} .virtualized-tree-row[data-selected="true"] {
+    ${k} .virtualized-tree-row[data-activate-on-single-click="true"] {
+        cursor: pointer;
+    }
+
+    ${k} .virtualized-tree-row[data-selected="true"],
+    ${k} .virtualized-tree-row[data-focused="true"] {
         background-color: var(--rowHover);
     }
 
-    ${k}[data-focused="true"] .virtualized-tree-row[data-selected="true"] {
+    ${k}[data-focused="true"] .virtualized-tree-row[data-selected="true"],
+    ${k}[data-focused="true"] .virtualized-tree-row[data-focused="true"] {
         background-color: var(--rowActive);
     }
 

@@ -6,7 +6,7 @@ import {Box, Button, Flex, Icon, Input, Link, Text} from "@/ui-components";
 import AppRoutes from "@/Routes";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
-import {InferenceCapability, InferenceModel, listModels} from "./api";
+import {InferenceCapability, InferenceModel, inferenceModelUsesAudioMinutePricing, inferenceModelUsesMegaPixelPricing, inferenceModelUsesTokenPricing, inferenceModelUsesVideoPricing, listModels} from "./api";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import ModelInferenceLogo, {modelProviderName} from "@/Inference/ModelLogo";
@@ -20,7 +20,7 @@ import {expandAndPrettifyString} from "@/UtilityFunctions";
 import { DropdownClass } from "@/ui-components/Dropdown";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 
-const capabilities: InferenceCapability[] = ["TextGeneration"];
+const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "ImageToImage", "TextToVideo", "ImageToVideo", "SpeechToText"];
 const prettierCapabilities = capabilities.map(expandAndPrettifyString);
 
 const pageStyle = injectStyle("inference-models-page", k => `
@@ -792,9 +792,9 @@ export default function Models(): React.ReactNode {
     </Box>} />;
 }
 
-function formatPricePerMillion(value: number): string {
+function formatCredits(value: number): string {
     if (value === 0) return "Free";
-    return formatPricePerMillionCredits(value, {precision: 2, minDecimalsAfterTrim: 2});
+    return formatPricePerMillionCredits(value, {precision: 6, minDecimalsAfterTrim: 2});
 }
 
 function CatalogFilterButton(props: React.PropsWithChildren<{active: boolean; onClick: () => void; className?: string;}>): React.ReactNode {
@@ -867,6 +867,28 @@ function modelProviderOptions(models: InferenceModel[]): ModelProviderOption[] {
 
 function ModelCatalogCard(props: {model: InferenceModel;}): React.ReactNode {
     const model = props.model;
+    const priceMetrics: {title: string; value: number}[] = [];
+    if (inferenceModelUsesTokenPricing(model)) {
+        priceMetrics.push(
+            {title: "Input/1M", value: model.pricePerMillion.input},
+            {title: "Output/1M", value: model.pricePerMillion.output},
+            {title: "Cached/1M", value: model.pricePerMillion.cachedInput},
+        );
+    }
+    if (inferenceModelUsesMegaPixelPricing(model)) {
+        priceMetrics.push({title: "Per megapixel", value: model.pricePerMegaPixel});
+    }
+    if (inferenceModelUsesAudioMinutePricing(model)) {
+        priceMetrics.push({title: "Per audio minute", value: model.pricePerAudioMinute});
+    }
+    if (inferenceModelUsesVideoPricing(model)) {
+        const tier = model.defaultVideoTier;
+        const price = tier ? model.pricePerVideoSecond?.[tier] : undefined;
+        if (tier && price !== undefined) {
+            priceMetrics.push({title: `Per second at ${tier}`, value: price});
+        }
+    }
+
     return <Link className="model-card" to={AppRoutes.inference.model(model.name)}>
         <div className="model-card-header">
             <span className="model-title">{model.title}</span>
@@ -882,16 +904,14 @@ function ModelCatalogCard(props: {model: InferenceModel;}): React.ReactNode {
             </div>
 
             <div className="metric-grid">
-                <ModelPrice title="Input/1M" value={model.pricePerMillion.input} />
-                <ModelPrice title="Output/1M" value={model.pricePerMillion.output} />
-                <ModelPrice title="Cached/1M" value={model.pricePerMillion.cachedInput} />
+                {priceMetrics.map(metric => <ModelPrice key={metric.title} title={metric.title} value={metric.value} />)}
             </div>
         </div>
     </Link>;
 }
 
 function ModelPrice(props: {title: string; value: number;}): React.ReactNode {
-    return <ModelMetric title={props.title} value={formatPricePerMillion(props.value)} />;
+    return <ModelMetric title={props.title} value={formatCredits(props.value)} />;
 }
 
 const ModelMetric: React.FunctionComponent<{ title: string; value: string; }> = props => {
