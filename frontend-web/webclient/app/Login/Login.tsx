@@ -571,7 +571,7 @@ function LoginWrapper({branding, selection, ...props}: React.PropsWithChildren<T
                         top="24px"
                         colorOnHover={false}
                         trigger={<Relative><Icon color={textColor} color2={textColor} mr={"1em"}
-                            name="suggestion" /></Relative>}
+                            name="heroChatBubbleLeftEllipsis" /></Relative>}
                     >
                         <ExternalLink href={`mailto:${branding.supportEmail}`}>
                             Need help?
@@ -581,7 +581,7 @@ function LoginWrapper({branding, selection, ...props}: React.PropsWithChildren<T
                 )}
                 {!branding.documentation ? null : (
                     <ExternalLink className={LoginExternalLinkClass} href={branding.documentation.href}>
-                        <Icon color={textColor} color2={textColor} name="docs" /> <TextSpan
+                        <Icon color={textColor} color2={textColor} name="heroBookOpen" /> <TextSpan
                             color={textColor}>{branding.documentation.title}</TextSpan>
                     </ExternalLink>
                 )}
