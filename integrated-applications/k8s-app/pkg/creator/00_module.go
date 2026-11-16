@@ -229,6 +229,7 @@ func (app *k8sApp) UserInterface() ucx.UiNode {
 			ucx.SxFlexDirectionColumn,
 			ucx.SxGap(24),
 		).Children(
+			ucx.Warning("The Kubernetes platform is currently available in beta. Keep a separate backup of important data."),
 			app.cardMetadata(),
 			app.cardControlPlane(),
 			app.cardWorkerPools(),
