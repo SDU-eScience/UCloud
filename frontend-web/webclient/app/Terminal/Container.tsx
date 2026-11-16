@@ -1,5 +1,5 @@
 import * as React from "react";
-import {terminalClose, terminalCloseTab, terminalOpen, terminalOpenTab, terminalReorderTabs, terminalSelectTab, terminalUpdateTabTitle, TerminalState, TerminalPageContext, TerminalTab, useTerminalState} from "@/Terminal/State";
+import {terminalClose, terminalCloseTab, terminalOpen, terminalOpenTab, terminalReorderTabs, terminalSelectTab, terminalUpdateTabProviderId, terminalUpdateTabTitle, TerminalState, TerminalPageContext, TerminalTab, useTerminalState} from "@/Terminal/State";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {useLocation} from "react-router-dom";
 import {IconButton} from "@/ui-components/IconButton";
@@ -157,7 +157,7 @@ async function resolveNewTerminalLocation(
     search: string,
 ): Promise<TerminalPageContext> {
     const activeTab = state.tabs[state.activeTab];
-    if (activeTab) {
+    if (activeTab && !activeTab.jobId) {
         return {
             folder: activeTab.folder,
             providerId: activeTab.providerId,
@@ -214,7 +214,6 @@ export const TerminalContainer: React.FunctionComponent = () => {
     const activeTerminalRef = useRef<Terminal | null>(null);
     const terminalRoot = useRef<HTMLDivElement | null>(null);
     const creatingTerminal = useRef(false);
-    const focusAfterCreate = useRef(false);
     const activeTabId = state.tabs[state.activeTab]?.uniqueId;
     const previousActiveTabId = useRef(activeTabId);
     const newTerminalShortcut = preferredNewTerminalShortcut();
@@ -243,8 +242,26 @@ export const TerminalContainer: React.FunctionComponent = () => {
         if (creatingTerminal.current) return;
         creatingTerminal.current = true;
         try {
+            const activeTab = state.tabs[state.activeTab];
+            if (activeTab?.jobId) {
+                dispatch(terminalOpen());
+                dispatch(terminalOpenTab({
+                    select: true,
+                    tab: {
+                        title: activeTab.title,
+                        folder: activeTab.folder,
+                        providerId: activeTab.providerId,
+                        jobId: activeTab.jobId,
+                        rank: activeTab.rank,
+                        initialCommand: activeTab.initialCommand,
+                        clearAfter: activeTab.clearAfter,
+                        suppressUntil: activeTab.suppressUntil,
+                    },
+                }));
+                return;
+            }
+
             const terminalLocation = await resolveNewTerminalLocation(state, location.pathname, location.search);
-            focusAfterCreate.current = true;
             dispatch(terminalOpen());
             dispatch(terminalOpenTab({
                 select: true,
@@ -255,7 +272,6 @@ export const TerminalContainer: React.FunctionComponent = () => {
                 },
             }));
         } catch (error) {
-            focusAfterCreate.current = false;
             sendFailureNotification(error instanceof Error ? error.message : "Failed to create terminal.");
         } finally {
             creatingTerminal.current = false;
@@ -293,10 +309,9 @@ export const TerminalContainer: React.FunctionComponent = () => {
 
     useEffect(() => {
         const tabChanged = previousActiveTabId.current !== activeTabId;
-        const shouldFocus = tabChanged && (previousActiveTabId.current !== undefined || focusAfterCreate.current);
+        const shouldFocus = tabChanged && activeTabId !== undefined;
         previousActiveTabId.current = activeTabId;
         if (!shouldFocus) return;
-        focusAfterCreate.current = false;
 
         const frame = window.requestAnimationFrame(() => activeTerminalRef.current?.focus());
         return () => window.cancelAnimationFrame(frame);
@@ -460,16 +475,29 @@ const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, tabIdx: num
     );
 
     const doReconnect = useCallback(() => {
+        if (props.tab.jobId) {
+            return openSession(JobsApi.openInteractiveSession(
+                bulkRequestOf({id: props.tab.jobId, rank: props.tab.rank ?? 0, sessionType: "SHELL"})
+            ));
+        }
         return openSession(JobsApi.openTerminalInFolder(
             bulkRequestOf({folder: props.tab.folder}))
         );
-    }, [openSession, props.tab.folder]);
+    }, [openSession, props.tab.folder, props.tab.jobId, props.tab.rank]);
+
+    const sessionWithProvider = sessionResp.data.responses.length > 0 ? sessionResp.data.responses[0] : null;
 
     const updateTitle = useCallback((title: string) => {
         const normalizedTitle = title.trim();
         if (normalizedTitle.length === 0 || normalizedTitle === props.tab.title) return;
         dispatch(terminalUpdateTabTitle({tabIdx: props.tabIdx, title: normalizedTitle}));
     }, [props.tab.title, props.tabIdx]);
+
+    useEffect(() => {
+        if (!props.tab.jobId || !sessionWithProvider) return;
+        if (props.tab.providerId === sessionWithProvider.providerId) return;
+        dispatch(terminalUpdateTabProviderId({tabIdx: props.tabIdx, providerId: sessionWithProvider.providerId}));
+    }, [dispatch, props.tab.jobId, props.tab.providerId, props.tabIdx, sessionWithProvider]);
 
     useEffect(() => {
         doReconnect();
@@ -502,7 +530,6 @@ const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, tabIdx: num
         terminal.current?.resize(cols, rows);
     }, [size[0], size[1]]);
 
-    const sessionWithProvider = sessionResp.data.responses.length > 0 ? sessionResp.data.responses[0] : null;
     return <div style={{display: props.hidden ? "none" : "block"}}>
         <ShellWithSession
             sessionWithProvider={sessionWithProvider}
@@ -513,6 +540,11 @@ const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, tabIdx: num
             reconnect={doReconnect}
             maxReconnectAttempts={INTEGRATED_TERMINAL_RECONNECT_ATTEMPTS}
             onTitleChange={updateTitle}
+            onRequestClose={() => dispatch(terminalCloseTab({tabIdx: props.tabIdx}))}
+            jobId={props.tab.jobId}
+            initialCommand={props.tab.initialCommand}
+            clearAfter={props.tab.clearAfter}
+            suppressUntil={props.tab.suppressUntil}
         />
     </div>;
 }

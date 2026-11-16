@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-base_url="${UCLOUD_CLI_BASE_URL:-https://cloud.sdu.dk/cli}"
-base_url="${base_url%/}"
+site_url="${UCLOUD_CLI_BASE_URL:-https://cloud.sdu.dk}"
+site_url="${site_url%/}"
+download_base_url="${site_url}/cli"
 
 if [[ -z "${HOME:-}" ]]; then
     echo "HOME is not set" >&2
@@ -10,6 +11,11 @@ if [[ -z "${HOME:-}" ]]; then
 fi
 
 install_dir="${UCLOUD_CLI_INSTALL_DIR:-${HOME}/.local/bin}"
+config_path="${HOME}/.config/ucloud/config.yaml"
+configure_default_environment=false
+if [[ ! -e "${config_path}" ]]; then
+    configure_default_environment=true
+fi
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -58,12 +64,12 @@ esac
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
-version="$(curl -fsSL "${base_url}/current/version.txt")"
+version="$(curl -fsSL "${download_base_url}/current/version.txt")"
 archive="ucloud-${version}-${os}-${arch}.tar.gz"
-curl -fsSL "${base_url}/current/${archive}" -o "${tmp_dir}/${archive}"
-curl -fsSL "${base_url}/current/checksums.txt" -o "${tmp_dir}/checksums.txt"
+curl -fsSL "${download_base_url}/current/${archive}" -o "${tmp_dir}/${archive}"
+curl -fsSL "${download_base_url}/current/checksums.txt" -o "${tmp_dir}/checksums.txt"
 
-expected="$(awk -v file="${archive}" '$2 == file { print $1 }' "${tmp_dir}/checksums.txt")"
+expected="$(awk -v file="${archive}" '{ count = split($2, path, "/"); if (path[count] == file) { print $1; exit } }' "${tmp_dir}/checksums.txt")"
 if [[ -z "${expected}" ]]; then
     echo "No checksum found for ${archive}" >&2
     exit 1
@@ -92,6 +98,11 @@ if [[ "${os}" == "darwin" ]] && command -v xattr >/dev/null 2>&1; then
 fi
 
 echo "Installed UCloud CLI ${version} to ${install_dir}/ucloud"
+if [[ "${configure_default_environment}" == true ]]; then
+    "${install_dir}/ucloud" environment add ucloud --url "${site_url}" >/dev/null
+    echo "Configured the default UCloud environment to ${site_url}"
+fi
+
 case ":${PATH}:" in
     *":${install_dir}:"*) ;;
     *) echo "Add ${install_dir} to your PATH to run ucloud from any directory." ;;

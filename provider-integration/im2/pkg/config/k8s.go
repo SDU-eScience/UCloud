@@ -1,16 +1,20 @@
 package config
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math"
 	"net"
+	"net/netip"
 	"strings"
+	"time"
 
 	"github.com/distribution/reference"
 	"gopkg.in/yaml.v3"
 	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/cfgutil"
 	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -55,6 +59,7 @@ type KubernetesMetadataCatalog struct {
 	EnableIntegration bool
 	IOPS              int
 	ParallelScans     int
+	ParallelLookups   int
 	EntriesPerSSTable int
 }
 
@@ -96,6 +101,32 @@ type KubernetesWebConfiguration struct {
 type KubernetesIpConfiguration struct {
 	Enabled bool
 	Name    string
+}
+
+type KubernetesPrivateNetworks struct {
+	Enabled           bool
+	CidrPools         []string
+	DefaultPrefixLen  int
+	ForbiddenCidrs    []string
+	MaxNetworksPerJob int
+	Infiniband        KubernetesInfiniband
+}
+
+type KubernetesInfiniband struct {
+	Enabled          bool
+	CidrPools        []string
+	RdmaResourceName string
+	DeviceLabel      string
+	Reclaim          KubernetesReclaimPolicy
+}
+
+type KubernetesReclaimPolicy struct {
+	Enabled              bool
+	LowWatermarkPercent  int
+	HighWatermarkPercent int
+	GracePeriod          time.Duration
+	MinAge               time.Duration
+	MaxPerRun            int
 }
 
 type KubernetesPublicLinkConfiguration struct {
@@ -171,6 +202,7 @@ type KubernetesInferenceConfiguration struct {
 	Development         KubernetesInferenceDevelopmentConfiguration
 	Dynamo              KubernetesInferenceDynamoConfiguration
 	Access              KubernetesInferenceAccessConfiguration
+	ExternalHosts       []string
 }
 
 type KubernetesInferenceProvider string
@@ -199,15 +231,8 @@ type KubernetesInferenceAccessConfiguration struct {
 	Testers        []string
 }
 
-type KubernetesUcxDevelopmentApp struct {
-	Name    string              `json:"name" yaml:"name"`
-	Version string              `json:"version" yaml:"version"`
-	SubPath util.Option[string] `json:"subPath" yaml:"subPath"`
-}
-
 type KubernetesUcxConfiguration struct {
-	Development []KubernetesUcxDevelopmentApp `json:"development" yaml:"development"`
-	Publish     map[string][]string           `json:"publish" yaml:"publish"`
+	Publish map[string][]string `json:"publish" yaml:"publish"`
 }
 
 type KubernetesCompute struct {
@@ -221,6 +246,7 @@ type KubernetesCompute struct {
 	TaskNodeSelector                map[string]string
 	Web                             KubernetesWebConfiguration
 	PublicIps                       KubernetesIpConfiguration
+	PrivateNetworks                 KubernetesPrivateNetworks
 	PublicLinks                     KubernetesPublicLinkConfiguration
 	Ssh                             KubernetesSshConfiguration
 	Syncthing                       KubernetesSyncthingConfiguration
@@ -423,6 +449,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		cfg.FileSystem.MetadataCatalog.EnableIntegration = util.DevelopmentModeEnabled()
 		cfg.FileSystem.MetadataCatalog.IOPS = 45_000
 		cfg.FileSystem.MetadataCatalog.ParallelScans = 8
+		cfg.FileSystem.MetadataCatalog.ParallelLookups = 32
 		cfg.FileSystem.MetadataCatalog.EntriesPerSSTable = 1024 * 16
 		if metadataNode != nil {
 			if enabled, ok := cfgutil.OptionalChildBool(filePath, metadataNode, "enabled"); ok {
@@ -437,13 +464,16 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			cfg.FileSystem.MetadataCatalog.ParallelScans = int(cfgutil.OptionalChildInt(
 				filePath, metadataNode, "parallelScans", &success,
 			).GetOrDefault(int64(cfg.FileSystem.MetadataCatalog.ParallelScans)))
+			cfg.FileSystem.MetadataCatalog.ParallelLookups = int(cfgutil.OptionalChildInt(
+				filePath, metadataNode, "parallelLookups", &success,
+			).GetOrDefault(int64(cfg.FileSystem.MetadataCatalog.ParallelLookups)))
 			cfg.FileSystem.MetadataCatalog.EntriesPerSSTable = int(cfgutil.OptionalChildInt(
 				filePath, metadataNode, "entriesPerSSTable", &success,
 			).GetOrDefault(int64(cfg.FileSystem.MetadataCatalog.EntriesPerSSTable)))
 		}
 		if cfg.FileSystem.MetadataCatalog.IOPS <= 0 || cfg.FileSystem.MetadataCatalog.ParallelScans < 2 ||
-			cfg.FileSystem.MetadataCatalog.EntriesPerSSTable < 10_000 {
-			cfgutil.ReportError(filePath, fsNode, "metadataCatalog requires positive iops, at least 2 parallelScans, and at least 10000 entriesPerSSTable")
+			cfg.FileSystem.MetadataCatalog.ParallelLookups < 1 || cfg.FileSystem.MetadataCatalog.EntriesPerSSTable < 10_000 {
+			cfgutil.ReportError(filePath, fsNode, "metadataCatalog requires positive iops and parallelLookups, at least 2 parallelScans, and at least 10000 entriesPerSSTable")
 			success = false
 		}
 	}
@@ -507,11 +537,6 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 	ucxNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "ucx")
 	if ucxNode != nil {
-		developmentNode, _ := cfgutil.GetChildOrNil(filePath, ucxNode, "development")
-		if developmentNode != nil {
-			cfgutil.Decode(filePath, developmentNode, &cfg.Compute.Ucx.Development, &success)
-		}
-
 		publishNode, _ := cfgutil.GetChildOrNil(filePath, ucxNode, "publish")
 		if publishNode != nil {
 			cfgutil.Decode(filePath, publishNode, &cfg.Compute.Ucx.Publish, &success)
@@ -532,6 +557,23 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 				success = false
 			}
 			cfg.Compute.Inference.Provider = provider
+
+			externalHostsNode, _ := cfgutil.GetChildOrNil(filePath, inferenceNode, "externalHosts")
+			if externalHostsNode != nil {
+				var externalHosts []string
+				cfgutil.Decode(filePath, externalHostsNode, &externalHosts, &success)
+				normalized := make([]string, 0, len(externalHosts))
+				for _, host := range externalHosts {
+					host = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(host)), ".")
+					if host == "" || strings.ContainsAny(host, " \t\r\n/:@[]*") {
+						cfgutil.ReportError(filePath, externalHostsNode, "externalHosts must contain hostnames without scheme, port, wildcard, or path: %q", host)
+						success = false
+						continue
+					}
+					normalized = append(normalized, host)
+				}
+				cfg.Compute.Inference.ExternalHosts = normalized
+			}
 
 			accessNode, _ := cfgutil.GetChildOrNil(filePath, inferenceNode, "access")
 			if accessNode != nil {
@@ -838,6 +880,205 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		}
 	}
 
+	privateNetworksNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "privateNetworks")
+	if privateNetworksNode != nil {
+		privateNetworks := &cfg.Compute.PrivateNetworks
+
+		enabled, ok := cfgutil.OptionalChildBool(filePath, privateNetworksNode, "enabled")
+		privateNetworks.Enabled = enabled && ok
+
+		var parsedForbidden []netip.Prefix
+
+		if privateNetworks.Enabled {
+			privateNetworks.CidrPools = []string{}
+			cidrPoolsNode, _ := cfgutil.GetChildOrNil(filePath, privateNetworksNode, "cidrPools")
+			if cidrPoolsNode != nil {
+				cfgutil.Decode(filePath, cidrPoolsNode, &privateNetworks.CidrPools, &success)
+			}
+			if len(privateNetworks.CidrPools) == 0 {
+				cfgutil.ReportError(filePath, privateNetworksNode, "privateNetworks.cidrPools must contain at least one pool")
+				success = false
+			}
+
+			privateNetworks.DefaultPrefixLen = int(cfgutil.OptionalChildInt(
+				filePath, privateNetworksNode, "defaultPrefixLen", &success,
+			).GetOrDefault(24))
+			defaultPrefixValid := privateNetworks.DefaultPrefixLen >= 16 && privateNetworks.DefaultPrefixLen <= 24
+			if !defaultPrefixValid {
+				cfgutil.ReportError(filePath, privateNetworksNode, "privateNetworks.defaultPrefixLen must be between 16 and 24")
+				success = false
+			}
+
+			for _, pool := range privateNetworks.CidrPools {
+				poolPrefix, err := parseK8sPrivateNetworkCidr(pool)
+				if err != "" {
+					cfgutil.ReportError(filePath, privateNetworksNode, "privateNetworks.cidrPools must contain valid canonical IPv4 CIDRs: %s (%s)", pool, err)
+					success = false
+				} else if defaultPrefixValid && poolPrefix.Bits() > privateNetworks.DefaultPrefixLen {
+					cfgutil.ReportError(
+						filePath, privateNetworksNode,
+						"privateNetworks.cidrPools pool %s is smaller than the default /%d block and cannot contain any default-sized block",
+						pool, privateNetworks.DefaultPrefixLen,
+					)
+					success = false
+				}
+			}
+
+			privateNetworks.ForbiddenCidrs = []string{}
+			forbiddenCidrsNode, _ := cfgutil.GetChildOrNil(filePath, privateNetworksNode, "forbiddenCidrs")
+			if forbiddenCidrsNode != nil {
+				cfgutil.Decode(filePath, forbiddenCidrsNode, &privateNetworks.ForbiddenCidrs, &success)
+			}
+			for _, forbidden := range privateNetworks.ForbiddenCidrs {
+				forbiddenPrefix, err := parseK8sPrivateNetworkCidr(forbidden)
+				if err != "" {
+					cfgutil.ReportError(filePath, privateNetworksNode, "privateNetworks.forbiddenCidrs must contain valid canonical IPv4 CIDRs: %s (%s)", forbidden, err)
+					success = false
+				} else {
+					parsedForbidden = append(parsedForbidden, forbiddenPrefix)
+				}
+			}
+
+			if defaultPrefixValid {
+				for _, pool := range privateNetworks.CidrPools {
+					poolPrefix, err := parseK8sPrivateNetworkCidr(pool)
+					if err != "" || poolPrefix.Bits() > privateNetworks.DefaultPrefixLen {
+						continue
+					}
+
+					if !k8sPrivateNetworkPoolHasBlock(poolPrefix, privateNetworks.DefaultPrefixLen, parsedForbidden) {
+						cfgutil.ReportError(
+							filePath, privateNetworksNode,
+							"privateNetworks.cidrPools pool %s has no allowed /%d blocks after forbiddenCidrs",
+							pool, privateNetworks.DefaultPrefixLen,
+						)
+						success = false
+					}
+				}
+			}
+
+			privateNetworks.MaxNetworksPerJob = int(cfgutil.OptionalChildInt(
+				filePath, privateNetworksNode, "maxNetworksPerJob", &success,
+			).GetOrDefault(4))
+			if privateNetworks.MaxNetworksPerJob <= 0 {
+				cfgutil.ReportError(filePath, privateNetworksNode, "privateNetworks limits must all be positive")
+				success = false
+			}
+		}
+
+		privateNetworks.Infiniband = KubernetesInfiniband{}
+		infinibandNode, _ := cfgutil.GetChildOrNil(filePath, privateNetworksNode, "infiniband")
+		if infinibandNode != nil {
+			infiniband := &privateNetworks.Infiniband
+
+			enabled, ok := cfgutil.OptionalChildBool(filePath, infinibandNode, "enabled")
+			infiniband.Enabled = enabled && ok
+
+			if infiniband.Enabled {
+				if !privateNetworks.Enabled {
+					cfgutil.ReportError(filePath, infinibandNode, "privateNetworks.infiniband requires privateNetworks.enabled")
+					success = false
+				}
+
+				infiniband.CidrPools = []string{}
+				cidrPoolsNode, _ := cfgutil.GetChildOrNil(filePath, infinibandNode, "cidrPools")
+				if cidrPoolsNode != nil {
+					cfgutil.Decode(filePath, cidrPoolsNode, &infiniband.CidrPools, &success)
+				}
+				if len(infiniband.CidrPools) == 0 {
+					cfgutil.ReportError(filePath, infinibandNode, "privateNetworks.infiniband.cidrPools must contain at least one pool")
+					success = false
+				}
+
+				for _, pool := range infiniband.CidrPools {
+					poolPrefix, err := parseK8sPrivateNetworkCidr(pool)
+					if err != "" {
+						cfgutil.ReportError(filePath, infinibandNode, "privateNetworks.infiniband.cidrPools must contain valid canonical IPv4 CIDRs: %s (%s)", pool, err)
+						success = false
+					} else if poolPrefix.Bits() > orc.PrivateNetworkInfinibandPrefixLength {
+						cfgutil.ReportError(
+							filePath, infinibandNode,
+							"privateNetworks.infiniband.cidrPools pool %s is smaller than a /%d block",
+							pool, orc.PrivateNetworkInfinibandPrefixLength,
+						)
+						success = false
+					} else if !k8sPrivateNetworkPoolHasBlock(poolPrefix, orc.PrivateNetworkInfinibandPrefixLength, parsedForbidden) {
+						cfgutil.ReportError(
+							filePath, infinibandNode,
+							"privateNetworks.infiniband.cidrPools pool %s has no allowed /%d blocks after forbiddenCidrs",
+							pool, orc.PrivateNetworkInfinibandPrefixLength,
+						)
+						success = false
+					}
+				}
+
+				infiniband.RdmaResourceName = cfgutil.OptionalChildText(filePath, infinibandNode, "rdmaResourceName", &success)
+				if infiniband.RdmaResourceName == "" {
+					infiniband.RdmaResourceName = "nvidia.com/rdma_shared"
+				}
+
+				infiniband.DeviceLabel = cfgutil.OptionalChildText(filePath, infinibandNode, "deviceLabel", &success)
+				if infiniband.DeviceLabel == "" {
+					infiniband.DeviceLabel = "ucloud.dk/ibdev"
+				}
+
+				reclaim := KubernetesReclaimPolicy{
+					Enabled:              true,
+					LowWatermarkPercent:  10,
+					HighWatermarkPercent: 25,
+					GracePeriod:          72 * time.Hour,
+					MinAge:               24 * time.Hour,
+					MaxPerRun:            16,
+				}
+
+				reclaimNode, _ := cfgutil.GetChildOrNil(filePath, infinibandNode, "reclaim")
+				if reclaimNode != nil {
+					if enabled, ok := cfgutil.OptionalChildBool(filePath, reclaimNode, "enabled"); ok {
+						reclaim.Enabled = enabled
+					}
+
+					reclaim.LowWatermarkPercent = int(cfgutil.OptionalChildInt(
+						filePath, reclaimNode, "lowWatermarkPercent", &success,
+					).GetOrDefault(10))
+					reclaim.HighWatermarkPercent = int(cfgutil.OptionalChildInt(
+						filePath, reclaimNode, "highWatermarkPercent", &success,
+					).GetOrDefault(25))
+					reclaim.GracePeriod = parseK8sPrivateNetworkDuration(
+						filePath, reclaimNode, "gracePeriod", reclaim.GracePeriod, &success,
+					)
+					reclaim.MinAge = parseK8sPrivateNetworkDuration(
+						filePath, reclaimNode, "minAge", reclaim.MinAge, &success,
+					)
+					reclaim.MaxPerRun = int(cfgutil.OptionalChildInt(
+						filePath, reclaimNode, "maxPerRun", &success,
+					).GetOrDefault(16))
+				}
+
+				if reclaim.Enabled {
+					if reclaim.LowWatermarkPercent < 0 || reclaim.HighWatermarkPercent > 100 ||
+						reclaim.LowWatermarkPercent >= reclaim.HighWatermarkPercent {
+						cfgutil.ReportError(filePath, infinibandNode, "privateNetworks.infiniband.reclaim watermarks must satisfy 0 <= low < high <= 100")
+						success = false
+					}
+					if reclaim.GracePeriod <= 0 {
+						cfgutil.ReportError(filePath, infinibandNode, "privateNetworks.infiniband.reclaim.gracePeriod must be positive")
+						success = false
+					}
+					if reclaim.MinAge < 0 {
+						cfgutil.ReportError(filePath, infinibandNode, "privateNetworks.infiniband.reclaim.minAge must not be negative")
+						success = false
+					}
+					if reclaim.MaxPerRun <= 0 {
+						cfgutil.ReportError(filePath, infinibandNode, "privateNetworks.infiniband.reclaim.maxPerRun must be positive")
+						success = false
+					}
+				}
+
+				infiniband.Reclaim = reclaim
+			}
+		}
+	}
+
 	syncthingNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "syncthing")
 	if syncthingNode != nil {
 		enabled, ok := cfgutil.OptionalChildBool(filePath, syncthingNode, "enabled")
@@ -1091,4 +1332,81 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 	}
 
 	return result
+}
+
+func parseK8sPrivateNetworkCidr(cidr string) (netip.Prefix, string) {
+	prefix, err := netip.ParsePrefix(cidr)
+	if err != nil {
+		return netip.Prefix{}, err.Error()
+	}
+
+	if !prefix.Addr().Is4() {
+		return netip.Prefix{}, "expected an IPv4 address"
+	}
+
+	if prefix != prefix.Masked() {
+		return netip.Prefix{}, "host bits must be zero"
+	}
+
+	return prefix, ""
+}
+
+func k8sPrivateNetworkPoolHasBlock(pool netip.Prefix, prefixLen int, forbidden []netip.Prefix) bool {
+	if !pool.IsValid() || pool.Bits() > prefixLen {
+		return false
+	}
+
+	for _, forbiddenPrefix := range forbidden {
+		if forbiddenPrefix.Bits() <= pool.Bits() && forbiddenPrefix.Contains(pool.Addr()) {
+			return false
+		}
+	}
+
+	blockSize := uint64(1) << (32 - uint64(prefixLen))
+	addrBytes := pool.Masked().Addr().As4()
+	first := uint64(binary.BigEndian.Uint32(addrBytes[:]))
+	last := first + (uint64(1) << (32 - uint64(pool.Bits()))) - 1
+	alignedFirst := (first + blockSize - 1) / blockSize * blockSize
+
+	for blockStart := alignedFirst; blockStart+blockSize-1 <= last; blockStart += blockSize {
+		var candidateBytes [4]byte
+		binary.BigEndian.PutUint32(candidateBytes[:], uint32(blockStart))
+		candidate := netip.PrefixFrom(netip.AddrFrom4(candidateBytes), prefixLen)
+
+		blocked := false
+		for _, forbiddenPrefix := range forbidden {
+			if orc.PrivateNetworkCidrsOverlap(candidate, forbiddenPrefix) {
+				blocked = true
+				break
+			}
+		}
+
+		if !blocked {
+			return true
+		}
+	}
+
+	return false
+}
+
+func parseK8sPrivateNetworkDuration(
+	filePath string,
+	node *yaml.Node,
+	child string,
+	defaultValue time.Duration,
+	success *bool,
+) time.Duration {
+	text := cfgutil.OptionalChildText(filePath, node, child, success)
+	if text == "" {
+		return defaultValue
+	}
+
+	value, err := time.ParseDuration(text)
+	if err != nil {
+		cfgutil.ReportError(filePath, node, "%s must be a valid duration: %s (%s)", child, text, err)
+		*success = false
+		return defaultValue
+	}
+
+	return value
 }

@@ -111,7 +111,7 @@ func diskPrepareForJob(job *orc.Job, pvcName string, owner metak8s.OwnerReferenc
 		}
 	}
 
-	targetDir, herr := JobFolder(job)
+	targetDir, herr := diskFolder(job)
 	if herr != nil {
 		return herr
 	}
@@ -279,21 +279,36 @@ func diskPrepareForJob(job *orc.Job, pvcName string, owner metak8s.OwnerReferenc
 }
 
 func diskCleanup(job *orc.Job) {
-	app := &job.Status.ResolvedApplication.Value
-	canonicalImageName := fmt.Sprintf("%s-%s", app.Metadata.Name, app.Metadata.Version)
-	canonicalImageName = strings.ReplaceAll(canonicalImageName, "/", "-")
-	canonicalImageName = strings.ReplaceAll(canonicalImageName, ".", "-")
-
-	internalMemberFiles, _, herr := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, job.Owner.Project)
-	if herr == nil {
-		targetDir := filepath.Join(internalMemberFiles, "Jobs", "VirtualMachines", job.Id)
-		diskPath := filepath.Join(targetDir, "disk.img") // required by KubeVirt
-		stagingName := fmt.Sprintf("virtual-machine-job-%s-disk-%s.img", job.Id, util.RandomToken(16))
-		herr = filesystem.DoStageFileForDeletion(diskPath, stagingName)
-		if herr != nil {
-			log.Warn("Failed to move VM disk to trash staging for job %s: %s", job.Id, herr.Why)
-		}
+	targetDir, herr := diskFolder(job)
+	if herr != nil {
+		log.Warn("Failed to determine the virtual machine image location for job %s: %s", job.Id, herr.Why)
+		return
 	}
+
+	diskPath := filepath.Join(targetDir, "disk.img") // required by KubeVirt
+	stagingName := fmt.Sprintf("virtual-machine-job-%s-disk-%s.img", job.Id, util.RandomToken(16))
+	herr = filesystem.DoStageFileForDeletion(diskPath, stagingName)
+	if herr != nil {
+		log.Warn("Failed to move VM disk to trash staging for job %s: %s", job.Id, herr.Why)
+	}
+}
+
+func diskFolder(job *orc.Job) (string, *util.HttpError) {
+	param, ok := job.Specification.Parameters[orc.JobParameterVmDiskFolder]
+	if ok && param.Type == orc.AppParameterValueTypeFile {
+		if param.ReadOnly {
+			return "", util.HttpErr(http.StatusForbidden, "you do not have write access to the requested virtual machine image location")
+		}
+
+		internalPath, resolved, _ := filesystem.UCloudToInternal(param.Path)
+		if !resolved {
+			return "", util.HttpErr(http.StatusBadRequest, "the requested virtual machine image location is not available")
+		}
+
+		return internalPath, nil
+	}
+
+	return JobFolder(job)
 }
 
 const diskCacheInternalPath = "vm-golden-images"

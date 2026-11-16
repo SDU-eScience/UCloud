@@ -113,6 +113,12 @@ func scanDrive(drive orc.Drive) {
 	defer scanSemaphore.Release(1)
 	defer scanSlotsAvailable.Add(1)
 
+	ctx, finishScan, err := metadataBeginScan(metadataDatabasePath(drive.Id))
+	if err != nil {
+		return
+	}
+	defer finishScan()
+
 	internalPath, ok, _ := DriveToLocalPath(&drive)
 	if !ok {
 		return
@@ -185,9 +191,15 @@ func scanDrive(drive orc.Drive) {
 		sizeToReport = int64(result.TotalFileSize)
 	}
 
+	if ctx.Err() != nil {
+		return
+	}
 	sizeToReport = sizeToReport / ctrl.ProductCategoryAccountingUnitBytes(drive.Specification.Product.Category)
 
-	reportUsedStorage(drive, sizeToReport)
+	if err := reportUsedStorage(drive, sizeToReport); err != nil {
+		log.Warn("Unable to report storage usage for drive %s: %s", drive.Id, err)
+		return
+	}
 
 	ctrl.DriveUpdateScannedAt(drive.Id)
 
@@ -196,8 +208,17 @@ func scanDrive(drive orc.Drive) {
 	}
 }
 
-func reportUsedStorage(drive orc.Drive, size int64) {
-	request := fnd.BulkRequest[apm.ReportUsageRequest]{
+func reportUsedStorage(drive orc.Drive, size int64) error {
+	request := storageUsageRequest(drive, size)
+	_, err := util.Retry("report storage", func() (util.Empty, error) {
+		_, err := apm.ReportUsage.Invoke(request)
+		return util.EmptyValue, err.AsError()
+	})
+	return err
+}
+
+func storageUsageRequest(drive orc.Drive, size int64) fnd.BulkRequest[apm.ReportUsageRequest] {
+	return fnd.BulkRequest[apm.ReportUsageRequest]{
 		Items: []apm.ReportUsageRequest{
 			{
 				IsDeltaCharge: false,
@@ -213,11 +234,6 @@ func reportUsedStorage(drive orc.Drive, size int64) {
 			},
 		},
 	}
-
-	util.RetryOrPanic("report storage", func() (util.Empty, error) {
-		_, err := apm.ReportUsage.Invoke(request)
-		return util.EmptyValue, err.AsError()
-	})
 }
 
 func RequestScan(driveId string) {

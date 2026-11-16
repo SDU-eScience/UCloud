@@ -82,7 +82,7 @@ const columnTitles: ColumnTitleGroup = {
     [ContainerSize.TINY]: [Title, State],
 };
 
-const RESOURCE_NAME = "JOBS";
+const RESOURCE_NAME = "Jobs";
 function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job, ProductCompute>>[]; jobTypeFilter?: JobTypeFilter}}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
@@ -95,7 +95,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
     const [projectMemberList, setProjectMemberList] = React.useState<React.ReactNode>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
-        usePage("Jobs", SidebarTabId.COMPUTE);
+        usePage(RESOURCE_NAME, SidebarTabId.COMPUTE);
     }
 
     function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {
@@ -123,7 +123,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Job>(mount, "Jobs", opts).init(browserRef, features, "", browser => {
+            new ResourceBrowser<Job>(mount, RESOURCE_NAME, opts).init(browserRef, features, "", browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
@@ -411,7 +411,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 });
                 browser.on("generateBreadcrumbs", () => {
                     if (opts?.omitBreadcrumbs) return [];
-                    return [{title: "Jobs", absolutePath: ""}]
+                    return [{title: RESOURCE_NAME, absolutePath: ""}]
                 });
                 browser.on("search", query => {
                     browser.searchQuery = query;

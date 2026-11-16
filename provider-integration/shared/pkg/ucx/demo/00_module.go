@@ -282,7 +282,7 @@ done
 							stackGroupingLabel:             nodeGroup,
 						}),
 						Product:     selectedProduct,
-						Image:       ucxsvc.VmImageUbuntu24_04,
+						Image:       ucxsvc.VmImageUbuntu26_04,
 						Hostname:    fmt.Sprintf("controlplane-%v", i),
 						Attachments: attachments,
 					})

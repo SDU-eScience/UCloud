@@ -1,6 +1,6 @@
 import * as React from "react";
 import {ShakingBox} from "@/UtilityComponents";
-import {Box, Button, Flex, Label, RadioTile, RadioTilesContainer, Text, Truncate} from "@/ui-components/index";
+import {Box, Button, Divider, Flex, Label, RadioTile, RadioTilesContainer, Text, Truncate} from "@/ui-components/index";
 import {useCloudCommand} from "@/Authentication/DataHook";
 import {bulkRequestOf, doNothing} from "@/UtilityFunctions";
 import {useCallback, useEffect, useState} from "react";
@@ -29,6 +29,7 @@ interface ResourcePermissionEditorProps<Res extends Resource, Prod extends Produ
     showMissingPermissionHelp?: boolean;
     noPermissionsWarning?: string;
     accessDescription?: React.ReactNode;
+    permissionsLabel?: string;
     readLabel?: string;
     readIcon?: IconName;
     writeLabel?: string;
@@ -120,9 +121,10 @@ export function ResourcePermissionEditor<Res extends Resource, Prod extends Prod
     if (!props.accessDescription) return permissions;
 
     return <Box mb={"20px"}>
-        <Label>Choose access</Label>
+        {props.accessDescription}
+        <Divider mt={0} mb={16} />
+        <Label>{props.permissionsLabel ?? "Choose access"}</Label>
         <Box maxHeight="400px" overflowY="auto">
-            {props.accessDescription}
             {permissions}
         </Box>
     </Box>;
@@ -138,6 +140,7 @@ interface PermissionsProps {
     readIcon?: IconName;
     writeLabel?: string;
     writeIcon?: IconName;
+    hideRead?: boolean;
     title: string;
     acl: ResourceAclEntry[];
     updateAcl: (group: string, permission: Permission | null) => Promise<void>;
@@ -154,6 +157,7 @@ export function PermissionsTable({
     readIcon = "heroMagnifyingGlass",
     writeLabel = "Write",
     writeIcon = "heroPencil",
+    hideRead = false,
 }: PermissionsProps) {
     const projectId = useProjectId();
     const project = useProject();
@@ -280,7 +284,7 @@ export function PermissionsTable({
                                         fontSize={"0.5em"}
                                     />
                                 </div>
-                                <div data-permission-tile>
+                                {!hideRead && <div data-permission-tile>
                                     <RadioTile
                                         id={"Read" + summary.id}
                                         label={readLabel}
@@ -291,7 +295,7 @@ export function PermissionsTable({
                                         height={40}
                                         fontSize={"0.5em"}
                                     />
-                                </div>
+                                </div>}
                                 <div data-permission-tile>
                                     <RadioTile
                                         id={"Write" + summary.id}

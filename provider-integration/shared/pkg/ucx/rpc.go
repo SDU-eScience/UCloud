@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+
+	"ucloud.dk/shared/pkg/util"
 )
 
 type Rpc[Req any, Resp any] struct {
@@ -31,10 +34,7 @@ func (r *Rpc[Req, Resp]) HandlerProxy(proxy *Proxy, handler func(ctx context.Con
 
 		response, err := handler(ctx, request)
 		if err != nil {
-			if errors.Is(err, context.Canceled) {
-				return RpcStatusCanceled, map[string]Value{"error": VString(err.Error())}
-			}
-			return RpcStatusInternal, map[string]Value{"error": VString(err.Error())}
+			return rpcErrorStatus(err)
 		}
 
 		encoded, err := ValueMarshal(response)
@@ -47,12 +47,80 @@ func (r *Rpc[Req, Resp]) HandlerProxy(proxy *Proxy, handler func(ctx context.Con
 }
 
 const (
-	RpcStatusOk         = 0
-	RpcStatusBadRequest = 1
-	RpcStatusNotFound   = 2
-	RpcStatusInternal   = 3
-	RpcStatusCanceled   = 4
+	RpcStatusOk              = 0
+	RpcStatusBadRequest      = 1
+	RpcStatusNotFound        = 2
+	RpcStatusInternal        = 3
+	RpcStatusCanceled        = 4
+	RpcStatusConflict        = 5
+	RpcStatusUnauthorized    = 6
+	RpcStatusForbidden       = 7
+	RpcStatusTooManyRequests = 8
+	RpcStatusUnavailable     = 9
 )
+
+func RpcStatusFromHttpStatus(status int) int {
+	switch status {
+	case http.StatusOK:
+		return RpcStatusOk
+	case http.StatusBadRequest:
+		return RpcStatusBadRequest
+	case http.StatusUnauthorized:
+		return RpcStatusUnauthorized
+	case http.StatusForbidden:
+		return RpcStatusForbidden
+	case http.StatusNotFound:
+		return RpcStatusNotFound
+	case http.StatusConflict:
+		return RpcStatusConflict
+	case http.StatusTooManyRequests:
+		return RpcStatusTooManyRequests
+	case http.StatusServiceUnavailable:
+		return RpcStatusUnavailable
+	default:
+		return RpcStatusInternal
+	}
+}
+
+func HttpStatusFromRpcStatus(status int) int {
+	switch status {
+	case RpcStatusOk:
+		return http.StatusOK
+	case RpcStatusBadRequest:
+		return http.StatusBadRequest
+	case RpcStatusUnauthorized:
+		return http.StatusUnauthorized
+	case RpcStatusForbidden:
+		return http.StatusForbidden
+	case RpcStatusNotFound:
+		return http.StatusNotFound
+	case RpcStatusConflict:
+		return http.StatusConflict
+	case RpcStatusTooManyRequests:
+		return http.StatusTooManyRequests
+	case RpcStatusUnavailable:
+		return http.StatusServiceUnavailable
+	case RpcStatusCanceled:
+		return http.StatusRequestTimeout
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+func rpcErrorStatus(err error) (int, map[string]Value) {
+	var httpErr *util.HttpError
+	if errors.As(err, &httpErr) {
+		status := RpcStatusFromHttpStatus(httpErr.StatusCode)
+		if status == RpcStatusOk {
+			status = RpcStatusInternal
+		}
+		return status, map[string]Value{"error": VString(err.Error())}
+	}
+	if errors.Is(err, context.Canceled) {
+		return RpcStatusCanceled, map[string]Value{"error": VString(err.Error())}
+	}
+	return RpcStatusInternal, map[string]Value{"error": VString(err.Error())}
+}
 
 type RpcHandler func(ctx context.Context, payload map[string]Value) (status int, response map[string]Value)
 
@@ -89,10 +157,7 @@ func RpcHandle[Req any, Resp any](session *Session, rpc Rpc[Req, Resp], handler 
 
 		response, err := handler(ctx, request)
 		if err != nil {
-			if errors.Is(err, context.Canceled) {
-				return RpcStatusCanceled, map[string]Value{"error": VString(err.Error())}
-			}
-			return RpcStatusInternal, map[string]Value{"error": VString(err.Error())}
+			return rpcErrorStatus(err)
 		}
 
 		encoded, err := ValueMarshal(response)

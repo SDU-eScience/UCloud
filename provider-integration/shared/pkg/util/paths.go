@@ -1,9 +1,23 @@
 package util
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 )
+
+func ReadFileTrimmed(path string) (string, bool) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", false
+	}
+
+	result := strings.TrimSpace(string(data))
+	if result == "" {
+		return "", false
+	}
+	return result, true
+}
 
 func Components(path string) []string {
 	clean := filepath.Clean(path)

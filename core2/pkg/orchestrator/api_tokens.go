@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	cfg "ucloud.dk/core/pkg/config"
@@ -69,11 +70,28 @@ func initApiTokens() {
 			time.Sleep(10 * time.Minute)
 		}
 	}()
+
+	go func() {
+		for {
+			apiTokensRevokeFinishedJobs()
+			time.Sleep(5 * time.Minute)
+		}
+	}()
 }
 
 // =====================================================================================================================
 
 func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orcapi.ApiToken, *util.HttpError) {
+	request.JobId.Clear()
+	return apiTokenCreate(actor, request)
+}
+
+func apiTokenCreateForJob(actor rpc.Actor, request orcapi.ApiTokenSpecification, jobId string) (orcapi.ApiToken, *util.HttpError) {
+	request.JobId.Set(jobId)
+	return apiTokenCreate(actor, request)
+}
+
+func apiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orcapi.ApiToken, *util.HttpError) {
 	var err *util.HttpError
 	service, validService := orcapi.ApiTokenServiceFromPermissions(request.RequestedPermissions)
 	if request.Provider.Present && !validService {
@@ -84,7 +102,7 @@ func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orca
 	util.ValidateString(&request.Description, "description", util.StringValidationAllowEmpty, &err)
 	util.ValidateStringIfPresent(&request.Provider, "provider", 0, &err)
 
-	if err == nil && request.ExpiresAt.Time().Before(time.Now()) {
+	if err == nil && !request.JobId.Present && request.ExpiresAt.Time().Before(time.Now()) {
 		err = util.HttpErr(http.StatusBadRequest, "requested token has already expired")
 	}
 
@@ -139,6 +157,7 @@ func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orca
 		Description: request.Description,
 		Permissions: request.RequestedPermissions,
 		ExpiresAt:   request.ExpiresAt.Time(),
+		JobId:       request.JobId,
 	}
 
 	var tokId ResourceId
@@ -206,7 +225,7 @@ func ApiTokenBrowse(actor rpc.Actor, request orcapi.ApiTokenBrowseRequest) (fnda
 		request.ItemsPerPage,
 		orcapi.ResourceFlags{},
 		func(item orcapi.ApiToken) bool {
-			if request.FilterHidden && strings.HasPrefix(item.Specification.Title, ".") {
+			if request.FilterHidden && (strings.HasPrefix(item.Specification.Title, ".") || item.Specification.JobId.Present) {
 				return false
 			}
 			return true
@@ -340,12 +359,84 @@ func ApiTokenRevoke(actor rpc.Actor, id ResourceId) *util.HttpError {
 	return nil
 }
 
+var apiTokensJobRevocations sync.Map
+
+func apiTokensRevokeByJob(jobId string) {
+	if _, loaded := apiTokensJobRevocations.LoadOrStore(jobId, struct{}{}); loaded {
+		return
+	}
+	defer apiTokensJobRevocations.Delete(jobId)
+
+	ids := db.NewTx(func(tx *db.Transaction) []int64 {
+		rows := db.Select[struct {
+			Resource int64
+		}](
+			tx,
+			`
+				select resource
+				from provider.api_tokens
+				where job_id = :job_id
+			`,
+			db.Params{
+				"job_id": jobId,
+			},
+		)
+
+		result := make([]int64, 0, len(rows))
+		for _, row := range rows {
+			result = append(result, row.Resource)
+		}
+		return result
+	})
+
+	for _, id := range ids {
+		if err := ApiTokenRevoke(rpc.ActorSystem, ResourceId(id)); err != nil {
+			log.Warn("Failed to revoke API token for job: jobId=%s tokenId=%d err=%v", jobId, id, err)
+		}
+	}
+}
+
+func apiTokensRevokeFinishedJobs() {
+	jobIds := db.NewTx(func(tx *db.Transaction) []string {
+		rows := db.Select[struct {
+			JobId string
+		}](
+			tx,
+			`
+				select t.job_id
+				from provider.api_tokens t
+				join provider.resource r on r.id = t.resource
+				left join app_orchestrator.jobs j on j.resource::text = t.job_id
+				where
+					t.job_id is not null
+					and (
+						j.current_state in ('SUCCESS', 'FAILURE', 'EXPIRED')
+						or (j.resource is null and r.created_at < now() - interval '10 minutes')
+					)
+				group by t.job_id
+			`,
+			db.Params{},
+		)
+
+		result := make([]string, 0, len(rows))
+		for _, row := range rows {
+			result = append(result, row.JobId)
+		}
+		return result
+	})
+
+	for _, jobId := range jobIds {
+		apiTokensRevokeByJob(jobId)
+	}
+}
+
 type internalApiToken struct {
 	Provider    util.Option[string]
 	Title       string
 	Description string
 	Permissions []orcapi.ApiTokenPermission
 	ExpiresAt   time.Time
+	JobId       util.Option[string]
 	TokenHash   []byte
 	TokenSalt   []byte
 	Server      string
@@ -363,11 +454,12 @@ func apiTokensLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*re
 		Permissions string
 		TokenHash   sql.Null[[]byte]
 		TokenSalt   sql.Null[[]byte]
-		ExpiresAt   time.Time
+		ExpiresAt   sql.Null[time.Time]
+		JobId       sql.Null[string]
 	}](
 		tx,
 		`
-			select resource, title, description, provider, server, permissions, token_hash, token_salt, expires_at
+			select resource, title, description, provider, server, permissions, token_hash, token_salt, expires_at, job_id
 			from provider.api_tokens
 			where resource = some(:ids::int8[])
 	    `,
@@ -386,7 +478,8 @@ func apiTokensLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*re
 			Description: row.Description,
 			Server:      util.SqlNullToOpt(row.Server).GetOrDefault(""),
 			Permissions: permissions,
-			ExpiresAt:   row.ExpiresAt,
+			ExpiresAt:   row.ExpiresAt.V,
+			JobId:       util.SqlNullToOpt(row.JobId),
 			TokenHash:   util.SqlNullToOpt(row.TokenHash).GetOrDefault(nil),
 			TokenSalt:   util.SqlNullToOpt(row.TokenSalt).GetOrDefault(nil),
 		}
@@ -419,6 +512,7 @@ func apiTokensTransform(
 			Provider:             tok.Provider,
 			RequestedPermissions: tok.Permissions,
 			ExpiresAt:            fndapi.Timestamp(tok.ExpiresAt),
+			JobId:                tok.JobId,
 		},
 		Status: orcapi.ApiTokenStatus{
 			Server: server,
@@ -446,12 +540,17 @@ func apiTokensPersist(b *db.Batch, r *resource) {
 		}
 
 		permissions, _ := json.Marshal(tok.Permissions)
+		expiresAt := sql.Null[time.Time]{}
+		if !tok.ExpiresAt.IsZero() {
+			expiresAt.V = tok.ExpiresAt
+			expiresAt.Valid = true
+		}
 
 		db.BatchExec(
 			b,
 			`
-				insert into provider.api_tokens(resource, title, description, provider, permissions, token_hash, token_salt, expires_at, server) 
-				values (:resource, :title, :description, :provider, :permissions, :token_hash, :token_salt, :expires_at, :server)
+				insert into provider.api_tokens(resource, title, description, provider, permissions, token_hash, token_salt, expires_at, server, job_id) 
+				values (:resource, :title, :description, :provider, :permissions, :token_hash, :token_salt, :expires_at, :server, :job_id)
 				on conflict (resource) do update set 
 					title = excluded.title,
 					description = excluded.description,
@@ -460,7 +559,8 @@ func apiTokensPersist(b *db.Batch, r *resource) {
 					token_hash = excluded.token_hash,
 					token_salt = excluded.token_salt,
 					expires_at = excluded.expires_at,
-					server = excluded.server
+					server = excluded.server,
+					job_id = excluded.job_id
 		    `,
 			db.Params{
 				"resource":    r.Id,
@@ -470,8 +570,9 @@ func apiTokensPersist(b *db.Batch, r *resource) {
 				"permissions": string(permissions),
 				"token_hash":  tokHash.Sql(),
 				"token_salt":  tokSalt.Sql(),
-				"expires_at":  tok.ExpiresAt,
+				"expires_at":  expiresAt,
 				"server":      tok.Server,
+				"job_id":      tok.JobId.Sql(),
 			},
 		)
 	}

@@ -1,12 +1,15 @@
 package filesystem
 
 import (
+	"context"
 	"hash/fnv"
 	"os"
 	"path/filepath"
 	"sort"
 	"time"
 
+	"golang.org/x/sys/unix"
+	"golang.org/x/time/rate"
 	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -43,11 +46,41 @@ type metadataScanState struct {
 
 func MetadataStartScanner() {
 	go func() {
+		metadataInvalidateUnverifiedScanStates()
 		for util.IsAlive {
 			metadataScheduleScans(time.Now())
 			time.Sleep(metadataScannerPollInterval)
 		}
 	}()
+}
+
+func metadataInvalidateUnverifiedScanStates() {
+	for _, candidate := range metadataColdScanCandidates() {
+		coverage, searchReady := metadataCatalogCoverage(candidate.driveID)
+		if coverage && searchReady {
+			continue
+		}
+		metadataInvalidateCatalogScanState(candidate.driveID)
+	}
+}
+
+func metadataInvalidateCatalogScanState(driveId string) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update fs_metadata_scan_state
+				set last_completed_at = timestamp 'epoch'
+				where
+					drive_id = :drive_id
+					and ucloud_path = :ucloud_path
+			`,
+			db.Params{
+				"drive_id":    driveId,
+				"ucloud_path": "/" + driveId,
+			},
+		)
+	})
 }
 
 func metadataScheduleScans(now time.Time) {
@@ -65,9 +98,9 @@ func metadataScheduleScans(now time.Time) {
 
 	for _, candidate := range metadataCollapseScanCandidates(claimed) {
 		candidate := candidate
-		metadataSubmitScanRequest(candidate.ucloudPath, func(scanErr error) {
+		metadataSubmitScanRequest(candidate.ucloudPath, func(scanErr error, finishedAt time.Time) {
 			if scanErr == nil {
-				metadataCompleteScheduledScans(candidate.states, time.Now())
+				metadataCompleteScheduledScans(candidate.states, finishedAt)
 			}
 		})
 	}
@@ -158,8 +191,6 @@ func metadataResolveScanCandidate(ucloudPath string, kind ActivityKind, interval
 	scanRoot := filepath.Clean(internalPath)
 	if kind == ActivityDirect {
 		scanRoot = filepath.Dir(scanRoot)
-	} else if info, err := os.Stat(scanRoot); err != nil || !info.IsDir() {
-		scanRoot = filepath.Dir(scanRoot)
 	}
 	// A direct operation on the drive root selects its parent. Clamp it before doing any filesystem lookup so a scan
 	// candidate can never escape the resolved drive, even temporarily.
@@ -186,24 +217,28 @@ func metadataClampScanRoot(driveRoot, scanRoot string) string {
 
 func metadataNearestExistingDirectory(driveRoot, candidate string) (string, bool) {
 	driveRoot = filepath.Clean(driveRoot)
-	candidate = filepath.Clean(candidate)
-	if !metadataPathContains(driveRoot, candidate) {
-		candidate = driveRoot
+	candidate = metadataClampScanRoot(driveRoot, candidate)
+	components, err := metadataComponentsBelowDrive(candidate, driveRoot)
+	if err != nil {
+		return "", false
 	}
-	for {
-		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			return candidate, true
-		}
-		if candidate == driveRoot {
-			return "", false
-		}
-		parent := filepath.Dir(candidate)
-		if parent == candidate || !metadataPathContains(driveRoot, parent) {
-			candidate = driveRoot
-		} else {
-			candidate = parent
-		}
+	directory, _, err := metadataOpenScanRoot(context.Background(), driveRoot, nil, rate.NewLimiter(rate.Inf, 1))
+	if err != nil {
+		return "", false
 	}
+	defer func() { _ = directory.Close() }()
+	nearest := driveRoot
+	for _, component := range components {
+		fd, openErr := unix.Openat(int(directory.Fd()), component, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+		if openErr != nil {
+			return nearest, true
+		}
+		nearest = filepath.Join(nearest, component)
+		next := os.NewFile(uintptr(fd), nearest)
+		_ = directory.Close()
+		directory = next
+	}
+	return nearest, true
 }
 
 func metadataCollapseScanCandidates(candidates []metadataScanCandidate) []metadataScanCandidate {

@@ -80,8 +80,9 @@ function findSpatialNavigationTarget(
     ).element;
 }
 
-export function KeyboardNavigation({children, className, horizontalSelector, navigationSelector}: React.PropsWithChildren<{
+export function KeyboardNavigation({children, className, style, horizontalSelector, navigationSelector}: React.PropsWithChildren<{
     className?: string;
+    style?: React.CSSProperties;
     horizontalSelector?: string;
     navigationSelector?: string;
 }>): React.ReactNode {
@@ -141,7 +142,7 @@ export function KeyboardNavigation({children, className, horizontalSelector, nav
         next.focus();
     };
 
-    return <div className={className} onKeyDown={onKeyDown} onKeyDownCapture={onKeyDownCapture}>{children}</div>;
+    return <div className={className} style={style} onKeyDown={onKeyDown} onKeyDownCapture={onKeyDownCapture}>{children}</div>;
 }
 
 export function useSubmitShortcut(submit: () => void, disabled = false): void {

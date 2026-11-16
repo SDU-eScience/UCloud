@@ -22,12 +22,33 @@ type WorkspaceRenameCommand struct {
 	FromName string `positional:"from" usage:"Workspace name" required:"true"`
 	ToName   string `positional:"to" usage:"Workspace name" required:"true"`
 }
+type WorkspaceCreateCommand struct {
+	Name string `positional:"name" usage:"Workspace name" required:"true"`
+}
 
 var WorkspaceCommands = map[string]CommandFunc{
 	"list":   func() Command { return &WorkspaceListCommand{} },
 	"use":    func() Command { return &WorkspaceUseCommand{} },
 	"get":    func() Command { return &WorkspaceGetCommand{} },
 	"rename": func() Command { return &WorkspaceRenameCommand{} },
+	"create": func() Command { return &WorkspaceCreateCommand{} },
+}
+
+func (c WorkspaceCreateCommand) Execute() error {
+	shared.InitializeUCloudClient()
+	_, httpErr := fndapi.ProjectCreate.Invoke(fndapi.BulkRequest[fndapi.ProjectSpecification]{
+		Items: []fndapi.ProjectSpecification{
+			{
+				Title:               c.Name,
+				CanConsumeResources: true,
+			},
+		},
+	})
+	if httpErr.AsError() != nil {
+		return fmt.Errorf("failed to create workspace with name %s: %s", c.Name, httpErr.Why)
+	}
+	fmt.Printf("Successfully created workspace %v\n", c.Name)
+	return nil
 }
 
 func (c WorkspaceListCommand) Execute() error {
@@ -42,6 +63,11 @@ func (c WorkspaceListCommand) Execute() error {
 	t.AppendHeader("Parent")
 	t.AppendHeader("CanConsumeResources")
 	t.AppendHeader("CreatedAt")
+	t.Cell("%v", shared.PersonalWorkspaceName)
+	t.Cell("%v", "-")
+	t.Cell("%v", "-")
+	t.Cell("%v", true)
+	t.Cell("%v", "-")
 	for key, v := range workspaces {
 		t.Cell("%v", key)
 		t.Cell("%v", v.Id)
@@ -64,17 +90,24 @@ func checkIfEnviromentExists(name string) bool {
 
 func (c WorkspaceUseCommand) Execute() error {
 	shared.InitializeUCloudClient()
-	ws, err := shared.FindWorkspaceByName(c.Name)
-	if err != nil {
-		return err
+	workspaceName := c.Name
+	if workspaceName == shared.PersonalWorkspaceName {
+		shared.SetActiveWorkspace("")
+	} else {
+		ws, err := shared.FindWorkspaceByName(workspaceName)
+		if err != nil {
+			return err
+		}
+		workspaceName = ws.Name
+		shared.SetActiveWorkspace(ws.Id)
 	}
 	cfg, err := shared.UpdateConfig(&shared.Config{
-		CurrentWorkspace: util.OptValue(ws.Name),
+		CurrentWorkspace: util.OptValue(workspaceName),
 	})
 	if err != nil {
 		return err
 	}
-	fmt.Println("Workspace updated to ", c.Name)
+	fmt.Println("Workspace updated to ", workspaceName)
 	shared.PrintConfig(cfg)
 	return nil
 
@@ -82,6 +115,21 @@ func (c WorkspaceUseCommand) Execute() error {
 
 func (c WorkspaceGetCommand) Execute() error {
 	shared.InitializeUCloudClient()
+	if c.Name == shared.PersonalWorkspaceName {
+		t := termio.Table{}
+		t.AppendHeader("Workspace")
+		t.AppendHeader("Id")
+		t.AppendHeader("Parent")
+		t.AppendHeader("CreatedAt")
+		t.AppendHeader("CanConsumeResources")
+		t.Cell("%v", shared.PersonalWorkspaceName)
+		t.Cell("%v", "-")
+		t.Cell("%v", "-")
+		t.Cell("%v", "-")
+		t.Cell("%v", true)
+		t.Print()
+		return nil
+	}
 	workspaces, err := shared.RetrieveWorkspaces()
 	if err != nil {
 		return err
@@ -127,6 +175,13 @@ func (c WorkspaceGetCommand) Execute() error {
 }
 
 func (c WorkspaceRenameCommand) Execute() error {
+	if c.FromName == shared.PersonalWorkspaceName {
+		return fmt.Errorf("the personal workspace cannot be renamed")
+	}
+	if shared.RepositoryProjectName(c.ToName) == shared.PersonalWorkspaceName {
+		return fmt.Errorf("workspace name %s is reserved", shared.PersonalWorkspaceName)
+	}
+
 	shared.InitializeUCloudClient()
 	workspaces, err := shared.RetrieveWorkspaces()
 	if err != nil {

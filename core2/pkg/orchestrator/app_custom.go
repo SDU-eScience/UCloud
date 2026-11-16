@@ -693,7 +693,7 @@ func appCustomCanReadGroup(actor rpc.Actor, group *appCustomGroup) bool {
 }
 
 func appCustomCreateGroup(actor rpc.Actor, request orcapi.AppCatalogCreateCustomGroupRequest) (fndapi.FindByIntId, *util.HttpError) {
-	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureCustomApplications); err != nil {
 		return fndapi.FindByIntId{}, err
 	}
 
@@ -757,7 +757,7 @@ func appCustomCreateGroup(actor rpc.Actor, request orcapi.AppCatalogCreateCustom
 }
 
 func appCustomUpdateGroup(actor rpc.Actor, request orcapi.AppCatalogUpdateCustomGroupRequest) *util.HttpError {
-	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureCustomApplications); err != nil {
 		return err
 	}
 
@@ -816,7 +816,7 @@ func appCustomUpdateGroup(actor rpc.Actor, request orcapi.AppCatalogUpdateCustom
 }
 
 func appCustomUpdateGroupLogo(actor rpc.Actor, request orcapi.AppCatalogUpdateCustomGroupLogoRequest) *util.HttpError {
-	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureCustomApplications); err != nil {
 		return err
 	}
 
@@ -903,7 +903,7 @@ func appCustomProjectGroupInProject(groupId, projectId string) bool {
 }
 
 func appCustomCreateCategory(actor rpc.Actor, request orcapi.AppCatalogCreateCustomCategoryRequest) (fndapi.FindByIntId, *util.HttpError) {
-	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureCustomApplications); err != nil {
 		return fndapi.FindByIntId{}, err
 	}
 
@@ -1038,7 +1038,7 @@ func appCustomValidateAclGroups(tx *db.Transaction, project string, entries []or
 }
 
 func appCustomUpdateCategoryAcl(actor rpc.Actor, request orcapi.UpdatedAcl) *util.HttpError {
-	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureCustomApplications); err != nil {
 		return err
 	}
 
@@ -1198,7 +1198,7 @@ func appCustomNormalizeFlavorName(flavorName *string) *util.HttpError {
 }
 
 func appCustomCreateApplication(actor rpc.Actor, request orcapi.AppCatalogCreateCustomApplicationRequest) *util.HttpError {
-	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureCustomApplications); err != nil {
 		return err
 	}
 
@@ -1393,7 +1393,7 @@ func appCustomRetrieveApplication(actor rpc.Actor, name, version, provider strin
 }
 
 func appCustomUpdateApplication(actor rpc.Actor, request orcapi.AppCatalogUpdateCustomApplicationRequest) *util.HttpError {
-	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureCustomApplications); err != nil {
 		return err
 	}
 
@@ -1466,7 +1466,7 @@ func appCustomUpdateApplication(actor rpc.Actor, request orcapi.AppCatalogUpdate
 }
 
 func appCustomDeleteApplication(actor rpc.Actor, request orcapi.AppCatalogDeleteCustomApplicationRequest) *util.HttpError {
-	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureCustomApplications); err != nil {
 		return err
 	}
 
@@ -1567,7 +1567,7 @@ func appCustomRetrieveApplicationForWorkspace(workspace, name, version, provider
 // insert produces a conflict instead of leaving a dangling reference.
 
 func appCustomDeleteGroup(actor rpc.Actor, apiId int) *util.HttpError {
-	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureCustomApplications); err != nil {
 		return err
 	}
 
@@ -1618,7 +1618,7 @@ func appCustomDeleteGroup(actor rpc.Actor, apiId int) *util.HttpError {
 }
 
 func appCustomDeleteCategory(actor rpc.Actor, apiId int) *util.HttpError {
-	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureCustomApplications); err != nil {
 		return err
 	}
 

@@ -34,6 +34,18 @@ interface VisualizationData {
     lastUpdatedAt: number | null;
     fileCount: number | null;
     directoryCount: number | null;
+    complete: boolean;
+    indexing: boolean;
+    waitingForSizes: boolean;
+    failedDrives: number;
+}
+
+interface VisualizationState {
+    path?: string;
+    projectId?: string;
+    data: VisualizationData | null;
+    error?: string;
+    loading: boolean;
 }
 
 interface TreeDatum {
@@ -223,37 +235,34 @@ export default function FilesVisualization(): React.ReactNode {
     const projectId = useProjectId();
     const location = useLocation();
     const navigate = useNavigate();
-    const path = getQueryParam(location.search, "path") ?? undefined;
-    const [data, setData] = useState<VisualizationData | null>(null);
-    const [dataPath, setDataPath] = useState<string>();
-    const [error, setError] = useState<string>();
-    const [loading, setLoading] = useState(true);
+    const requestedPath = getQueryParam(location.search, "path");
+    const path = requestedPath ? "/" + pathComponents(requestedPath).join("/") : undefined;
+    const [state, setState] = useState<VisualizationState>({path, projectId, data: null, loading: true});
+    const current = state.path === path && state.projectId === projectId ? state : null;
+    const data = current?.data ?? null;
+    const error = current?.error;
+    const loading = current?.loading ?? true;
 
     useEffect(() => {
         let alive = true;
         let retryTimer: number | undefined;
-        setLoading(true);
-        setError(undefined);
+        let overviewRetryDelay = 10000;
+        setState({path, projectId, data: null, loading: true});
 
         const load = async () => {
             try {
                 const next = path ? await fetchVisualization(path, projectId) : await fetchDriveOverview(projectId);
                 if (!alive) return;
-                if (path && next.entries.length === 0 && next.lastUpdatedAt == null) {
-                    if (data === null) {
-                        setData(next);
-                        setDataPath(path);
-                    }
+                setState({path, projectId, data: next, loading: false});
+                if (next.indexing) {
                     retryTimer = window.setTimeout(() => void load(), 3000);
-                    return;
+                } else if (next.waitingForSizes) {
+                    retryTimer = window.setTimeout(() => void load(), overviewRetryDelay);
+                    overviewRetryDelay = Math.min(overviewRetryDelay * 2, 60000);
                 }
-                setData(next);
-                setDataPath(path);
-                setLoading(false);
             } catch (cause) {
                 if (alive) {
-                    setError(errorMessageOrDefault(cause, "Unable to load storage usage."));
-                    setLoading(false);
+                    setState({path, projectId, data: null, error: errorMessageOrDefault(cause, "Unable to load storage usage."), loading: false});
                 }
             }
         };
@@ -265,8 +274,8 @@ export default function FilesVisualization(): React.ReactNode {
     }, [path, projectId]);
 
     const openPath = (nextPath?: string) => navigate(AppRoutes.files.visualize(nextPath));
-    const total = dataPath
-        ? data?.entries.find(entry => entry.path === dataPath)?.sizeInBytes ?? 0
+    const total = path
+        ? data?.entries.find(entry => entry.path === path)?.sizeInBytes ?? 0
         : data?.entries.reduce((sum, entry) => sum + entry.sizeInBytes, 0) ?? 0;
 
     return <div className={VisualizationStyle}>
@@ -290,22 +299,28 @@ export default function FilesVisualization(): React.ReactNode {
                             <span>{formatNumber(data.fileCount)} {pluralize(data.fileCount, "file")}</span>
                         </div>}
 
-                        <div className="visualization-status">
-                            <span>{sizeToString(total)}</span>
-                        </div>
+                        {data.indexing || (!path && !data.complete && data.entries.length === 0) ? null : <div className="visualization-status">
+                            <span>{!path && !data.complete ? `At least ${sizeToString(total)}` : sizeToString(total)}</span>
+                        </div>}
 
                         {data.lastUpdatedAt == null ? null : <div className="visualization-status">
                             <span>Indexed {new Date(data.lastUpdatedAt).toLocaleString()}</span>
                         </div>}
+                        {!data.complete && !data.indexing ? <div className="visualization-status">
+                            <span>{data.waitingForSizes ? "Waiting for some drive sizes" : "Showing a partial visualization"}</span>
+                        </div> : null}
+                        {data.failedDrives > 0 ? <div className="visualization-status">
+                            <span>Unable to load {formatNumber(data.failedDrives)} {pluralize(data.failedDrives, "drive")}</span>
+                        </div> : null}
                     </>}
                 </div>
             </div>
 
             {loading && data === null ? <div className="visualization-state"><UcxSpinner /></div> :
-                error && data === null ? <Error error={error} /> :
-                    data && path && data.entries.length === 0 && data.lastUpdatedAt == null
+                error ? <Error error={error} /> :
+                    data?.indexing
                         ? <Card><div className="visualization-state"><div><UcxSpinner /><p>Building the storage index...</p></div></div></Card>
-                        : data ? <VisualizationWorkspace data={data} selectedPath={dataPath} openPath={openPath} /> : null}
+                        : data ? <VisualizationWorkspace data={data} selectedPath={path} openPath={openPath} /> : null}
     </div>;
 }
 
@@ -323,6 +338,10 @@ async function fetchVisualization(path: string, projectId?: string): Promise<Vis
         lastUpdatedAt: response.lastUpdatedAt,
         fileCount: entries.length > 0 ? response.fileCount : null,
         directoryCount: entries.length > 0 ? response.directoryCount : null,
+        complete: response.complete,
+        indexing: response.indexing ?? (entries.length === 0 && response.lastUpdatedAt == null && !response.complete),
+        waitingForSizes: false,
+        failedDrives: 0,
     };
 }
 
@@ -341,31 +360,35 @@ async function fetchDriveOverview(projectId?: string): Promise<VisualizationData
         return support?.stats.visualization === true;
     });
 
-    const entries = await mapConcurrent<FileCollection, VisualizationEntry | null>(supported, 6, async drive => {
+    const entries = await mapConcurrent<FileCollection, {entry: VisualizationEntry | null; waiting: boolean; failed: boolean}>(supported, 6, async drive => {
         try {
             const file = await callAPI<UFile>({
                 ...FilesApi.retrieve({id: `/${drive.id}`, includeSizes: true}),
                 projectOverride: projectId,
             });
             const size = file.status.sizeIncludingChildrenInBytes;
-            if (size == null) return null;
-            return {
+            if (size == null) return {entry: null, waiting: true, failed: false};
+            return {entry: {
                 path: file.id,
                 type: "DIRECTORY" as const,
                 sizeInBytes: size,
                 label: drive.specification.title,
                 prettyPath: `/${drive.specification.title}`,
-            };
+            }, waiting: false, failed: false};
         } catch {
-            return null;
+            return {entry: null, waiting: false, failed: true};
         }
     });
 
     return {
-        entries: entries.filter((entry): entry is VisualizationEntry => entry !== null),
+        entries: entries.map(result => result.entry).filter((entry): entry is VisualizationEntry => entry !== null),
         lastUpdatedAt: null,
         fileCount: null,
         directoryCount: null,
+        complete: entries.every(result => result.entry !== null),
+        indexing: false,
+        waitingForSizes: entries.some(result => result.waiting),
+        failedDrives: entries.filter(result => result.failed).length,
     };
 }
 

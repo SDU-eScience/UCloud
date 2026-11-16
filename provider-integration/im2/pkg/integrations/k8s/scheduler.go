@@ -108,18 +108,20 @@ type SchedulerNode struct {
 	LastSeen                     int
 	Unschedulable                bool
 	MaximumReplicas              int // maximum number of replicas running on the node (regardless of reservations)
+	AntiAffinityGroups           map[string]util.Empty
 }
 
 type SchedulerQueueEntry struct {
 	JobId string
 	shared.SchedulerDimensions
-	Replicas    int
-	LastSeen    int
-	Data        any
-	SubmittedAt fnd.Timestamp
-	JobLength   orc.SimpleDuration
-	Priority    float64
-	Factors     struct {
+	Replicas          int
+	LastSeen          int
+	Data              any
+	SubmittedAt       fnd.Timestamp
+	JobLength         orc.SimpleDuration
+	AntiAffinityGroup util.Option[string]
+	Priority          float64
+	Factors           struct {
 		Age       float64
 		FairShare float64
 		JobSize   float64
@@ -137,6 +139,56 @@ type SchedulerReplicaEntry struct {
 	LastSeen  int
 	Data      any
 	JobLength orc.SimpleDuration
+}
+
+type schedulerPlacements map[string]map[string]int
+
+func (p schedulerPlacements) Has(nodeName string, group util.Option[string]) bool {
+	if !group.Present {
+		return false
+	}
+
+	placed := p[nodeName]
+	if placed == nil {
+		return false
+	}
+
+	return placed[group.Value] > 0
+}
+
+func (p schedulerPlacements) Add(nodeName string, group util.Option[string]) {
+	if !group.Present || p == nil {
+		return
+	}
+
+	placed := p[nodeName]
+	if placed == nil {
+		placed = map[string]int{}
+		p[nodeName] = placed
+	}
+
+	placed[group.Value]++
+}
+
+func (p schedulerPlacements) Remove(nodeName string, group util.Option[string]) {
+	if !group.Present {
+		return
+	}
+
+	placed := p[nodeName]
+	if placed == nil {
+		return
+	}
+
+	if placed[group.Value] > 1 {
+		placed[group.Value]--
+		return
+	}
+
+	delete(placed, group.Value)
+	if len(placed) == 0 {
+		delete(p, nodeName)
+	}
 }
 
 func (s *Scheduler) RegisterNode(name string, capacity, limits shared.SchedulerDimensions, unschedulable bool) {
@@ -271,6 +323,7 @@ func (s *Scheduler) RegisterJobInQueue(
 	jobId string,
 	dimensions shared.SchedulerDimensions,
 	replicas int,
+	antiAffinityGroup util.Option[string],
 	data any,
 	submittedAt fnd.Timestamp,
 	jobLength orc.SimpleDuration,
@@ -285,6 +338,7 @@ func (s *Scheduler) RegisterJobInQueue(
 			Data:                data,
 			SubmittedAt:         submittedAt,
 			JobLength:           jobLength,
+			AntiAffinityGroup:   antiAffinityGroup,
 		})
 	}
 	metricRegisterInQueueDuration.WithLabelValues(s.Name).Observe(timer.Mark().Seconds())
@@ -469,9 +523,10 @@ func (s *Scheduler) Schedule() []SchedulerReplicaEntry {
 	}
 
 	allowBackfill := s.Flags&SchedulerDisableBackfill == 0
+	placed := schedulerPlacements{}
 	for queueIdx := 0; queueIdx < len(s.Queue); queueIdx++ {
 		entry := &s.Queue[queueIdx]
-		allocatedNodes := s.trySchedule(entry, allNodes, false)
+		allocatedNodes := s.trySchedule(entry, allNodes, false, placed)
 
 		// TODO Only backfill if the job we are scheduling can likely complete before the head of the queue
 		//   will start. This will require us to know when the head of the queue is likely to start.
@@ -540,14 +595,41 @@ func (s *Scheduler) Schedule() []SchedulerReplicaEntry {
 	return result
 }
 
-func (s *Scheduler) trySchedule(entry *SchedulerQueueEntry, allNodes []*SchedulerNode, dry bool) []string {
+func (s *Scheduler) trySchedule(
+	entry *SchedulerQueueEntry,
+	allNodes []*SchedulerNode,
+	dry bool,
+	placed schedulerPlacements,
+) []string {
 	timer := util.NewTimer()
 
 	var allocatedNodes []string
 
 	hasJobCompaction := s.Flags&SchedulerDisableJobCompaction == 0
 
+	hasAntiAffinityConflict := func(node *SchedulerNode) bool {
+		if !entry.AntiAffinityGroup.Present {
+			return false
+		}
+
+		if _, ok := node.AntiAffinityGroups[entry.AntiAffinityGroup.Value]; ok {
+			return true
+		}
+
+		return placed.Has(node.Name, entry.AntiAffinityGroup)
+	}
+
 	sortingFunction := func(a, b *SchedulerNode) int {
+		aConflict := hasAntiAffinityConflict(a)
+		bConflict := hasAntiAffinityConflict(b)
+		if aConflict != bConflict {
+			if aConflict {
+				return 1
+			} else {
+				return -1
+			}
+		}
+
 		aRem := a.Remaining
 		bRem := b.Remaining
 		cmp := numericCompares(
@@ -568,7 +650,7 @@ func (s *Scheduler) trySchedule(entry *SchedulerQueueEntry, allNodes []*Schedule
 		return strings.Compare(a.Name, b.Name)
 	}
 
-	sortAfterEachSchedule := !hasJobCompaction
+	sortAfterEachSchedule := !hasJobCompaction || entry.AntiAffinityGroup.Present
 
 	if !sortAfterEachSchedule {
 		slices.SortFunc(allNodes, sortingFunction)
@@ -608,6 +690,7 @@ outer:
 			node.AdvertisedCpuRemainingMillis -= entry.CpuMillis
 
 			allocatedNodes = append(allocatedNodes, node.Name)
+			placed.Add(node.Name, entry.AntiAffinityGroup)
 
 			continue outer
 		}
@@ -622,6 +705,7 @@ outer:
 			node := s.Nodes[n]
 			node.Remaining.Add(schedulerDimensionsForNode(node, entry.SchedulerDimensions))
 			node.AdvertisedCpuRemainingMillis += entry.CpuMillis
+			placed.Remove(n, entry.AntiAffinityGroup)
 		}
 
 		if dry && len(allocatedNodes) >= entry.Replicas {
@@ -633,6 +717,13 @@ outer:
 
 	metricSchedulerAttemptDuration.WithLabelValues(s.Name).Observe(timer.Mark().Seconds())
 	return allocatedNodes
+}
+
+func (s *Scheduler) SynchronizeNodeAntiAffinity(name string, groups map[string]util.Empty) {
+	node, ok := s.Nodes[name]
+	if ok {
+		node.AntiAffinityGroups = groups
+	}
 }
 
 func (s *Scheduler) SynchronizeNodeUsage(name string, dims shared.SchedulerDimensions) {
@@ -664,8 +755,12 @@ func schedulerDimensionsForNode(node *SchedulerNode, dimensions shared.Scheduler
 
 func totalResourceUnits(dims shared.SchedulerDimensions) int {
 	result := 0
+	rdmaResource := shared.PrivateNetworkRdmaResourceName()
 	if dims.Resources != nil {
-		for _, amount := range dims.Resources {
+		for key, amount := range dims.Resources {
+			if key == rdmaResource {
+				continue
+			}
 			result += amount
 		}
 	}

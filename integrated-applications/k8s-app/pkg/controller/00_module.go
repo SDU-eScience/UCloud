@@ -1,0 +1,605 @@
+package controller
+
+import (
+	"context"
+	"os"
+	"regexp"
+	"slices"
+	"strings"
+	"sync"
+	"time"
+
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
+
+	"ucloud.dk/iapp/k8s/pkg/shared"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
+	"ucloud.dk/shared/pkg/log"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/rpc"
+	"ucloud.dk/shared/pkg/ucx/ucxapi"
+	"ucloud.dk/shared/pkg/util"
+)
+
+const (
+	reconcileInterval     = 5 * time.Minute
+	productCacheInterval  = 1 * time.Hour
+	domainFailureBackoff  = 5 * time.Minute
+	controllerHttpTimeout = 30 * time.Second
+
+	ingressServiceName = "k8s-ingress"
+	controllerCaPath   = "/etc/ucloud-k8s/ca/server-ca.crt"
+)
+
+var linkRegex = regexp.MustCompile(`^[a-z][a-z0-9-]{3,61}[a-z0-9]$`)
+
+func Launch() {
+	client, token, err := shared.RpcClientNew(shared.RpcGrantPodTokenPath, controllerHttpTimeout)
+	if err != nil {
+		log.Fatal("k8s controller: %s", err)
+	}
+
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		log.Fatal("k8s controller: could not load the in-cluster configuration: %s", err)
+	}
+	config.QPS = 10
+	config.Burst = 20
+
+	k8s, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Fatal("k8s controller: could not create the kubernetes client: %s", err)
+	}
+
+	ctx := context.Background()
+
+	informer := informers.NewSharedInformerFactory(k8s, 30*time.Minute)
+	ingressInformer := informer.Networking().V1().Ingresses().Informer()
+	ingressInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    func(any) { triggerReconcile() },
+		UpdateFunc: func(any, any) { triggerReconcile() },
+		DeleteFunc: func(any) {},
+	})
+
+	informer.Start(ctx.Done())
+
+	for {
+		reconcile(ctx, k8s, client, token)
+
+		select {
+		case <-reconcileNow:
+		case <-time.After(reconcileInterval):
+		}
+	}
+}
+
+var reconcileNow = make(chan util.Empty, 1)
+
+func triggerReconcile() {
+	select {
+	case reconcileNow <- util.Empty{}:
+	default:
+	}
+}
+
+var domainFailures map[string]time.Time
+
+type productCacheEntry[Support any] struct {
+	sync.Mutex
+	Support     []Support
+	RefreshedAt time.Time
+}
+
+var ingressProductCache productCacheEntry[orcapi.IngressSupport]
+var serviceProductCache productCacheEntry[orcapi.ServiceSupport]
+
+func cachedProducts[Support any](
+	cache *productCacheEntry[Support],
+	fetch func() ([]Support, *util.HttpError),
+) ([]Support, bool) {
+	cache.Lock()
+	defer cache.Unlock()
+
+	if time.Since(cache.RefreshedAt) < productCacheInterval {
+		return cache.Support, true
+	}
+
+	support, herr := fetch()
+	if herr != nil {
+		return nil, false
+	}
+
+	cache.Support = support
+	cache.RefreshedAt = time.Now()
+	return cache.Support, true
+}
+
+func reconcile(ctx context.Context, k8s *kubernetes.Clientset, client *rpc.Client, token string) {
+	auth := ucxapi.StackCredentialAuth{Token: token}
+
+	support, ok := cachedProducts(&ingressProductCache, func() ([]orcapi.IngressSupport, *util.HttpError) {
+		return ucxapi.StackControlIngressProducts.InvokeEx(client, ucxapi.StackControlProductsRequest{
+			StackCredentialAuth: ucxapi.StackCredentialAuth{Token: token},
+		}, rpc.InvokeOpts{})
+	})
+	if !ok {
+		log.Warn("k8s controller: could not retrieve the public link products")
+		return
+	}
+
+	if len(support) == 0 {
+		log.Warn("k8s controller: the provider has no public link products")
+		return
+	}
+
+	owned, herr := ucxapi.StackControlBrowseAll(client, token, &ucxapi.StackControlBrowseIngresses, func(next util.Option[string]) orcapi.IngressesControlBrowseRequest {
+		return orcapi.IngressesControlBrowseRequest{ItemsPerPage: 250, Next: next}
+	})
+	if herr != nil {
+		log.Warn("k8s controller: could not browse the owned public links: %s", herr)
+		return
+	}
+
+	ownedDomains := map[string]util.Empty{}
+	for _, ingress := range owned {
+		ownedDomains[ingress.Specification.Domain] = util.Empty{}
+	}
+
+	hosts, err := collectIngressHosts(ctx, k8s)
+	if err != nil {
+		log.Warn("k8s controller: could not list the cluster ingresses: %s", err)
+		return
+	}
+
+	service, serviceOk := ensureIngressService(client, token)
+	if !serviceOk {
+		return
+	}
+
+	syncServiceMembers(client, token, service)
+	ensureApiServiceTls(client, token)
+
+	now := time.Now()
+	nextFailures := map[string]time.Time{}
+	for _, host := range hosts {
+		domain := strings.ToLower(host)
+
+		matched := -1
+		for i := range support {
+			if eligibleDomain(support[i], domain) {
+				matched = i
+				break
+			}
+		}
+		if matched == -1 {
+			continue
+		}
+
+		if _, exists := ownedDomains[domain]; exists {
+			continue
+		}
+
+		if failureAt, failed := domainFailures[domain]; failed && now.Before(failureAt.Add(domainFailureBackoff)) {
+			nextFailures[domain] = failureAt
+			continue
+		}
+
+		_, herr := ucxapi.StackControlCreateIngress.InvokeEx(client, ucxapi.StackControlRequestOf[orcapi.ControlCreateRequest[orcapi.IngressSpecification]]{
+			StackCredentialAuth: auth,
+			Request: orcapi.ControlCreateRequest[orcapi.IngressSpecification]{
+				Items: []orcapi.IngressSpecification{{
+					Domain: domain,
+					Target: util.OptValue(orcapi.PublicLinkServiceTarget{
+						ServiceId: service.Id,
+						Port:      "http",
+					}),
+					ResourceSpecification: orcapi.ResourceSpecification{
+						Product: support[matched].Product,
+					},
+				}},
+			},
+		}, rpc.InvokeOpts{})
+		if herr != nil {
+			log.Warn("k8s controller: could not create the public link for %s: %s", domain, herr)
+			nextFailures[domain] = now
+			continue
+		}
+
+		log.Info("k8s controller: created the public link for %s", domain)
+	}
+
+	domainFailures = nextFailures
+
+	hostSet := map[string]util.Empty{}
+	for _, host := range hosts {
+		hostSet[strings.ToLower(host)] = util.Empty{}
+	}
+
+	collectOrphanedLinks(client, token, service, owned, hostSet)
+}
+
+func ensureIngressService(client *rpc.Client, token string) (orcapi.Service, bool) {
+	services, herr := ucxapi.StackControlBrowseAll(client, token, &ucxapi.StackControlBrowseServices, func(next util.Option[string]) orcapi.ServicesControlBrowseRequest {
+		return orcapi.ServicesControlBrowseRequest{ItemsPerPage: 250, Next: next}
+	})
+	if herr != nil {
+		log.Warn("k8s controller: could not browse the stack services: %s", herr)
+		return orcapi.Service{}, false
+	}
+
+	for _, service := range services {
+		if service.Specification.Name == ingressServiceName {
+			return service, true
+		}
+	}
+
+	products, ok := cachedProducts(&serviceProductCache, func() ([]orcapi.ServiceSupport, *util.HttpError) {
+		return ucxapi.StackControlServiceProducts.InvokeEx(client, ucxapi.StackControlProductsRequest{
+			StackCredentialAuth: ucxapi.StackCredentialAuth{Token: token},
+		}, rpc.InvokeOpts{})
+	})
+	if !ok {
+		log.Warn("k8s controller: could not retrieve the service products")
+		return orcapi.Service{}, false
+	}
+
+	if len(products) == 0 {
+		log.Warn("k8s controller: the provider has no service products")
+		return orcapi.Service{}, false
+	}
+
+	state, stateErr := shared.ClusterStateClientNewHost()
+	if stateErr != nil {
+		log.Warn("k8s controller: could not open the cluster state: %s", stateErr)
+		return orcapi.Service{}, false
+	}
+
+	snapshot, readErr := shared.ClusterStateRead(state)
+	if readErr != nil {
+		log.Warn("k8s controller: could not read the cluster record: %s", readErr)
+		return orcapi.Service{}, false
+	}
+
+	networkId := snapshot.Record.NetworkId
+
+	if networkId == "" {
+		log.Warn("k8s controller: could not determine the private network of the stack")
+		return orcapi.Service{}, false
+	}
+
+	spec := orcapi.ServiceSpecification{
+		Name: ingressServiceName,
+		Ports: []orcapi.ServicePort{{
+			Name:                "http",
+			Port:                shared.IngressNodePort,
+			Protocol:            orcapi.ServicePortProtocolTcp,
+			ApplicationProtocol: util.OptValue("HTTP"),
+			HealthCheck: util.OptValue(orcapi.ServiceHealthCheck{
+				Type:               orcapi.ServiceHealthCheckTypeTcp,
+				IntervalSeconds:    5,
+				TimeoutSeconds:     2,
+				HealthyThreshold:   2,
+				UnhealthyThreshold: 2,
+			}),
+		}},
+		InternalEndpoint: util.OptValue(orcapi.ServiceInternalEndpointSpec{
+			PrivateNetworkId: networkId,
+		}),
+		ResourceSpecification: orcapi.ResourceSpecification{
+			Product: products[0].Product,
+		},
+	}
+
+	response, herr := ucxapi.StackControlCreateService.InvokeEx(client, ucxapi.StackControlRequestOf[orcapi.ControlCreateRequest[orcapi.ServiceSpecification]]{
+		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: token},
+		Request: orcapi.ControlCreateRequest[orcapi.ServiceSpecification]{
+			Items: []orcapi.ServiceSpecification{spec},
+		},
+	}, rpc.InvokeOpts{})
+	if herr != nil {
+		log.Warn("k8s controller: could not create the ingress service: %s", herr)
+		return orcapi.Service{}, false
+	}
+
+	if len(response.Responses) == 0 {
+		log.Warn("k8s controller: the ingress service creation returned no id")
+		return orcapi.Service{}, false
+	}
+
+	return orcapi.Service{Resource: orcapi.Resource{Id: response.Responses[0].Id}}, true
+}
+
+func ensureApiServiceTls(client *rpc.Client, token string) {
+	state, stateErr := shared.ClusterStateClientNewHost()
+	if stateErr != nil {
+		log.Warn("k8s controller: could not open the cluster state: %s", stateErr)
+		return
+	}
+
+	snapshot, readErr := shared.ClusterStateRead(state)
+	if readErr != nil {
+		log.Warn("k8s controller: could not read the cluster record: %s", readErr)
+		return
+	}
+	if !snapshot.Found {
+		return
+	}
+
+	record := snapshot.Record
+	if record.ServiceId == "" || record.ServiceDnsName == "" {
+		return
+	}
+
+	caPem, caErr := os.ReadFile(controllerCaPath)
+	if caErr != nil || len(caPem) == 0 {
+		log.Warn("k8s controller: the cluster certificate authority is not available at %s", controllerCaPath)
+		return
+	}
+
+	services, herr := ucxapi.StackControlBrowseAll(client, token, &ucxapi.StackControlBrowseServices, func(next util.Option[string]) orcapi.ServicesControlBrowseRequest {
+		return orcapi.ServicesControlBrowseRequest{ItemsPerPage: 250, Next: next}
+	})
+	if herr != nil {
+		log.Warn("k8s controller: could not browse the stack services: %s", herr)
+		return
+	}
+
+	service := orcapi.Service{}
+	found := false
+	for _, candidate := range services {
+		if candidate.Id == record.ServiceId {
+			service = candidate
+			found = true
+			break
+		}
+	}
+	if !found {
+		return
+	}
+
+	desired := util.OptValue(orcapi.ServiceBackendTls{
+		ServerName:     record.ServiceDnsName,
+		TrustBundlePem: util.OptValue(string(caPem)),
+	})
+
+	ports := slices.Clone(service.Specification.Ports)
+	changed := false
+	for i := range ports {
+		if !ports[i].BackendTls.Present {
+			continue
+		}
+		if ports[i].BackendTls == desired {
+			continue
+		}
+		ports[i].BackendTls = desired
+		changed = true
+	}
+	if !changed {
+		return
+	}
+
+	_, herr = ucxapi.StackControlUpdateServiceSpec.InvokeEx(client, ucxapi.StackControlRequestOf[orcapi.ControlMutateRequest[orcapi.ResourceUpdateAndId[orcapi.ServicesUpdateRequest]]]{
+		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: token},
+		Request: orcapi.ControlMutateRequest[orcapi.ResourceUpdateAndId[orcapi.ServicesUpdateRequest]]{
+			Items: []orcapi.ResourceUpdateAndId[orcapi.ServicesUpdateRequest]{{
+				Id: service.Id,
+				Update: orcapi.ServicesUpdateRequest{
+					Ports: util.OptValue(ports),
+				},
+			}},
+		},
+	}, rpc.InvokeOpts{})
+	if herr != nil {
+		log.Warn("k8s controller: could not update the API service TLS settings: %s", herr)
+		return
+	}
+
+	log.Info("k8s controller: updated the API service TLS settings for %s", record.ServiceDnsName)
+}
+
+// syncServiceMembers converges the ingress service membership towards the
+// desired state: every live control plane job is a member, unless the traffic
+// record suspends it.
+func syncServiceMembers(client *rpc.Client, token string, service orcapi.Service) {
+	state, stateErr := shared.ClusterStateClientNewHost()
+	if stateErr != nil {
+		log.Warn("k8s controller: could not open the cluster state: %s", stateErr)
+		return
+	}
+
+	traffic, trafficErr := shared.ClusterTrafficRead(state)
+	if trafficErr != nil {
+		log.Warn("k8s controller: could not read the traffic state: %s", trafficErr)
+		return
+	}
+
+	jobs, herr := ucxapi.StackControlBrowseAll(client, token, &ucxapi.StackControlBrowseJobs, func(next util.Option[string]) orcapi.JobsControlBrowseRequest {
+		return orcapi.JobsControlBrowseRequest{ItemsPerPage: 250, Next: next}
+	})
+	if herr != nil {
+		log.Warn("k8s controller: could not browse the stack jobs: %s", herr)
+		return
+	}
+
+	suspended := map[string]bool{}
+	for _, jobId := range shared.ClusterTrafficSuspendedJobIds(traffic.Record) {
+		suspended[jobId] = true
+	}
+
+	// A suspension whose job is gone holds nothing. Drop it so the traffic
+	// record cannot block a node that was removed mid-maintenance.
+	staleSuspensions := []string{}
+	for _, suspendedJob := range traffic.Record.SuspendedJobs {
+		jobExists := false
+		for _, job := range jobs {
+			if job.Id == suspendedJob.JobId && !job.Status.State.IsFinal() {
+				jobExists = true
+				break
+			}
+		}
+		if !jobExists {
+			staleSuspensions = append(staleSuspensions, suspendedJob.JobId)
+		}
+	}
+	if len(staleSuspensions) > 0 {
+		record := traffic.Record
+		changed := false
+		for _, jobId := range staleSuspensions {
+			if shared.ClusterTrafficSuspendRemove(&record, jobId) {
+				changed = true
+			}
+		}
+		if changed {
+			_, writeErr := shared.ClusterTrafficRecordWrite(state, &record, traffic.Revision)
+			if writeErr != nil {
+				log.Warn("k8s controller: could not clear the stale traffic suspensions: %s", writeErr)
+				return
+			}
+			log.Info("k8s controller: cleared %d stale traffic suspensions", len(staleSuspensions))
+			traffic.Record = record
+			for _, jobId := range staleSuspensions {
+				delete(suspended, jobId)
+			}
+		}
+	}
+
+	desired := []string{}
+	for _, job := range jobs {
+		isControlPlane := job.Specification.Labels[k8sapi.LabelNodeGroup] == k8sapi.GroupControlPlane
+		if !isControlPlane || job.Status.State.IsFinal() {
+			continue
+		}
+		if suspended[job.Id] {
+			continue
+		}
+		if !slices.Contains(desired, job.Id) {
+			desired = append(desired, job.Id)
+		}
+	}
+
+	adding := []string{}
+	for _, jobId := range desired {
+		if !slices.Contains(service.Status.Members, jobId) {
+			adding = append(adding, jobId)
+		}
+	}
+
+	removing := []string{}
+	for _, jobId := range service.Status.Members {
+		if !slices.Contains(desired, jobId) {
+			removing = append(removing, jobId)
+		}
+	}
+
+	if len(adding) == 0 && len(removing) == 0 {
+		return
+	}
+
+	_, herr = ucxapi.StackControlUpdateMembers.InvokeEx(client, ucxapi.StackControlRequestOf[orcapi.ServicesControlUpdateMembersRequest]{
+		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: token},
+		Request: orcapi.ServicesControlUpdateMembersRequest{
+			Id:            service.Id,
+			AddedJobIds:   adding,
+			RemovedJobIds: removing,
+		},
+	}, rpc.InvokeOpts{})
+	if herr != nil {
+		log.Warn("k8s controller: could not update the ingress service members: %s", herr)
+		return
+	}
+
+	log.Info("k8s controller: updated the ingress service members (+%d/-%d)", len(adding), len(removing))
+}
+
+func collectOrphanedLinks(
+	client *rpc.Client,
+	token string,
+	service orcapi.Service,
+	owned []orcapi.Ingress,
+	hostSet map[string]util.Empty,
+) {
+	orphaned := []string{}
+	for _, ingress := range owned {
+		target := ingress.Specification.Target
+		targetsOurService := target.Present && target.Value.ServiceId == service.Id
+		if !targetsOurService {
+			continue
+		}
+
+		if _, stillPresent := hostSet[ingress.Specification.Domain]; stillPresent {
+			continue
+		}
+
+		orphaned = append(orphaned, ingress.Id)
+	}
+
+	if len(orphaned) == 0 {
+		return
+	}
+
+	_, herr := ucxapi.StackControlDeleteIngress.InvokeEx(client, ucxapi.StackControlRequestOf[orcapi.IngressesControlDeleteRequest]{
+		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: token},
+		Request: orcapi.IngressesControlDeleteRequest{
+			IngressIds: orphaned,
+		},
+	}, rpc.InvokeOpts{})
+	if herr != nil {
+		log.Warn("k8s controller: could not delete the orphaned public links: %s", herr)
+		return
+	}
+
+	for _, id := range orphaned {
+		log.Info("k8s controller: deleted the orphaned public link %s", id)
+	}
+}
+
+func collectIngressHosts(ctx context.Context, k8s *kubernetes.Clientset) ([]string, error) {
+	list, err := k8s.NetworkingV1().Ingresses(meta.NamespaceAll).List(ctx, meta.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	seen := map[string]util.Empty{}
+	for i := range list.Items {
+		ingress := &list.Items[i]
+		for _, rule := range ingress.Spec.Rules {
+			if rule.Host != "" {
+				seen[rule.Host] = util.Empty{}
+			}
+		}
+
+		for _, tls := range ingress.Spec.TLS {
+			for _, host := range tls.Hosts {
+				if host != "" {
+					seen[host] = util.Empty{}
+				}
+			}
+		}
+	}
+
+	result := make([]string, 0, len(seen))
+	for host := range seen {
+		result = append(result, host)
+	}
+	slices.Sort(result)
+	return result, nil
+}
+
+func eligibleDomain(support orcapi.IngressSupport, domain string) bool {
+	if len(domain) > 253 {
+		return false
+	}
+
+	withoutPrefix, okPrefix := strings.CutPrefix(domain, support.Prefix)
+	userToken, okSuffix := strings.CutSuffix(withoutPrefix, support.Suffix)
+	userToken = strings.ToLower(userToken)
+
+	if !okPrefix || !okSuffix {
+		return false
+	}
+
+	return linkRegex.MatchString(userToken)
+}

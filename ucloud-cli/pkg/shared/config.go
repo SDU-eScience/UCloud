@@ -1,7 +1,6 @@
 package shared
 
 import (
-	"fmt"
 	"maps"
 	"net/http"
 	"os"
@@ -23,6 +22,8 @@ type Config struct {
 	Defaults           Defaults               `yaml:"defaults"`
 }
 
+var TestMode = false
+
 type Environment struct {
 	URL string `yaml:"url"`
 }
@@ -38,13 +39,20 @@ type Defaults struct {
 }
 
 func GetUCloudDir() string {
+	if TestMode {
+		return testUCloudDir()
+	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".config", "ucloud")
 }
 
-func GetConfigPath() string {
+func testUCloudDir() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "ucloud", "config.yaml")
+	return filepath.Join(home, ".config", "test_ucloud")
+}
+
+func GetConfigPath() string {
+	return filepath.Join(GetUCloudDir(), "config.yaml")
 }
 
 func ReadConfig() (*Config, error) {
@@ -174,11 +182,11 @@ func InitializeUCloudClient() *Config {
 	return cfg
 }
 
-func GetActiveWorkspace(cfg *Config) (string, error) {
+func GetActiveWorkspace(cfg *Config) string {
 	if cfg.CurrentWorkspace.Present {
-		return cfg.CurrentWorkspace.Value, nil
+		return cfg.CurrentWorkspace.Value
 	}
-	return "", fmt.Errorf("No active workspace")
+	return PersonalWorkspaceName
 }
 
 func PrintConfig(cfg *Config) {

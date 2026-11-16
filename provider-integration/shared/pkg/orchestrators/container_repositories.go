@@ -13,7 +13,8 @@ type ContainerRepository struct {
 }
 
 type ContainerRepositorySpecification struct {
-	Name string `json:"name"`
+	Name   string `json:"name"`
+	Public bool   `json:"public"`
 	ResourceSpecification
 }
 
@@ -99,6 +100,18 @@ var ContainerRepositoriesUpdateLabels = rpc.Call[fnd.BulkRequest[ContainerReposi
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "updateLabels",
+}
+
+type ContainerRepositoriesUpdatePublicRequest struct {
+	Id     string `json:"id"`
+	Public bool   `json:"public"`
+}
+
+var ContainerRepositoriesUpdatePublic = rpc.Call[fnd.BulkRequest[ContainerRepositoriesUpdatePublicRequest], fnd.BulkResponse[util.Empty]]{
+	BaseContext: containerRepositoryNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updatePublic",
 }
 
 var ContainerRepositoriesRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[FSSupport]]{
@@ -188,6 +201,13 @@ var ContainerRepositoriesProviderDelete = rpc.Call[fnd.BulkRequest[ContainerRepo
 	BaseContext: containerRepositoryProviderNamespace,
 	Convention:  rpc.ConventionDelete,
 	Roles:       rpc.RolesPrivileged,
+}
+
+var ContainerRepositoriesProviderUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAclWithResource[ContainerRepository]], fnd.BulkResponse[util.Empty]]{
+	BaseContext: containerRepositoryProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "updateAcl",
 }
 
 var ContainerRepositoriesProviderOnUpdatedLabels = rpc.Call[fnd.BulkRequest[ContainerRepository], util.Empty]{

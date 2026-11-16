@@ -12,7 +12,7 @@ import {checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
 const baseContext = "/api/hpc/apps";
 
 export function customApplicationsEnabled(): boolean {
-    return hasFeature(Feature.CONTAINER_REPOSITORIES);
+    return hasFeature(Feature.CUSTOM_APPLICATIONS);
 }
 
 export function customAppsWorkspaceAdmin(): boolean {
@@ -300,6 +300,15 @@ export namespace ApplicationParameterNS {
         type: ("private_network");
     }
 
+    export interface UCloudNetwork {
+        name: string;
+        title: string;
+        description: string;
+        defaultValue?: any;
+        optional: boolean;
+        type: ("ucloud_network");
+    }
+
     export interface Workflow {
         name: string;
         title: string;
@@ -351,6 +360,7 @@ export type ApplicationParameter =
     | ApplicationParameterNS.LicenseServer
     | ApplicationParameterNS.NetworkIP
     | ApplicationParameterNS.PrivateNetwork
+    | ApplicationParameterNS.UCloudNetwork
     | ApplicationParameterNS.Workflow
     | ApplicationParameterNS.Readme
     | ApplicationParameterNS.ModuleList

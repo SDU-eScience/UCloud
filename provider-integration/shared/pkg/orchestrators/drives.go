@@ -84,8 +84,17 @@ const (
 
 type DriveFlags struct {
 	ResourceFlags
-	FilterMemberFiles util.Option[MemberFilesFilter] `json:"filterMemberFiles"`
+	FilterMemberFiles      util.Option[MemberFilesFilter]      `json:"filterMemberFiles"`
+	FilterApplicationFiles util.Option[ApplicationFilesFilter] `json:"filterApplicationFiles"`
 }
+
+type ApplicationFilesFilter string
+
+const (
+	ApplicationFilesAll      ApplicationFilesFilter = "all"
+	ApplicationFilesOrdinary ApplicationFilesFilter = "ordinary"
+	ApplicationFilesOnly     ApplicationFilesFilter = "application"
+)
 
 // Drive API
 // =====================================================================================================================

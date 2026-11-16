@@ -137,8 +137,10 @@ type ResourceBrowseRequest[Flags any] struct {
 }
 
 type ResourceSpecification struct {
-	Product acc.ProductReference `json:"product"`
-	Labels  map[string]string    `json:"labels"`
+	Product       acc.ProductReference `json:"product"`
+	Labels        map[string]string    `json:"labels"`
+	ServerLabels  map[string]string    `json:"-" ucx:"-"`
+	StackResource *Resource            `json:"-" ucx:"-"`
 }
 
 type ResourceRetrieveRequest[Flags any] struct {
@@ -153,6 +155,34 @@ type ProviderRegisteredResource[Spec any] struct {
 	Project             util.Option[string] `json:"project"`
 	ProjectAllRead      bool                `json:"projectAllRead"`
 	ProjectAllWrite     bool                `json:"projectAllWrite"`
+}
+
+type ControlCreateRequest[Spec any] struct {
+	JobId string `json:"jobId"`
+	Items []Spec `json:"items"`
+}
+
+func ControlCreateCall[Spec any, Resp any](namespace string) rpc.Call[ControlCreateRequest[Spec], Resp] {
+	return rpc.Call[ControlCreateRequest[Spec], Resp]{
+		BaseContext: namespace,
+		Convention:  rpc.ConventionUpdate,
+		Roles:       rpc.RolesProvider,
+		Operation:   "create",
+	}
+}
+
+type ControlMutateRequest[Item any] struct {
+	JobId string `json:"jobId,omitempty"`
+	Items []Item `json:"items"`
+}
+
+func ControlMutateCall[Item any, Resp any](namespace string, operation string) rpc.Call[ControlMutateRequest[Item], Resp] {
+	return rpc.Call[ControlMutateRequest[Item], Resp]{
+		BaseContext: namespace,
+		Convention:  rpc.ConventionUpdate,
+		Roles:       rpc.RolesProvider,
+		Operation:   operation,
+	}
 }
 
 func ResourceOwnerToWalletOwner(resource Resource) acc.WalletOwner {

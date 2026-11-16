@@ -1,6 +1,7 @@
 package filesystem
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -65,10 +66,42 @@ func Stat(path string) (os.FileInfo, *util.HttpError) {
 	return info, nil
 }
 
+func metadataOpenSensitivityFile(path string) (*os.File, bool) {
+	components := util.Components(path)
+	fd, err := unix.Open("/", unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return nil, false
+	}
+	for i, component := range components {
+		flags := unix.O_RDONLY | unix.O_NOFOLLOW | unix.O_CLOEXEC
+		if i == len(components)-1 {
+			flags |= unix.O_NONBLOCK
+		} else {
+			flags |= unix.O_DIRECTORY
+		}
+		nextFd, openErr := unix.Openat(fd, component, flags, 0)
+		_ = unix.Close(fd)
+		if openErr != nil {
+			return nil, false
+		}
+		fd = nextFd
+	}
+	file := os.NewFile(uintptr(fd), path)
+	info, err := file.Stat()
+	if err != nil || (!info.Mode().IsRegular() && !info.IsDir()) {
+		_ = file.Close()
+		return nil, false
+	}
+	return file, true
+}
+
 func WriteFileAtomic(path string, data []byte, perm uint32) *util.HttpError {
 	if err := DoCreateFolder(filepath.Dir(path)); err != nil {
 		return err
 	}
+
+	_, statErr := os.Stat(path)
+	created := errors.Is(statErr, os.ErrNotExist)
 
 	tmpPath := filepath.Join(filepath.Dir(path), fmt.Sprintf(".%s.tmp-%s", filepath.Base(path), util.RandomToken(16)))
 	tmpFile, ok := OpenFile(tmpPath, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL, perm)
@@ -101,6 +134,9 @@ func WriteFileAtomic(path string, data []byte, perm uint32) *util.HttpError {
 	if err := unix.Renameat(int(parent.Fd()), filepath.Base(tmpPath), int(parent.Fd()), filepath.Base(path)); err != nil {
 		deleteTemporaryFile(tmpPath)
 		return util.UserHttpError("Could not write file")
+	}
+	if created {
+		activityRecordCreatedPath(path)
 	}
 	return nil
 }

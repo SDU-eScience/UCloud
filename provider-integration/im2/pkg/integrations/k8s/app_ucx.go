@@ -10,13 +10,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	ws "github.com/gorilla/websocket"
 	"golang.org/x/sys/unix"
 	"ucloud.dk/gonja/v2/exec"
+	cfg "ucloud.dk/pkg/config"
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/containers"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/inference"
+	job_introspection "ucloud.dk/pkg/integrations/k8s/job-introspection"
 	"ucloud.dk/pkg/integrations/k8s/kubevirt"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	"ucloud.dk/pkg/ucxdelivery"
@@ -33,17 +36,120 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const ucxBackendPort int32 = 8080
 
+const ucxUpstreamDialGrace = 4 * time.Second
+
 var ucxNameRegex = regexp.MustCompile(`[^a-z0-9-]+`)
+
+const ucxAuthTokenAnnotation = "ucloud.dk/ucx-auth-token"
+
+var ucxDownstreamJwtParser *jwt.Parser
+
+func ucxDownstreamTokenValid(downstreamToken string) bool {
+	trimmed := strings.TrimSpace(downstreamToken)
+	if trimmed == "" {
+		return false
+	}
+
+	if ucxDownstreamJwtParser == nil {
+		if cfg.PublicKey == nil {
+			return false
+		}
+		ucxDownstreamJwtParser = jwt.NewParser(
+			jwt.WithValidMethods([]string{jwt.SigningMethodRS256.Alg()}),
+			jwt.WithIssuer("cloud.sdu.dk"),
+		)
+	}
+
+	claims := jwt.RegisteredClaims{}
+	token, err := ucxDownstreamJwtParser.ParseWithClaims(
+		trimmed,
+		&claims,
+		func(token *jwt.Token) (any, error) {
+			return cfg.PublicKey, nil
+		},
+	)
+	if err != nil || !token.Valid {
+		return false
+	}
+
+	return claims.Subject == "_UCloud"
+}
+
+func ucxCreationUiToken(ctx context.Context, namespace string, deploymentName string) (string, error) {
+	deployment, err := shared.K8sClient.AppsV1().Deployments(namespace).Get(ctx, deploymentName, meta.GetOptions{})
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return util.SecureToken(), nil
+		}
+		return "", err
+	}
+
+	if existing := deployment.Annotations[ucxAuthTokenAnnotation]; existing != "" {
+		return existing, nil
+	}
+
+	token := util.SecureToken()
+	patch := fmt.Sprintf(
+		`{"metadata":{"annotations":{"%s":"%s"}}}`,
+		ucxAuthTokenAnnotation, token,
+	)
+	patched, err := shared.K8sClient.AppsV1().Deployments(namespace).Patch(
+		ctx, deploymentName, k8stypes.StrategicMergePatchType, []byte(patch), meta.PatchOptions{},
+	)
+	if err != nil {
+		return "", err
+	}
+
+	if resulting := patched.Annotations[ucxAuthTokenAnnotation]; resulting != "" {
+		return resulting, nil
+	}
+	return token, nil
+}
+
+func readUcxDeploymentAuthToken(ctx context.Context, namespace string, deploymentName string) (string, error) {
+	deployment, err := shared.K8sClient.AppsV1().Deployments(namespace).Get(ctx, deploymentName, meta.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	return deployment.Annotations[ucxAuthTokenAnnotation], nil
+}
+
+func ensureUcxDeploymentAuthToken(ctx context.Context, namespace string, name string, authToken string) error {
+	deployment, err := shared.K8sClient.AppsV1().Deployments(namespace).Get(ctx, name, meta.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	if len(deployment.Spec.Template.Spec.Containers) == 0 {
+		return fmt.Errorf("deployment %s has no containers", name)
+	}
+
+	for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
+		if env.Name == "UCX_AUTH_TOKEN" {
+			return nil
+		}
+	}
+
+	deployment.Spec.Template.Spec.Containers[0].Env = append(
+		deployment.Spec.Template.Spec.Containers[0].Env,
+		k8score.EnvVar{Name: "UCX_AUTH_TOKEN", Value: authToken},
+	)
+	_, err = shared.K8sClient.AppsV1().Deployments(namespace).Update(ctx, deployment, meta.UpdateOptions{})
+	return err
+}
 
 func initAppUcx() ctrl.UcxApplicationService {
 	return ctrl.UcxApplicationService{
-		OnConnect:    ucxOnConnect,
-		OnConnectJob: ucxOnConnectJob,
+		OnConnect:               ucxOnConnect,
+		OnConnectJob:            ucxOnConnectJob,
+		OnStackDeleted:          stackStateDelete,
+		OnStackSpawnDeclaredJob: stackSpawnDeclaredJob,
 		InferencePlaygroundFactory: func(owner orcapi.ResourceOwner, sessionId string) ucx.Application {
 			return inference.InferencePlayground(owner, sessionId)
 		},
@@ -55,10 +161,14 @@ func ucxOnConnect(conn *ws.Conn) {
 	defer cancel()
 
 	proxy := ucx.NewProxy("ws://pending")
+	proxy.SetUpstreamDialGrace(ucxUpstreamDialGrace)
 	info := orcapi.AppUcxConnectProviderRequest{}
 
 	proxy.RegisterUpstreamSelector(func(ctx context.Context, downstreamToken string, downstreamSysHello string) ucx.ProxyUpstreamSelection {
-		_ = downstreamToken
+		if !ucxDownstreamTokenValid(downstreamToken) {
+			log.Warn("UCX provider: downstream token was not accepted")
+			return ucx.ProxyUpstreamSelection{Allowed: false}
+		}
 
 		if err := json.Unmarshal([]byte(downstreamSysHello), &info); err != nil {
 			log.Warn("UCX provider: invalid syshello payload: %v", err)
@@ -78,7 +188,7 @@ func ucxOnConnect(conn *ws.Conn) {
 
 		ucxdelivery.TrackApp(application)
 
-		upstreamUrl, err := ensureUcxBackendAndResolveUpstream(ctx, application)
+		upstreamUrl, authToken, err := ensureUcxBackendAndResolveUpstream(ctx, application)
 		if err != nil {
 			log.Warn("UCX provider: failed to prepare backend: %v", err)
 			return ucx.ProxyUpstreamSelection{Allowed: false}
@@ -87,13 +197,61 @@ func ucxOnConnect(conn *ws.Conn) {
 		return ucx.ProxyUpstreamSelection{
 			Allowed:          true,
 			UpstreamUrl:      upstreamUrl,
-			UpstreamToken:    "",
+			UpstreamToken:    authToken,
 			UpstreamSysHello: downstreamSysHello,
 		}
 	})
 
 	mu := sync.Mutex{}
 	stackToDeletionRequest := map[string]int{}
+	confirmedStacks := map[string]bool{}
+	stackStateFolders := map[string]string{}
+
+	renewStackLease := func(instanceId string) error {
+		mu.Lock()
+		defer mu.Unlock()
+
+		if confirmedStacks[instanceId] {
+			return nil
+		}
+
+		deletionReqId, ok := stackToDeletionRequest[instanceId]
+		if !ok {
+			return fmt.Errorf("application setup is no longer active. Try again or contact your service provider")
+		}
+
+		_, err := orcapi.StacksControlRenewDeletion.Invoke(orcapi.StacksControlRenewDeletionRequest{
+			RequestId:      deletionReqId,
+			ActivationTime: util.OptValue[fnd.Timestamp](fnd.Timestamp(time.Now().Add(2 * time.Minute))),
+		})
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	confirmStack := func(instanceId string) error {
+		mu.Lock()
+		defer mu.Unlock()
+
+		if confirmedStacks[instanceId] {
+			return nil
+		}
+
+		deletionReqId, ok := stackToDeletionRequest[instanceId]
+		if !ok {
+			return fmt.Errorf("application setup is no longer active. Try again or contact your service provider")
+		}
+
+		_, err := orcapi.StacksControlCancelDeletion.Invoke(fnd.FindByIntId{Id: deletionReqId})
+		if err != nil {
+			return err
+		}
+
+		delete(stackToDeletionRequest, instanceId)
+		confirmedStacks[instanceId] = true
+		return nil
+	}
 
 	ucxapi.StackCreate.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackCreateRequest) (ucxapi.Stack, error) {
 		if err := util.ValidateStringE(&request.StackType, "stackType", 0); err != nil {
@@ -105,27 +263,33 @@ func ucxOnConnect(conn *ws.Conn) {
 			return ucxapi.Stack{}, fmt.Errorf("invalid stack instance")
 		}
 
-		internalPathMemberFiles, drive, err := filesystem.InitializeMemberFiles(info.Owner.CreatedBy, info.Owner.Project)
-		if err != nil {
-			return ucxapi.Stack{}, err.AsError()
+		ucloudPath := strings.TrimSpace(request.StateFolder)
+		if ucloudPath != "" {
+			driveId, ok := orcapi.DriveIdFromUCloudPath(ucloudPath)
+			if !ok || ucloudPath != "/"+driveId {
+				return ucxapi.Stack{}, fmt.Errorf("invalid stack state drive")
+			}
+			drive, ok := ctrl.DriveRetrieve(driveId)
+			if !ok || drive.Owner.Project != info.Owner.Project ||
+				drive.Specification.Labels[orcapi.ResourceLabelStackInstance] != instanceId ||
+				!ctrl.DriveCanUse(info.Owner, driveId, false) {
+				return ucxapi.Stack{}, fmt.Errorf("stack state drive is not accessible")
+			}
+		} else {
+			internalPathMemberFiles, drive, err := filesystem.InitializeMemberFiles(info.Owner.CreatedBy, info.Owner.Project)
+			if err != nil {
+				return ucxapi.Stack{}, err.AsError()
+			}
+			instanceFolder := filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", instanceId)
+			if err = filesystem.DoCreateFolderAs(rpc.Actor{Username: info.Owner.CreatedBy}, instanceFolder); err != nil {
+				return ucxapi.Stack{}, err.AsError()
+			}
+			var ok bool
+			ucloudPath, ok = filesystem.InternalToUCloudWithDrive(drive, instanceFolder)
+			if !ok {
+				return ucxapi.Stack{}, fmt.Errorf("internal error")
+			}
 		}
-
-		instanceFolder := filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", instanceId)
-		err = filesystem.DoCreateFolder(instanceFolder)
-		if err != nil {
-			return ucxapi.Stack{}, err.AsError()
-		}
-
-		ucloudPath, ok := filesystem.InternalToUCloudWithDrive(drive, instanceFolder)
-		if !ok {
-			return ucxapi.Stack{}, fmt.Errorf("internal error")
-		}
-
-		filesystem.ActivityRecord(rpc.Actor{Username: info.Owner.CreatedBy}, filesystem.ActivityEvent{
-			Kind:      filesystem.ActivityDirect,
-			Operation: filesystem.ActivityOperationCreate,
-			Targets:   []filesystem.ActivityTarget{{UCloudPath: ucloudPath}},
-		})
 
 		id, err := orcapi.StacksControlRequestDeletion.Invoke(orcapi.StacksControlRequestDeletionRequest{
 			Id:             instanceId,
@@ -139,6 +303,7 @@ func ucxOnConnect(conn *ws.Conn) {
 
 		mu.Lock()
 		stackToDeletionRequest[instanceId] = id.Id
+		stackStateFolders[instanceId] = ucloudPath
 		mu.Unlock()
 
 		return ucxapi.Stack{
@@ -154,35 +319,89 @@ func ucxOnConnect(conn *ws.Conn) {
 	})
 
 	ucxapi.StackDataWrite.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackDataWriteRequest) (util.Empty, error) {
-		return ucxStackDataWrite(info.Owner, request)
+		if err := renewStackLease(request.InstanceId); err != nil {
+			return util.Empty{}, err
+		}
+
+		mu.Lock()
+		stateFolder := stackStateFolders[request.InstanceId]
+		mu.Unlock()
+		return ucxStackDataWrite(info.Owner, request, stateFolder)
 	})
 
 	ucxapi.StackDataAppend.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackDataAppendRequest) (util.Empty, error) {
-		return ucxStackDataAppend(info.Owner, request)
+		if err := renewStackLease(request.InstanceId); err != nil {
+			return util.Empty{}, err
+		}
+
+		mu.Lock()
+		stateFolder := stackStateFolders[request.InstanceId]
+		mu.Unlock()
+		return ucxStackDataAppend(info.Owner, request, stateFolder)
 	})
 
 	ucxapi.StackConfirm.HandlerProxy(proxy, func(ctx context.Context, request fnd.FindByStringId) (util.Empty, error) {
-		mu.Lock()
-		deletionReqId, ok := stackToDeletionRequest[request.Id]
-		mu.Unlock()
-		if ok {
-			_, err := orcapi.StacksControlCancelDeletion.Invoke(fnd.FindByIntId{Id: deletionReqId})
-
-			if err != nil {
-				return util.Empty{}, err.AsError()
-			}
+		if err := confirmStack(request.Id); err != nil {
+			return util.Empty{}, err
 		}
 		return util.Empty{}, nil
 	})
 
+	ucxapi.StackHeartbeat.HandlerProxy(proxy, func(ctx context.Context, request fnd.FindByStringId) (util.Empty, error) {
+		if err := renewStackLease(request.Id); err != nil {
+			return util.Empty{}, err
+		}
+		return util.Empty{}, nil
+	})
+
+	ucxapi.StackControlToken.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackControlTokenRequest) (ucxapi.StackControlTokenResponse, error) {
+		jobId := strings.TrimSpace(request.JobId)
+		if jobId == "" {
+			return ucxapi.StackControlTokenResponse{}, fmt.Errorf("invalid job")
+		}
+
+		job, ok := ctrl.JobRetrieve(jobId)
+		if !ok || !stackControlJobValid(job) {
+			return ucxapi.StackControlTokenResponse{}, fmt.Errorf("invalid job")
+		}
+
+		stackInstance := strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStackInstance])
+
+		mu.Lock()
+		known := confirmedStacks[stackInstance]
+		_, hasLease := stackToDeletionRequest[stackInstance]
+		mu.Unlock()
+
+		if !known && !hasLease {
+			return ucxapi.StackControlTokenResponse{}, fmt.Errorf("invalid stack instance")
+		}
+
+		token, err := stackControlTokenIssue(jobId, stackInstance, info.Owner, "ui")
+		if err != nil {
+			return ucxapi.StackControlTokenResponse{}, err
+		}
+		return ucxapi.StackControlTokenResponse{Token: token}, nil
+	})
+
 	ucxapi.IM.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.Message) (ucxapi.Message, error) {
 		log.Info("Got a message from '%#v': %s", info.Owner, request.Message)
-		return ucxapi.Message{"Hello from the provider!"}, nil
+		return ucxapi.Message{Message: "Hello from the provider!"}, nil
 	})
+
+	stackStateInitAppProxy(proxy, func() orcapi.ResourceOwner {
+		return info.Owner
+	}, &mu, stackToDeletionRequest, confirmedStacks)
 
 	if err := proxy.Run(ctx, conn); err != nil {
 		log.Warn("UCX provider proxy failure: %v", err)
 	}
+}
+
+func ucxJobStackStateFolder(info orcapi.AppUcxConnectJobProviderRequest) (string, bool) {
+	if !info.StackStateFolder.Present {
+		return "", false
+	}
+	return strings.TrimSpace(info.StackStateFolder.Value), true
 }
 
 func ucxOnConnectJob(conn *ws.Conn) {
@@ -190,10 +409,14 @@ func ucxOnConnectJob(conn *ws.Conn) {
 	defer cancel()
 
 	proxy := ucx.NewProxy("ws://pending")
+	proxy.SetUpstreamDialGrace(ucxUpstreamDialGrace)
 	info := orcapi.AppUcxConnectJobProviderRequest{}
 
 	proxy.RegisterUpstreamSelector(func(ctx context.Context, downstreamToken string, downstreamSysHello string) ucx.ProxyUpstreamSelection {
-		_ = downstreamToken
+		if !ucxDownstreamTokenValid(downstreamToken) {
+			log.Warn("UCX provider job: downstream token was not accepted")
+			return ucx.ProxyUpstreamSelection{Allowed: false}
+		}
 
 		if err := json.Unmarshal([]byte(downstreamSysHello), &info); err != nil {
 			log.Warn("UCX provider job: invalid syshello payload: %v", err)
@@ -214,7 +437,7 @@ func ucxOnConnectJob(conn *ws.Conn) {
 		return ucx.ProxyUpstreamSelection{
 			Allowed:          true,
 			UpstreamUrl:      upstreamUrl,
-			UpstreamToken:    "",
+			UpstreamToken:    job_introspection.UcxSessionToken(info.Job.Id),
 			UpstreamSysHello: downstreamSysHello,
 		}
 	})
@@ -229,7 +452,11 @@ func ucxOnConnectJob(conn *ws.Conn) {
 			return util.Empty{}, fmt.Errorf("invalid stack instance")
 		}
 
-		return ucxStackDataWrite(info.Job.Owner, request)
+		stateFolder, ok := ucxJobStackStateFolder(info)
+		if !ok {
+			return util.Empty{}, fmt.Errorf("stack state folder is not available")
+		}
+		return ucxStackDataWrite(info.Job.Owner, request, stateFolder)
 	})
 
 	ucxapi.StackDataAppend.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackDataAppendRequest) (util.Empty, error) {
@@ -242,12 +469,35 @@ func ucxOnConnectJob(conn *ws.Conn) {
 			return util.Empty{}, fmt.Errorf("invalid stack instance")
 		}
 
-		return ucxStackDataAppend(info.Job.Owner, request)
+		stateFolder, ok := ucxJobStackStateFolder(info)
+		if !ok {
+			return util.Empty{}, fmt.Errorf("stack state folder is not available")
+		}
+		return ucxStackDataAppend(info.Job.Owner, request, stateFolder)
 	})
 
 	ucxapi.IM.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.Message) (ucxapi.Message, error) {
 		log.Info("Got a job message from '%#v': %s", info.Job.Owner, request.Message)
-		return ucxapi.Message{"Hello from the provider job session!"}, nil
+		return ucxapi.Message{Message: "Hello from the provider job session!"}, nil
+	})
+
+	ucxapi.StackControlToken.HandlerProxy(proxy, func(_ context.Context, request ucxapi.StackControlTokenRequest) (ucxapi.StackControlTokenResponse, error) {
+		callerJobId := strings.TrimSpace(info.Job.Id)
+		callerJob, ok := ctrl.JobRetrieve(callerJobId)
+		if !ok || callerJob.Id != callerJobId || !stackControlJobValid(callerJob) {
+			return ucxapi.StackControlTokenResponse{}, fmt.Errorf("invalid control plane caller")
+		}
+
+		callerStack := strings.TrimSpace(callerJob.Specification.Labels[orcapi.ResourceLabelStackInstance])
+		token, err := stackControlTokenIssue(request.JobId, callerStack, callerJob.Owner, "control")
+		if err != nil {
+			return ucxapi.StackControlTokenResponse{}, err
+		}
+		return ucxapi.StackControlTokenResponse{Token: token}, nil
+	})
+
+	stackStateInitJobProxy(proxy, func() orcapi.Job {
+		return info.Job
 	})
 
 	if err := proxy.Run(ctx, conn); err != nil {
@@ -267,35 +517,55 @@ func ucxResolveJobUpstream(job orcapi.Job, port int) (string, error) {
 	return containers.ResolveUcxJobSessionUpstream(&job, port)
 }
 
-func ucxStackDataWrite(owner orcapi.ResourceOwner, request ucxapi.StackDataWriteRequest) (util.Empty, error) {
-	return ucxStackDataWriteBytes(owner, request.InstanceId, request.Path, []byte(request.Data), request.Perm, unix.O_TRUNC)
+func ucxStackDataWrite(owner orcapi.ResourceOwner, request ucxapi.StackDataWriteRequest, stateFolder string) (util.Empty, error) {
+	return ucxStackDataWriteBytes(owner, request.InstanceId, stateFolder, request.Path, []byte(request.Data), request.Perm, unix.O_TRUNC, request.Atomic)
 }
 
-func ucxStackDataAppend(owner orcapi.ResourceOwner, request ucxapi.StackDataAppendRequest) (util.Empty, error) {
-	return ucxStackDataWriteBytes(owner, request.InstanceId, request.Path, request.Data, request.Perm, unix.O_APPEND)
+func ucxStackDataAppend(owner orcapi.ResourceOwner, request ucxapi.StackDataAppendRequest, stateFolder string) (util.Empty, error) {
+	return ucxStackDataWriteBytes(owner, request.InstanceId, stateFolder, request.Path, request.Data, request.Perm, unix.O_APPEND, false)
 }
 
 func ucxStackIdIsValid(id string) bool {
 	return id != "." && filepath.IsLocal(id) && filepath.Base(id) == id
 }
 
-func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, path string, data []byte, perm uint32, writeFlag int) (util.Empty, error) {
+func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, stateFolder string, path string, data []byte, perm uint32, writeFlag int, atomicWrite bool) (util.Empty, error) {
 	if !ucxStackIdIsValid(instanceId) {
 		return util.Empty{}, fmt.Errorf("invalid stack instance")
 	}
 
-	if len(data) >= 1024*64 {
+	if atomicWrite && writeFlag != unix.O_TRUNC {
+		return util.Empty{}, fmt.Errorf("atomic write is not supported for append")
+	}
+
+	if atomicWrite {
+		if len(data) >= 1024*1024 {
+			return util.Empty{}, fmt.Errorf("input data is too large for atomic write")
+		}
+	} else if len(data) >= 1024*64 {
 		return util.Empty{}, fmt.Errorf("input data is too large")
 	}
 
-	internalPathMemberFiles, drive, err := filesystem.InitializeMemberFiles(owner.CreatedBy, owner.Project)
-	if err != nil {
-		return util.Empty{}, err.AsError()
+	var drive *orcapi.Drive
+	requestedPath := ""
+	if stateFolder != "" {
+		driveId, ok := orcapi.DriveIdFromUCloudPath(stateFolder)
+		if !ok || !ctrl.DriveCanUse(owner, driveId, false) {
+			return util.Empty{}, fmt.Errorf("stack state drive is not accessible")
+		}
+		requestedPath, ok, drive = filesystem.UCloudToInternal(stateFolder)
+		if !ok {
+			return util.Empty{}, fmt.Errorf("invalid stack state folder")
+		}
+	} else {
+		internalPathMemberFiles, memberDrive, err := filesystem.InitializeMemberFiles(owner.CreatedBy, owner.Project)
+		if err != nil {
+			return util.Empty{}, err.AsError()
+		}
+		drive = memberDrive
+		requestedPath = filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", instanceId)
 	}
-
-	requestedPath := filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", instanceId)
-	err = filesystem.DoCreateFolder(requestedPath)
-	if err != nil {
+	if err := filesystem.DoCreateFolderAs(rpc.Actor{Username: owner.CreatedBy}, requestedPath); err != nil {
 		return util.Empty{}, err.AsError()
 	}
 
@@ -306,17 +576,16 @@ func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, path 
 		}
 	}
 
-	parentPath := util.Parent(requestedPath)
-	if err = filesystem.DoCreateFolder(parentPath); err != nil {
-		return util.Empty{}, err.AsError()
+	if atomicWrite {
+		if writeErr := filesystem.WriteFileAtomic(requestedPath, data, perm); writeErr != nil {
+			return util.Empty{}, writeErr.AsError()
+		}
+		return util.Empty{}, nil
 	}
 
-	if ucloudPath, ok := filesystem.InternalToUCloudWithDrive(drive, parentPath); ok {
-		filesystem.ActivityRecord(rpc.Actor{Username: owner.CreatedBy}, filesystem.ActivityEvent{
-			Kind:      filesystem.ActivityDirect,
-			Operation: filesystem.ActivityOperationCreate,
-			Targets:   []filesystem.ActivityTarget{{UCloudPath: ucloudPath}},
-		})
+	parentPath := util.Parent(requestedPath)
+	if err := filesystem.DoCreateFolderAs(rpc.Actor{Username: owner.CreatedBy}, parentPath); err != nil {
+		return util.Empty{}, err.AsError()
 	}
 
 	file, ok := filesystem.OpenFile(requestedPath, unix.O_CREAT|unix.O_WRONLY|writeFlag, perm)
@@ -331,77 +600,98 @@ func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, path 
 		return util.Empty{}, fmt.Errorf("unable to write data: %s", gerr)
 	}
 
+	if ucloudPath, ok := filesystem.InternalToUCloudWithDrive(drive, requestedPath); ok {
+		filesystem.ActivityRecord(rpc.Actor{Username: owner.CreatedBy}, filesystem.ActivityEvent{
+			Kind:      filesystem.ActivityDirect,
+			Operation: filesystem.ActivityOperationCreate,
+			Targets:   []filesystem.ActivityTarget{{UCloudPath: ucloudPath}},
+		})
+	}
+
 	return util.Empty{}, nil
 }
 
-func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Application) (string, error) {
+func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Application) (string, string, error) {
 	namespace := shared.ServiceConfig.Compute.TaskNamespace
 	deploymentName := ucxDeploymentName(app.Metadata.Name, app.Metadata.Version)
+	authToken, err := ucxCreationUiToken(ctx, namespace, deploymentName)
+	if err != nil {
+		log.Warn("UCX provider: failed to resolve auth token for %s/%s: %v", namespace, deploymentName, err)
+		return "", "", err
+	}
 	serviceName := deploymentName
 	selector := ucxSelectorLabels(deploymentName)
-	inDevelopmentMode := ucxDevelopmentModePath(app)
 	cacheCurrentPath := util.OptNone[string]()
-	if !inDevelopmentMode.Present {
-		if app.Invocation.Ucx.Present && app.Invocation.Ucx.Value.Executable.Present {
-			path, err := ucxdelivery.ExecutablePath(app.Metadata.Name, app.Metadata.Version)
-			if err != nil {
-				return "", err
-			}
-			cacheCurrentPath.Set(path)
+	if app.Invocation.Ucx.Present && app.Invocation.Ucx.Value.Executable.Present {
+		path, err := ucxdelivery.ExecutablePath(app.Metadata.Name, app.Metadata.Version)
+		if err != nil {
+			return "", "", err
 		}
+		cacheCurrentPath.Set(path)
 	}
 
 	isRunning, err := ucxDeploymentRunning(ctx, namespace, deploymentName)
 	if err != nil {
 		log.Warn("UCX provider: failed deployment lookup for %s/%s: %v", namespace, deploymentName, err)
-		return "", err
+		return "", "", err
 	}
 
 	if !isRunning {
-		invocation, err := renderUcxInvocationScript(app, inDevelopmentMode.Present)
+		invocation, err := renderUcxInvocationScript(app)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		script := renderUcxRunnerScript(invocation, app.Metadata.Name, app.Metadata.Version, cacheCurrentPath.Present)
 
 		image := strings.TrimSpace(app.Invocation.Tool.Tool.Value.Description.Image)
 		if image == "" {
-			return "", fmt.Errorf("resolved tool image is missing")
+			return "", "", fmt.Errorf("resolved tool image is missing")
 		}
 
 		if err := ensureUcxService(ctx, namespace, serviceName, selector); err != nil {
 			log.Warn("UCX provider: failed ensuring service %s/%s: %v", namespace, serviceName, err)
-			return "", err
+			return "", "", err
 		}
 
-		if err := ensureUcxDeployment(ctx, namespace, deploymentName, image, script, selector, inDevelopmentMode, cacheCurrentPath, app.Metadata.Name, app.Metadata.Version); err != nil {
+		if err := ensureUcxDeployment(ctx, namespace, deploymentName, image, script, selector, cacheCurrentPath, app.Metadata.Name, app.Metadata.Version, authToken); err != nil {
 			log.Warn("UCX provider: failed ensuring deployment %s/%s: %v", namespace, deploymentName, err)
-			return "", err
+			return "", "", err
+		}
+
+		authToken, err = readUcxDeploymentAuthToken(ctx, namespace, deploymentName)
+		if err != nil {
+			log.Warn("UCX provider: failed reading auth token for %s/%s: %v", namespace, deploymentName, err)
+			return "", "", err
 		}
 	} else {
 		if err := ensureUcxService(ctx, namespace, serviceName, selector); err != nil {
 			log.Warn("UCX provider: failed ensuring service %s/%s: %v", namespace, serviceName, err)
-			return "", err
+			return "", "", err
+		}
+
+		if err := ensureUcxDeploymentAuthToken(ctx, namespace, deploymentName, authToken); err != nil {
+			log.Warn("UCX provider: failed ensuring auth token for %s/%s: %v", namespace, deploymentName, err)
+			return "", "", err
 		}
 	}
 
 	if err := waitForUcxDeploymentReady(ctx, namespace, deploymentName, 90*time.Second); err != nil {
 		log.Warn("UCX provider: deployment did not become ready %s/%s: %v", namespace, deploymentName, err)
-		return "", err
+		return "", "", err
 	}
 
 	if util.DevelopmentModeEnabled() {
 		podName, err := findReadyUcxPod(ctx, namespace, selector)
 		if err != nil {
 			log.Warn("UCX provider: failed finding ready pod in dev mode for %s/%s: %v", namespace, deploymentName, err)
-			return "", err
+			return "", "", err
 		}
 
 		tunnelPort := shared.EstablishTunnelEx(podName, namespace, int(ucxBackendPort))
-		return fmt.Sprintf("ws://127.0.0.1:%d/", tunnelPort), nil
+		return fmt.Sprintf("ws://127.0.0.1:%d/", tunnelPort), authToken, nil
 	}
 
-	return fmt.Sprintf("ws://%s.%s.svc.cluster.local:%d/", serviceName, namespace, ucxBackendPort), nil
+	return fmt.Sprintf("ws://%s.%s.svc.cluster.local:%d/", serviceName, namespace, ucxBackendPort), authToken, nil
 }
 
 func ensureUcxService(ctx context.Context, namespace string, name string, selector map[string]string) error {
@@ -438,31 +728,13 @@ func ensureUcxDeployment(
 	image string,
 	script string,
 	selector map[string]string,
-	developmentModeSubPath util.Option[string],
 	cacheCurrentPath util.Option[string],
 	appName string,
 	appVersion string,
+	authToken string,
 ) error {
 	volumes := []k8score.Volume{}
 	volumeMounts := []k8score.VolumeMount{}
-
-	if developmentModeSubPath.Present {
-		volumes = append(volumes, k8score.Volume{
-			Name: "ucloud-filesystem",
-			VolumeSource: k8score.VolumeSource{
-				PersistentVolumeClaim: &k8score.PersistentVolumeClaimVolumeSource{
-					ClaimName: shared.ServiceConfig.FileSystem.ClaimName,
-				},
-			},
-		})
-
-		volumeMounts = append(volumeMounts, k8score.VolumeMount{
-			Name:      "ucloud-filesystem",
-			MountPath: "/opt/ucloud",
-			SubPath:   developmentModeSubPath.Value,
-			ReadOnly:  true,
-		})
-	}
 
 	if cacheCurrentPath.Present {
 		cacheParent := filepath.Dir(cacheCurrentPath.Value)
@@ -492,6 +764,9 @@ func ensureUcxDeployment(
 		ObjectMeta: meta.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
+			Annotations: map[string]string{
+				ucxAuthTokenAnnotation: authToken,
+			},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: util.Pointer[int32](1),
@@ -499,8 +774,18 @@ func ensureUcxDeployment(
 			Template: k8score.PodTemplateSpec{
 				ObjectMeta: meta.ObjectMeta{Labels: selector},
 				Spec: k8score.PodSpec{
-					Volumes:      volumes,
-					NodeSelector: shared.ServiceConfig.Compute.TaskNodeSelector,
+					Volumes:                      volumes,
+					NodeSelector:                 shared.ServiceConfig.Compute.TaskNodeSelector,
+					AutomountServiceAccountToken: util.BoolPointer(false),
+					EnableServiceLinks:           util.BoolPointer(false),
+					SecurityContext: &k8score.PodSecurityContext{
+						RunAsNonRoot: util.BoolPointer(true),
+						RunAsUser:    util.Pointer[int64](filesystem.DefaultUid),
+						RunAsGroup:   util.Pointer[int64](filesystem.DefaultUid),
+						SeccompProfile: &k8score.SeccompProfile{
+							Type: k8score.SeccompProfileTypeRuntimeDefault,
+						},
+					},
 					Containers: []k8score.Container{
 						{
 							Name:            "ucx-app",
@@ -511,10 +796,17 @@ func ensureUcxDeployment(
 								{Name: "UCX_PORT", Value: fmt.Sprint(ucxBackendPort)},
 								{Name: "UCLOUD_UCX_APP_NAME", Value: appName},
 								{Name: "UCLOUD_UCX_APP_VERSION", Value: appVersion},
+								{Name: "UCX_AUTH_TOKEN", Value: authToken},
 							},
 							VolumeMounts: volumeMounts,
 							Ports: []k8score.ContainerPort{
 								{ContainerPort: ucxBackendPort},
+							},
+							SecurityContext: &k8score.SecurityContext{
+								AllowPrivilegeEscalation: util.BoolPointer(false),
+								Capabilities: &k8score.Capabilities{
+									Drop: []k8score.Capability{"ALL"},
+								},
 							},
 						},
 					},
@@ -537,8 +829,39 @@ func ensureUcxDeployment(
 		return getErr
 	}
 
+	updated := false
+	if existing.Annotations == nil {
+		existing.Annotations = map[string]string{}
+	}
+	if existing.Annotations[ucxAuthTokenAnnotation] == "" {
+		existing.Annotations[ucxAuthTokenAnnotation] = authToken
+		updated = true
+	}
+
 	if existing.Spec.Replicas == nil || *existing.Spec.Replicas != 1 {
 		existing.Spec.Replicas = util.Pointer[int32](1)
+		updated = true
+	}
+
+	effectiveToken := existing.Annotations[ucxAuthTokenAnnotation]
+	hasAuthEnv := false
+	for i := range existing.Spec.Template.Spec.Containers {
+		for _, env := range existing.Spec.Template.Spec.Containers[i].Env {
+			if env.Name == "UCX_AUTH_TOKEN" {
+				hasAuthEnv = true
+				break
+			}
+		}
+	}
+	if !hasAuthEnv && len(existing.Spec.Template.Spec.Containers) > 0 {
+		existing.Spec.Template.Spec.Containers[0].Env = append(
+			existing.Spec.Template.Spec.Containers[0].Env,
+			k8score.EnvVar{Name: "UCX_AUTH_TOKEN", Value: effectiveToken},
+		)
+		updated = true
+	}
+
+	if updated {
 		_, updateErr := shared.K8sClient.AppsV1().Deployments(namespace).Update(ctx, existing, meta.UpdateOptions{})
 		if updateErr != nil {
 			return updateErr
@@ -609,7 +932,7 @@ func findReadyUcxPod(ctx context.Context, namespace string, selector map[string]
 	return pods.Items[0].Name, nil
 }
 
-func renderUcxInvocationScript(app *orcapi.Application, inDevelopmentMode bool) (string, error) {
+func renderUcxInvocationScript(app *orcapi.Application) (string, error) {
 	template := ""
 	for _, parameter := range app.Invocation.Invocation {
 		if parameter.Type == orcapi.InvocationParameterTypeJinja {
@@ -624,7 +947,6 @@ func renderUcxInvocationScript(app *orcapi.Application, inDevelopmentMode bool) 
 
 	jinjaContext := exec.NewContext(map[string]any{
 		"ucloud": map[string]any{
-			"ucxDevelopmentMode": inDevelopmentMode,
 			"application": map[string]any{
 				"name":    app.Metadata.Name,
 				"version": app.Metadata.Version,
@@ -656,7 +978,7 @@ file_state() {
     printf 'missing'
     return
   fi
-  sha256sum "$WATCHED" | cut -d ' ' -f 1
+  stat -c '%%s %%Y' "$WATCHED"
 }
 
 LAST_STATE=""
@@ -733,15 +1055,4 @@ func ucxSelectorLabels(deploymentName string) map[string]string {
 	return map[string]string{
 		"ucloud.dk/ucx-deployment": deploymentName,
 	}
-}
-
-func ucxDevelopmentModePath(app *orcapi.Application) util.Option[string] {
-	developmentEntries := shared.ServiceConfig.Compute.Ucx.Development
-	for _, entry := range developmentEntries {
-		if entry.Name == app.Metadata.Name && entry.Version == app.Metadata.Version {
-			return util.OptValue(entry.SubPath.GetOrDefault(shared.ExecutablesDir))
-		}
-	}
-
-	return util.OptNone[string]()
 }

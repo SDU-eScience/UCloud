@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestMetadataNearestExistingDirectory(t *testing.T) {
@@ -63,12 +64,12 @@ func TestMetadataCollapseScanCandidates(t *testing.T) {
 }
 
 func TestMetadataCoalescePendingRequests(t *testing.T) {
-	firstCompletion := func(error) {}
-	secondCompletion := func(error) {}
-	queue := []metadataScanRequest{{internalPath: "/mnt/drive/projects/alpha", completions: []func(error){firstCompletion}}}
+	firstCompletion := func(error, time.Time) {}
+	secondCompletion := func(error, time.Time) {}
+	queue := []metadataScanRequest{{internalPath: "/mnt/drive/projects/alpha", completions: []func(error, time.Time){firstCompletion}}}
 	queue = metadataCoalesceScanRequest(queue, metadataScanRequest{
 		internalPath: "/mnt/drive/projects",
-		completions:  []func(error){secondCompletion},
+		completions:  []func(error, time.Time){secondCompletion},
 	})
 	if len(queue) != 1 || queue[0].internalPath != "/mnt/drive/projects" || len(queue[0].completions) != 2 {
 		t.Fatalf("unexpected coalesced queue: %#v", queue)

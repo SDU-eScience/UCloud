@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -653,7 +654,6 @@ func InferenceChatEx(ctx context.Context, owner apm.WalletOwner, username string
 				username,
 				requestStartedAt,
 				inferenceAuditChatBody(
-					inferenceAuditChainKey(owner, username),
 					auditModel,
 					history,
 					&auditUsage,
@@ -781,7 +781,6 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, username
 			username,
 			requestStartedAt,
 			inferenceAuditChatBody(
-				inferenceAuditChainKey(owner, username),
 				auditModel,
 				history,
 				&auditUsage,
@@ -1027,7 +1026,17 @@ func inferenceResolveModelForOwner(owner apm.WalletOwner, modelName string) (Inf
 	return model, nil
 }
 
+func inferenceRequireCapability(model InferenceModel, capability InferenceCapability) *util.HttpError {
+	if !slices.Contains(model.Capabilities, capability) {
+		return util.HttpErr(http.StatusBadRequest, "model does not support %s", capability)
+	}
+	return nil
+}
+
 func inferenceValidateChatRequest(request InferenceChatRequest, model InferenceModel) *util.HttpError {
+	if httpErr := inferenceRequireCapability(model, InferenceTextGeneration); httpErr != nil {
+		return httpErr
+	}
 	if request.MaxCompletionTokens.Present && (request.MaxCompletionTokens.Value <= 0 || request.MaxCompletionTokens.Value > model.ChatSettings.MaxCompletionTokens) {
 		return util.HttpErr(http.StatusBadRequest, "max completion tokens exceeds the model limit")
 	}
@@ -1099,20 +1108,24 @@ func inferenceSSEDataPayload(raw string) string {
 }
 
 func inferenceBackendJSONRequest(ctx context.Context, basePath string, method string, path string, body []byte, contentType string) ([]byte, *util.HttpError) {
+	return inferenceBackendJSONRequestWithLimit(ctx, basePath, method, path, body, contentType, inferenceMaxUpstreamJSONBytes)
+}
+
+func inferenceBackendJSONRequestWithLimit(ctx context.Context, basePath string, method string, path string, body []byte, contentType string, limit int64) ([]byte, *util.HttpError) {
 	resp, httpErr := inferenceBackendRequest(ctx, basePath, method, path, body, contentType)
 	if httpErr != nil {
 		return nil, httpErr
 	}
 	defer util.SilentClose(resp.Body)
 
-	if resp.ContentLength > inferenceMaxUpstreamJSONBytes {
+	if resp.ContentLength > limit {
 		return nil, util.HttpErr(http.StatusBadGateway, "response from upstream is too large")
 	}
-	respBody, err := io.ReadAll(io.LimitReader(resp.Body, inferenceMaxUpstreamJSONBytes+1))
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 	if err != nil {
 		return nil, util.HttpErr(http.StatusBadGateway, "invalid response")
 	}
-	if len(respBody) > inferenceMaxUpstreamJSONBytes {
+	if int64(len(respBody)) > limit {
 		return nil, util.HttpErr(http.StatusBadGateway, "response from upstream is too large")
 	}
 
@@ -1123,13 +1136,111 @@ func inferenceBackendStreamRequest(ctx context.Context, basePath string, path st
 	return inferenceBackendRequest(ctx, basePath, http.MethodPost, path, body, "application/json")
 }
 
+const (
+	inferenceBackendBearerTokenQuery    = "bearerToken"
+	inferenceBackendBearerTokenEnvQuery = "bearerTokenEnv"
+)
+
+type inferenceBackendAuth struct {
+	Token    string
+	TokenEnv string
+}
+
+func inferenceNormalizeBackendBasePath(raw string) string {
+	raw = strings.TrimSpace(raw)
+	endpoint, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	endpoint.Path = strings.TrimRight(endpoint.Path, "/")
+	if endpoint.RawQuery == "" {
+		endpoint.ForceQuery = false
+	}
+	return endpoint.String()
+}
+
+func inferenceParseBackendBasePath(raw string) (string, inferenceBackendAuth, *util.HttpError) {
+	endpoint, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || endpoint.User != nil || endpoint.Fragment != "" {
+		return "", inferenceBackendAuth{}, util.HttpErr(http.StatusBadRequest, "invalid model endpoint")
+	}
+
+	query, queryErr := url.ParseQuery(endpoint.RawQuery)
+	if queryErr != nil {
+		return "", inferenceBackendAuth{}, util.HttpErr(http.StatusBadRequest, "invalid model endpoint")
+	}
+
+	tokenValues := query[inferenceBackendBearerTokenQuery]
+	envValues := query[inferenceBackendBearerTokenEnvQuery]
+	if len(tokenValues) > 1 || len(envValues) > 1 || (len(tokenValues) > 0 && len(envValues) > 0) {
+		return "", inferenceBackendAuth{}, util.HttpErr(http.StatusBadRequest, "invalid model endpoint")
+	}
+
+	auth := inferenceBackendAuth{}
+	if len(tokenValues) == 1 {
+		auth.Token = strings.TrimSpace(tokenValues[0])
+		if auth.Token == "" {
+			return "", inferenceBackendAuth{}, util.HttpErr(http.StatusBadRequest, "invalid model endpoint")
+		}
+		query.Del(inferenceBackendBearerTokenQuery)
+	}
+	if len(envValues) == 1 {
+		auth.TokenEnv = strings.TrimSpace(envValues[0])
+		if auth.TokenEnv == "" {
+			return "", inferenceBackendAuth{}, util.HttpErr(http.StatusBadRequest, "invalid model endpoint")
+		}
+		query.Del(inferenceBackendBearerTokenEnvQuery)
+	}
+	if len(query) > 0 {
+		return "", inferenceBackendAuth{}, util.HttpErr(http.StatusBadRequest, "invalid model endpoint")
+	}
+
+	endpoint.RawQuery = ""
+	endpoint.ForceQuery = false
+	endpoint.Path = strings.TrimRight(endpoint.Path, "/")
+	return endpoint.String(), auth, nil
+}
+
+func inferenceResolveBackendAuth(auth inferenceBackendAuth) (string, *util.HttpError) {
+	if auth.Token != "" {
+		return auth.Token, nil
+	}
+	if auth.TokenEnv != "" {
+		token := strings.TrimSpace(os.Getenv(auth.TokenEnv))
+		if token == "" {
+			return "", util.HttpErr(http.StatusServiceUnavailable, "upstream bearer token is not configured")
+		}
+		return token, nil
+	}
+	return "", nil
+}
+
 func inferenceBackendRequest(ctx context.Context, basePath string, method string, path string, body []byte, contentType string) (*http.Response, *util.HttpError) {
-	backend := strings.TrimRight(basePath, "/")
+	return inferenceBackendRequestWithHeaders(ctx, basePath, method, path, body, contentType, nil)
+}
+
+func inferenceBackendRequestWithHeaders(
+	ctx context.Context,
+	basePath string,
+	method string,
+	path string,
+	body []byte,
+	contentType string,
+	headers http.Header,
+) (*http.Response, *util.HttpError) {
+	backend, auth, httpErr := inferenceParseBackendBasePath(basePath)
+	if httpErr != nil {
+		return nil, httpErr
+	}
 	if backend == "" {
 		return nil, util.HttpErr(http.StatusServiceUnavailable, "inference backend is not configured")
 	}
 	if err := inferenceValidateBackendEndpoint(backend); err != nil {
 		return nil, err
+	}
+	token, httpErr := inferenceResolveBackendAuth(auth)
+	if httpErr != nil {
+		return nil, httpErr
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, backend+path, bytes.NewReader(body))
@@ -1141,7 +1252,15 @@ func inferenceBackendRequest(ctx context.Context, basePath string, method string
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}
-	req.Header.Set("Authorization", "Bearer notused")
+	for key, values := range headers {
+		for _, value := range values {
+			req.Header.Add(key, value)
+		}
+	}
+	if token == "" {
+		token = "notused"
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	resp, err := inferenceHTTPClient.Do(req)
 	if err != nil {
@@ -1157,13 +1276,34 @@ func inferenceBackendRequest(ctx context.Context, basePath string, method string
 	return resp, nil
 }
 
+func inferenceExternalEndpointAllowed(endpoint *url.URL, externalHosts []string) bool {
+	if endpoint.Scheme != "https" {
+		return false
+	}
+	host := strings.TrimSuffix(strings.ToLower(endpoint.Hostname()), ".")
+	for _, allowed := range externalHosts {
+		if host == allowed {
+			return true
+		}
+	}
+	return false
+}
+
 func inferenceValidateBackendEndpoint(raw string) *util.HttpError {
-	endpoint, err := url.Parse(raw)
+	backend, _, httpErr := inferenceParseBackendBasePath(raw)
+	if httpErr != nil {
+		return httpErr
+	}
+
+	endpoint, err := url.Parse(backend)
 	if err != nil || endpoint.User != nil || endpoint.RawQuery != "" || endpoint.Fragment != "" {
 		return util.HttpErr(http.StatusBadRequest, "invalid model endpoint")
 	}
 
 	inferenceCfg := shared.ServiceConfig.Compute.Inference
+	if inferenceExternalEndpointAllowed(endpoint, inferenceCfg.ExternalHosts) {
+		return nil
+	}
 	switch inferenceCfg.Provider {
 	case cfg.KubernetesInferenceProviderDevelopment:
 		configured, parseErr := url.Parse(strings.TrimRight(inferenceCfg.BackendServer, "/"))
@@ -1209,8 +1349,12 @@ func inferenceStreamContext(parent context.Context) (context.Context, context.Ca
 }
 
 func inferenceReadSSE(ctx context.Context, body io.Reader, touch func(), handle func([]byte) bool) error {
+	return inferenceReadSSEWithLimit(ctx, body, touch, inferenceMaxSSEEventBytes, handle)
+}
+
+func inferenceReadSSEWithLimit(ctx context.Context, body io.Reader, touch func(), limit int, handle func([]byte) bool) error {
 	scanner := bufio.NewScanner(body)
-	scanner.Buffer(make([]byte, 64<<10), inferenceMaxSSEEventBytes)
+	scanner.Buffer(make([]byte, 64<<10), limit)
 	var event bytes.Buffer
 	flush := func() bool {
 		if event.Len() == 0 {
@@ -1229,7 +1373,7 @@ func inferenceReadSSE(ctx context.Context, body io.Reader, touch func(), handle 
 			}
 			continue
 		}
-		if event.Len()+len(line)+1 > inferenceMaxSSEEventBytes {
+		if event.Len()+len(line)+1 > limit {
 			return fmt.Errorf("SSE event exceeds limit")
 		}
 		event.Write(line)

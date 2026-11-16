@@ -1,6 +1,6 @@
 import * as React from "react";
 import {JSX, useCallback, useEffect, useMemo, useState} from "react";
-import {callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLocation, useNavigate} from "react-router-dom";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {ApplicationSelector, AppHeader} from "@/Applications/View";
@@ -76,7 +76,6 @@ import toggleEmailSettings = mail.toggleEmailSettings;
 import {useDiscovery} from "@/Applications/Hooks";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 import {CreateUcxJob} from "@/Applications/Jobs/CreateUcx";
-import * as ApiTokens from "@/Applications/ApiTokens/api";
 import Warning from "@/ui-components/Warning";
 import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
 import {CompactResourceRowsContent} from "@/Applications/Jobs/Resources/CompactResourceRows";
@@ -619,7 +618,7 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
     const peers = useResource("resourcePeer", provider,
         (name) => ({type: "peer", description: "", title: "", optional: true, name}));
     const privateNetworks = useResource("resourcePrivateNetwork", provider,
-        (name) => ({type: "private_network", description: "", title: "", optional: true, name}));
+        (name) => ({type: "ucloud_network", description: "", title: "", optional: true, name}));
 
     const [activeOptParams, setActiveOptParams] = useState<string[]>([]);
     const [cacheInitScript, setCacheInitScript] = useState(false);
@@ -831,7 +830,7 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
             ...Object.values(peersResources.errors).map(it => "Connected jobs: " + it),
             ...Object.values(networkResources.errors).map(it => "IPs: " + it),
             ...Object.values(ingressResources.errors).map(it => "Public link: " + it),
-            ...Object.values(privateNetworkResources.errors).map(it => "Private network: " + it)
+            ...Object.values(privateNetworkResources.errors).map(it => "Network: " + it)
         ]) {
             sendFailureNotification(err);
         }
@@ -940,8 +939,8 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
             const newSpace = createSpaceForLoadedResources(networks, resources, "network", true);
             setTimeout(() => injectResources(newSpace, resources, "network"), 0);
         }
-        const newSpace = createSpaceForLoadedResources(privateNetworks, resources, "private_network", true);
-        setTimeout(() => injectResources(newSpace, resources, "private_network"), 0);
+        const newSpace = createSpaceForLoadedResources(privateNetworks, resources, ["private_network", "ucloud_network"], true);
+        setTimeout(() => injectResources(newSpace, resources, ["private_network", "ucloud_network"]), 0);
 
         folders.setErrors({});
         ingress.setErrors({});
@@ -1027,7 +1026,6 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
                     await props.onPreviewScript?.(request);
                     return;
                 }
-                request.resources = (request.resources ?? []).concat(await createInferenceApiServerResources(application, invokeCommand));
 
                 const response = await invokeCommand<BulkResponse<FindByStringId | null>>(
                     JobsApi.create(bulkRequestOf(request)),
@@ -1412,7 +1410,7 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
                                                 bold={dnsHostname.length > 0}
                                             />
                                         )}
-                                        <CompactResourceRowsContent singularLabel="Private network" {...privateNetworks}
+                                        <CompactResourceRowsContent singularLabel="Network" {...privateNetworks}
                                             firstRowDescription="Connect this job to a network of other jobs."
                                             application={application} />
                                     </>}
@@ -1637,75 +1635,6 @@ function toDnsSafeHostname(value: string): string {
         .replace(/^-+|-+$/g, "");
 
     return sanitized === "" ? "job" : sanitized;
-}
-
-async function createInferenceApiServerResources(
-    application: Application,
-    invokeCommand: InvokeCommand,
-): Promise<compute.AppParameterValueNS.ApiServer[]> {
-    const mode = application.invocation.inference?.mode ?? "NONE";
-    if (mode === "NONE") return [];
-
-    let options: ApiTokens.ApiTokenRetrieveOptionsResponse | null = null;
-    try {
-        options = await invokeCommand<ApiTokens.ApiTokenRetrieveOptionsResponse>(
-            ApiTokens.retrieveOptions(),
-            {defaultErrorHandler: mode === "MANDATORY"}
-        );
-    } catch (err) {
-        if (mode === "MANDATORY") throw err;
-        return [];
-    }
-
-    const inferenceProviders = Object.entries(options?.byProvider ?? {})
-        .filter(([, providerOptions]) => providerOptions.availablePermissions.some(permission => permission.name === "inference"))
-        .map(([providerId]) => providerId);
-
-    if (inferenceProviders.length === 0) {
-        if (mode === "MANDATORY") {
-            throw new Error("This application requires inference servers, but none are available for this project.");
-        }
-        return [];
-    }
-
-    const resources: compute.AppParameterValueNS.ApiServer[] = [];
-    for (const providerId of inferenceProviders) {
-        try {
-            const token = await invokeCommand<ApiTokens.ApiToken>(ApiTokens.create({
-                title: `.job-token.inference.${randomTokenId()}`,
-                description: "Generated for a job requiring inference servers.",
-                requestedPermissions: [{name: "inference", action: "use"}],
-                expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
-                provider: providerId,
-                product: {
-                    category: "",
-                    id: "",
-                    provider: ""
-                },
-            }), {defaultErrorHandler: mode === "MANDATORY"});
-
-            if (token?.status.server && token.status.token) {
-                resources.push({
-                    type: "api_server",
-                    tokenType: "Inference",
-                    server: token.status.server,
-                    token: token.status.token,
-                });
-            }
-        } catch (err) {
-            if (mode === "MANDATORY") throw err;
-        }
-    }
-
-    if (mode === "MANDATORY" && resources.length === 0) {
-        throw new Error("This application requires inference servers, but no inference API tokens could be created.");
-    }
-
-    return resources;
-}
-
-function randomTokenId(): string {
-    return globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
 }
 
 export function getProviderField(): string | undefined {

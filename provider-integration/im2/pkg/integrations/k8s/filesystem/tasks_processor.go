@@ -82,6 +82,8 @@ func TaskProcessor() {
 		err = task2ProcessTransfer(spec)
 	case TaskTypeMarkItDown:
 		err = taskMarkItDown(spec)
+	case TaskTypeFFProbe:
+		err = taskFFProbe(spec)
 	}
 
 	last := taskProcessorState.LastStatus.Load()

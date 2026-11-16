@@ -6,6 +6,8 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+const serviceUid = 11042
+
 func main() {
 	uiChannel, err := os.OpenFile("/work/.ucviz-ui", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
 	if err != nil {
@@ -15,6 +17,11 @@ func main() {
 	dataChannel, err := os.OpenFile("/work/.ucviz-data", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
 	if err != nil {
 		panic(err)
+	}
+
+	if os.Geteuid() == 0 {
+		_ = os.Chown("/work/.ucviz-ui", serviceUid, serviceUid)
+		_ = os.Chown("/work/.ucviz-data", serviceUid, serviceUid)
 	}
 
 	// NOTE(Dan): Do not place the lock somewhere that we suspect could be a distributed filesystem. The reason for

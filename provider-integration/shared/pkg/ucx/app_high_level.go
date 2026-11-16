@@ -2,8 +2,11 @@ package ucx
 
 import (
 	"context"
+	"crypto/subtle"
 	"fmt"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 
 	"ucloud.dk/shared/pkg/log"
@@ -83,6 +86,8 @@ func AppUpdateUiLocked(session *Session, ui UiNode, model map[string]Value) {
 }
 
 func AppServe(factory func() Application, port util.Option[int]) {
+	authToken := LoadSessionAuthToken()
+
 	upstreamServer := &rpc.Server{
 		Mux: http.NewServeMux(),
 	}
@@ -108,7 +113,7 @@ func AppServe(factory func() Application, port util.Option[int]) {
 			conn,
 			ctx,
 			func(ctx context.Context, token string) bool {
-				return true
+				return SessionTokenMatches(authToken, token)
 			},
 			func(ctx context.Context, session *Session) {
 				stateMu.Lock()
@@ -118,6 +123,7 @@ func AppServe(factory func() Application, port util.Option[int]) {
 				app.OnInit()
 				stateMu.Unlock()
 
+				sysHelloSeen := false
 				for {
 					select {
 					case <-ctx.Done():
@@ -128,20 +134,30 @@ func AppServe(factory func() Application, port util.Option[int]) {
 						}
 
 						if frame.Opcode == OpSysHello {
+							if sysHelloSeen {
+								continue
+							}
+							sysHelloSeen = true
+
 							stateMu.Lock()
+							session.SetClientHints(parseClientHints(frame.SysHello.Payload))
 							if appWithSysHello, ok := app.(SysHelloAwareApplication); ok {
 								appWithSysHello.OnSysHello(frame.SysHello.Payload)
 							}
-							ui := app.UserInterface()
-							model, err := ValueMarshal(app)
-							if err != nil {
-								log.Warn("Failed to serialize model %#v: %s", app, err)
+							if session.Headless() {
+								session.sendHeadlessMount()
 							} else {
-								session.SendUiMount(UiMount{
-									InterfaceId: "-",
-									Root:        ui,
-									Model:       model,
-								})
+								ui := app.UserInterface()
+								model, err := ValueMarshal(app)
+								if err != nil {
+									log.Warn("Failed to serialize model %#v: %s", app, err)
+								} else {
+									session.SendUiMount(UiMount{
+										InterfaceId: "-",
+										Root:        ui,
+										Model:       model,
+									})
+								}
 							}
 							stateMu.Unlock()
 						} else if frame.Opcode == OpUiEvent {
@@ -180,4 +196,31 @@ func AppServe(factory func() Application, port util.Option[int]) {
 		Handler: upstreamServer.Mux,
 	}
 	_ = s.ListenAndServe()
+}
+
+func LoadSessionAuthToken() string {
+	if fromEnv := strings.TrimSpace(os.Getenv("UCX_AUTH_TOKEN")); fromEnv != "" {
+		return fromEnv
+	}
+
+	tokenBytes, err := os.ReadFile("/etc/ucloud/token")
+	if err != nil {
+		return ""
+	}
+
+	lines := strings.Split(string(tokenBytes), "\n")
+	if len(lines) >= 2 && strings.TrimSpace(lines[1]) != "" {
+		return strings.TrimSpace(lines[1])
+	}
+	if len(lines) >= 1 {
+		return strings.TrimSpace(lines[0])
+	}
+	return ""
+}
+
+func SessionTokenMatches(expected string, received string) bool {
+	if expected == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(expected), []byte(received)) == 1
 }

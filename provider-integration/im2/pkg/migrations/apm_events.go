@@ -79,3 +79,18 @@ func apmEventsV3() db.MigrationScript {
 		},
 	}
 }
+
+func apmEventsV4() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "apmEventsV4",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table tracked_projects add column if not exists member_usernames jsonb not null default '[]'
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}

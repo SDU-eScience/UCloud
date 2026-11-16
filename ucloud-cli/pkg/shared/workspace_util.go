@@ -9,35 +9,29 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+const PersonalWorkspaceName = "personal"
+
 func SetActiveWorkspace(projectId string) {
-	rpc.DefaultClient.ProjectId = util.OptValue(projectId)
+	rpc.DefaultClient.ProjectId = util.OptStringIfNotEmpty(projectId)
 }
 
 // SetOrUseDefaultWorkspace set active if name is set else use the stored one
 func SetOrUseDefaultWorkspace(cfg *Config, wsName string) (string, error) {
-	found := ""
-	if wsName != "" {
-		ws, err := FindWorkspaceByName(wsName)
-		if err != nil {
-			return "", err
-		}
-		if ws != nil {
-			found = ws.Name
-			SetActiveWorkspace(ws.Id)
-		}
-	} else {
-		getWs, err := GetActiveWorkspace(cfg)
-		if err != nil {
-			return found, err
-		}
-		ws, err := FindWorkspaceByName(getWs)
-		if err != nil {
-			return found, err
-		}
-		SetActiveWorkspace(ws.Id)
-		found = ws.Name
+	if wsName == "" {
+		wsName = GetActiveWorkspace(cfg)
 	}
-	return found, nil
+
+	if wsName == PersonalWorkspaceName {
+		SetActiveWorkspace("")
+		return PersonalWorkspaceName, nil
+	}
+
+	ws, err := FindWorkspaceByName(wsName)
+	if err != nil {
+		return "", err
+	}
+	SetActiveWorkspace(ws.Id)
+	return ws.Name, nil
 }
 
 func FindWorkspaceByName(name string) (*Workspace, error) {

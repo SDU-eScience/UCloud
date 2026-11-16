@@ -221,6 +221,7 @@ services:
       enableIntegration: false
       iops: 45000
       parallelScans: 8
+      parallelLookups: 32
       entriesPerSSTable: 16384
 
   compute:
@@ -234,6 +235,8 @@ services:
       development:
         provider: localai
         server: "http://localai:8080/v1"
+      externalHosts:
+        - inference.example.org
       access:
         administrators: []
         testers: []
@@ -800,6 +803,40 @@ Defaults to `public-ip` if omitted.
 
 </dd>
 </dl>
+
+</dd>
+
+<dt>
+
+`privateNetworks` *optional*
+
+</dt>
+<dd>
+
+Controls Networks. To enable InfiniBand Networks, enable the feature and configure IPv4 address pools for both Ethernet and InfiniBand:
+
+```yaml
+privateNetworks:
+  enabled: true
+  cidrPools: [10.200.0.0/16]
+  infiniband:
+    enabled: true
+    cidrPools: [10.201.0.0/16]
+    rdmaResourceName: nvidia.com/rdma_shared
+    deviceLabel: ucloud.dk/ibdev
+```
+
+Replace the example address pools with ranges suitable for your cluster. InfiniBand networks receive a /24 from the InfiniBand pool. Automatic reclaim is enabled by default. The `rdmaResourceName` and `deviceLabel` values shown are the defaults.
+
+Each InfiniBand-capable node must advertise the RDMA resource and have a device label. The label value is a dash-separated list of device names. Device names cannot contain dashes because dashes are used as separators. IM uses the first device. The cluster must provide a NAD in the compute namespace whose name equals the device name. Nodes can use different device names; IM selects the NAD from the scheduled node. Kubernetes limits label values to 63 characters.
+
+For example:
+
+```shell
+kubectl label node NODE ucloud.dk/ibdev=ib0-ib1-ib2
+```
+
+See [Networks](./networks.md) for the architecture.
 
 </dd>
 

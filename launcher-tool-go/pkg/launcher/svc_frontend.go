@@ -24,6 +24,7 @@ func ServiceFrontend() {
 		Restart:    "always",
 		WorkingDir: "/opt/ucloud",
 		Command:    []string{"sh", "-c", command},
+		Networks:   pinnedNetwork("172.18.0.5"),
 		Volumes: []string{
 			Mount(filepath.Join(RepoRoot, "frontend-web/webclient"), "/opt/ucloud"),
 		},

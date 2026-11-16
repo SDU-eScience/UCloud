@@ -3,7 +3,9 @@ import {MainContainer} from "@/ui-components";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {DocumentTypography, MarkdownDocument} from "@/ui-components/Markdown";
+import CodeSnippet from "@/ui-components/CodeSnippet";
 import {injectStyle} from "@/Unstyled";
+import {IconButton} from "@/ui-components/IconButton";
 
 const CliWizardClass = injectStyle("cli-download-wizard", k => `
     ${k} {
@@ -53,14 +55,6 @@ const CliWizardClass = injectStyle("cli-download-wizard", k => `
         color: var(--textSecondary);
     }
 
-    ${k} .cli-step-label {
-        color: var(--textSecondary);
-        font-size: 13px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-    }
-
     ${k} .cli-steps {
         display: grid;
         gap: 28px;
@@ -83,16 +77,49 @@ const CliWizardClass = injectStyle("cli-download-wizard", k => `
         font-size: 17px;
     }
 
+    ${k} .cli-direct-header {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    ${k} .cli-version-tag {
+        padding: 3px 9px;
+        border-radius: 999px;
+        background: var(--playground-active);
+        color: var(--textSecondary);
+        font-size: 12px;
+        font-weight: 600;
+    }
+
     ${k} .cli-step-copy > p {
         margin: 0;
     }
 
-    ${k} .cli-platforms {
+    ${k} .cli-os-group {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+        grid-template-columns: minmax(100px, 140px) minmax(0, 1fr);
         gap: 12px;
         min-width: 0;
-        margin-top: 4px;
+        padding-bottom: 20px;
+    }
+
+    ${k} .cli-os-group:last-child {
+        padding-bottom: 0;
+    }
+
+    ${k} .cli-os-group > h3 {
+        margin: 0;
+        padding: 8px 0;
+        font-size: 17px;
+    }
+
+    ${k} .cli-platforms {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        min-width: 0;
     }
 
     ${k} .cli-platform-card {
@@ -105,23 +132,24 @@ const CliWizardClass = injectStyle("cli-download-wizard", k => `
         background: var(--backgroundCard);
     }
 
-    ${k} .cli-platform-card h3 {
+    ${k} .cli-platform-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    ${k} .cli-platform-heading h4 {
+        min-width: 0;
         margin: 0;
-        font-size: 16px;
+        font-size: 15px;
     }
 
     ${k} .cli-platform-card p {
         margin: 0;
         color: var(--textSecondary);
         font-size: 13px;
-    }
-
-    ${k} .cli-platform-card code {
-        overflow-wrap: anywhere;
-    }
-
-    ${k} .cli-download-link {
-        width: fit-content;
     }
 
     @media (max-width: 760px) {
@@ -134,6 +162,15 @@ const CliWizardClass = injectStyle("cli-download-wizard", k => `
             margin-left: -16px;
             padding-right: 16px;
             padding-left: 16px;
+        }
+
+        ${k} .cli-os-group {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 4px;
+        }
+
+        ${k} .cli-platforms {
+            grid-template-columns: minmax(0, 1fr);
         }
     }
 `);
@@ -150,10 +187,8 @@ interface CliManifest {
     platforms: CliPlatformDownload[];
 }
 
-function platformTitle(platform: CliPlatformDownload): string {
-    const os = platform.os === "darwin" ? "macOS" : "Linux";
-    const architecture = platform.architecture === "arm64" ? "ARM64" : "x86-64";
-    return `${os} · ${architecture}`;
+function architectureTitle(platform: CliPlatformDownload): string {
+    return platform.architecture === "arm64" ? "ARM64" : "x86-64";
 }
 
 export default function CliDownloads(): React.ReactNode {
@@ -162,7 +197,7 @@ export default function CliDownloads(): React.ReactNode {
     const [manifest, setManifest] = React.useState<CliManifest>();
     const [loadFailed, setLoadFailed] = React.useState(false);
     const downloadBase = `${window.location.origin}/cli`;
-    const installCommand = `curl -fsSL '${downloadBase}/install.sh' | UCLOUD_CLI_BASE_URL='${downloadBase}' bash`;
+    const installCommand = `curl -fsSL '${downloadBase}/install.sh' | UCLOUD_CLI_BASE_URL='${window.location.origin}' bash`;
 
     React.useEffect(() => {
         let active = true;
@@ -186,9 +221,7 @@ export default function CliDownloads(): React.ReactNode {
     return <MainContainer main={<div className={CliWizardClass}>
         <DocumentTypography className="cli-content">
             <header className="cli-header">
-                <span className="cli-step-label">Step 1 · Install</span>
                 <h1>Install UCloud CLI</h1>
-                <p>Use the CLI to manage UCloud from a terminal on Linux or macOS.</p>
             </header>
 
             <ol className="cli-steps">
@@ -208,16 +241,36 @@ export default function CliDownloads(): React.ReactNode {
                 </li>
                 <li>
                     <div className="cli-step-copy">
-                        <strong>Or download a binary directly{manifest ? ` · version ${manifest.version}` : ""}</strong>
+                        <div className="cli-direct-header">
+                            <strong>Alternative: Download a binary directly</strong>
+                            {manifest ? <span className="cli-version-tag">Version {manifest.version}</span> : null}
+                        </div>
                         {loadFailed ? <p>Download details are not available right now.</p> : null}
                         {!manifest && !loadFailed ? <p>Loading download details…</p> : null}
-                        {manifest ? <div className="cli-platforms">
-                            {manifest.platforms.map(platform => <div className="cli-platform-card" key={`${platform.os}-${platform.architecture}`}>
-                                <h3>{platformTitle(platform)}</h3>
-                                <a className="cli-download-link" href={`${downloadBase}/current/${platform.file}`} download>{platform.file}</a>
-                                <p>SHA-256</p>
-                                <code>{platform.sha256}</code>
-                            </div>)}
+                        {manifest ? <div style={{display: "grid", gap: 18, minWidth: 0}}>
+                            {(["linux", "darwin"] as const).map(os => {
+                                const platforms = manifest.platforms.filter(platform => platform.os === os);
+                                if (platforms.length === 0) return null;
+
+                                return <section className="cli-os-group" key={os}>
+                                    <h3>{os === "darwin" ? "macOS" : "Linux"}</h3>
+                                    <div className="cli-platforms">
+                                        {platforms.map(platform => <div className="cli-platform-card" key={platform.architecture}>
+                                            <div className="cli-platform-heading">
+                                                <h4>{architectureTitle(platform)}</h4>
+                                                <IconButton
+                                                    tooltip={`Download ${platform.file}`}
+                                                    icon="heroArrowDownTray"
+                                                    href={`${downloadBase}/current/${platform.file}`}
+                                                    download={platform.file}
+                                                />
+                                            </div>
+                                            <p>SHA-256 checksum</p>
+                                            <CodeSnippet lang="text">{platform.sha256}</CodeSnippet>
+                                        </div>)}
+                                    </div>
+                                </section>;
+                            })}
                         </div> : null}
                     </div>
                 </li>

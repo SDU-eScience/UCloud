@@ -4,8 +4,9 @@ import {Icon} from "@/ui-components";
 export const UcxAccordion: React.FunctionComponent<React.PropsWithChildren<{
     title: React.ReactNode;
     open?: boolean;
+    noHeaderBorder?: boolean;
     onOpenChange?: (open: boolean) => void;
-}>> = ({title, open = false, onOpenChange, children}) => {
+}>> = ({title, open = false, noHeaderBorder = false, onOpenChange, children}) => {
     const [internalOpen, setInternalOpen] = React.useState(open);
     const isControlled = onOpenChange !== undefined;
     const isOpen = isControlled ? open : internalOpen;
@@ -35,7 +36,7 @@ export const UcxAccordion: React.FunctionComponent<React.PropsWithChildren<{
                 cursor: "pointer",
                 userSelect: "none",
                 padding: "4px 0",
-                borderBottom: "1px solid var(--borderColor)",
+                borderBottom: noHeaderBorder ? "none" : "1px solid var(--borderColor)",
                 marginBottom: "8px",
             }}
         >

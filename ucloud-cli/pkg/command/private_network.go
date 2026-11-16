@@ -18,9 +18,10 @@ type PrivateNetworkListCommand struct {
 
 type PrivateNetworkCreateCommand struct {
 	Name      string `positional:"name" usage:"Private network name" required:"true"`
-	SubDomain string `positional:"sub-domain" usage:"Sub domain" required:"true"`
 	Workspace string `flag:"workspace" usage:"eg. --workspace myworkspace"`
 	Provider  string `flag:"provider" usage:"eg. --provider k8s" default:"k8s"`
+	//Internal use
+	Id string
 }
 type PrivateNetworkGetCommand struct {
 	Name      string `positional:"name" usage:"Private network name" required:"true"`
@@ -61,11 +62,11 @@ func retrievePrivateNetworks() (map[string]orcapi.PrivateNetwork, error) {
 func printPrivateNetworks(networks map[string]orcapi.PrivateNetwork) {
 	t := termio.Table{}
 	t.AppendHeader("Name")
-	t.AppendHeader("SubDomain")
+	t.AppendHeader("Subdomain")
 	t.AppendHeader("CreatedAt")
 	for name, network := range networks {
 		t.Cell("%v", name)
-		t.Cell("%v", network.Specification.Subdomain)
+		t.Cell("%v", network.Status.Subdomain)
 		t.Cell("%v", cli.FormatTime(network.CreatedAt))
 	}
 	t.Print()
@@ -85,7 +86,7 @@ func (c PrivateNetworkListCommand) Execute() error {
 	return nil
 }
 
-func (c PrivateNetworkCreateCommand) Execute() error {
+func (c *PrivateNetworkCreateCommand) Execute() error {
 	cfg := shared.InitializeUCloudClient()
 	_, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
 	if err != nil {
@@ -95,8 +96,7 @@ func (c PrivateNetworkCreateCommand) Execute() error {
 	created, httpErr := orcapi.PrivateNetworksCreate.Invoke(fnd.BulkRequest[orcapi.PrivateNetworkSpecification]{
 		Items: []orcapi.PrivateNetworkSpecification{
 			{
-				Name:      c.Name,
-				Subdomain: c.SubDomain,
+				Name: c.Name,
 				ResourceSpecification: orcapi.ResourceSpecification{
 					Product: acc.ProductReference{
 						Id:       "private-network",
@@ -117,6 +117,7 @@ func (c PrivateNetworkCreateCommand) Execute() error {
 		return err
 	}
 	printPrivateNetworks(networks)
+	c.Id = created.Responses[0].Id
 	return nil
 }
 
@@ -224,7 +225,7 @@ func privateNetworkJobs(provider string) (map[string][]JobPrivateNetwork, error)
 	for name, jobArr := range jobsMap {
 		for _, job := range jobArr {
 			for _, r := range job.Specification.Resources {
-				if r.Type != "private_network" {
+				if !orcapi.IsNetworkValue(r) {
 					continue
 				}
 				privateNetworkJobs[name] = append(privateNetworkJobs[name], JobPrivateNetwork{

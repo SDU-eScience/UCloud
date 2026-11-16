@@ -78,7 +78,7 @@ func Launch() {
 	ComposeDir = filepath.Join(repoRootPath, ".compose")
 	_ = os.MkdirAll(ComposeDir, 0700)
 
-	versionBytes, err := os.ReadFile(repoRootPath + "/core2/version.txt")
+	versionBytes, err := os.ReadFile(filepath.Join(repoRootPath, "core2/version.txt"))
 	if err != nil {
 		log.Fatal("Unable to find version file.")
 	}
@@ -94,7 +94,7 @@ func Launch() {
 		log.Fatal("CLI version file is empty.")
 	}
 
-	featureBytes, err := os.ReadFile(repoRootPath + "/.compose/features.json")
+	featureBytes, err := os.ReadFile(filepath.Join(repoRootPath, ".compose", "features.json"))
 	if err == nil {
 		_ = json.Unmarshal(featureBytes, &ClusterFeatures)
 	}
@@ -122,7 +122,7 @@ func Launch() {
 		return
 	}
 
-	refreshTokenBytes, _ := os.ReadFile(repoRootPath + "/.compose/refresh_token.txt")
+	refreshTokenBytes, _ := os.ReadFile(filepath.Join(repoRootPath, ".compose/refresh_token.txt"))
 	refreshToken := strings.TrimSpace(string(refreshTokenBytes))
 
 	RpcClientConfigure(refreshToken)
@@ -208,7 +208,7 @@ func RegisterServices() {
 	Installers = map[string]func(){}
 	StartupHooks = map[string]func(){}
 
-	_ = os.MkdirAll(RepoRoot+".compose", 0770)
+	_ = os.MkdirAll(filepath.Join(RepoRoot, ".compose"), 0770)
 
 	ServiceCore()
 	ServiceFrontend()
@@ -256,10 +256,12 @@ func ClusterStart(down bool) {
 		var composeFile struct {
 			Services map[string]DockerComposeService `yaml:"services"`
 			Volumes  map[string]util.Empty           `yaml:"volumes"`
+			Networks map[string]DockerComposeNetwork `yaml:"networks,omitempty"`
 		}
 
 		composeFile.Services = map[string]DockerComposeService{}
 		composeFile.Volumes = map[string]util.Empty{}
+		composeFile.Networks = map[string]DockerComposeNetwork{}
 
 		for name, composeService := range ComposeServices {
 			composeFile.Services[name] = composeService
@@ -267,6 +269,22 @@ func ClusterStart(down bool) {
 
 		for _, vol := range Volumes {
 			composeFile.Volumes[vol] = util.Empty{}
+		}
+
+		mtu := os.Getenv("UCLOUD_DOCKER_MTU")
+		if mtu == "" {
+			mtu = "1400"
+		}
+
+		composeFile.Networks["default"] = DockerComposeNetwork{
+			Ipam: DockerComposeIpam{
+				Config: []DockerComposeIpamConfig{
+					{Subnet: "172.18.0.0/16"},
+				},
+			},
+			DriverOpts: map[string]string{
+				"com.docker.network.driver.mtu": mtu,
+			},
 		}
 
 		rendered, _ := yaml.Marshal(composeFile)
@@ -311,7 +329,7 @@ func ClusterStart(down bool) {
 	}
 
 	featureBytes, _ := json.Marshal(ClusterFeatures)
-	_ = os.WriteFile(RepoRoot+"/.compose/features.json", featureBytes, 0660)
+	_ = os.WriteFile(filepath.Join(RepoRoot, ".compose/features.json"), featureBytes, 0660)
 }
 
 func ClusterStop() {
@@ -345,7 +363,7 @@ func ClusterDelete() {
 
 	StreamingExecute(
 		"Deleting data",
-		[]string{"docker", "run", "--rm", "-v", RepoRoot + "/.compose/:/data", "alpine:3", "/bin/sh", "-c", "rm -rf /data/*"},
+		[]string{"docker", "run", "--rm", "-v", filepath.Join(RepoRoot, ".compose") + ":/data", "alpine:3", "/bin/sh", "-c", "rm -rf /data/*"},
 		ExecuteOptions{},
 	)
 }

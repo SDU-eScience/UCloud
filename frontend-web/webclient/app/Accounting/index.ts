@@ -38,7 +38,9 @@ export function productAreaTitle(area: ProductArea): string {
         case "NETWORK_IP":
             return "Public IP";
         case "PRIVATE_NETWORK":
-            return "Private network";
+            return "Network";
+        case "PRIVATE_NETWORK_IP":
+            return "Network IP";
     }
 }
 
@@ -67,8 +69,8 @@ export type ProductPriceUnit =
     "CREDITS_PER_MINUTE" | "CREDITS_PER_HOUR" | "CREDITS_PER_DAY" |
     "UNITS_PER_MINUTE" | "UNITS_PER_HOUR" | "UNITS_PER_DAY";
 
-export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "INFERENCE" | "NETWORK_IP" | "PRIVATE_NETWORK";
-export type Type = "storage" | "compute" | "ingress" | "license" | "inference" | "network_ip" | "private_network";
+export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "INFERENCE" | "NETWORK_IP" | "PRIVATE_NETWORK" | "PRIVATE_NETWORK_IP";
+export type Type = "storage" | "compute" | "ingress" | "license" | "inference" | "network_ip" | "private_network" | "private_network_ip";
 
 export interface ProductMetadata {
     category: ProductCategoryId;
@@ -145,6 +147,8 @@ export function productTypeToIcon(type: ProductType): IconName {
         case "INFERENCE":
             return "heroSparkles";
         case "PRIVATE_NETWORK":
+            return "networkWiredSolid";
+        case "PRIVATE_NETWORK_IP":
             return "heroCloud";
     }
 }
@@ -164,7 +168,9 @@ export function productTypeToName(type: ProductType): string {
         case "INGRESS":
             return "Public link";
         case "PRIVATE_NETWORK":
-            return "Private network";
+            return "Network";
+        case "PRIVATE_NETWORK_IP":
+            return "Network IP";
     }
 }
 
@@ -293,6 +299,8 @@ export function categoryComparator(a: ProductCategoryV2, b: ProductCategoryV2): 
                 return 5;
             case "PRIVATE_NETWORK":
                 return 6;
+            case "PRIVATE_NETWORK_IP":
+                return 7;
         }
     }
 

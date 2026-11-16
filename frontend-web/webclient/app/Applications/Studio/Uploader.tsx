@@ -9,7 +9,6 @@ import {useLocation, useNavigate} from "react-router-dom";
 import {useProjectId} from "@/Project/Api";
 import {Client} from "@/Authentication/HttpClientInstance";
 import AppRoutes from "@/Routes";
-import {Feature, hasFeature} from "@/Features";
 
 export const UploadAppAndTool: React.FunctionComponent<{
     onError: (errorMessage: string | null) => void;
@@ -21,7 +20,7 @@ export const UploadAppAndTool: React.FunctionComponent<{
     const projectId = useProjectId();
 
     return <>
-        {!Client.userIsAdmin || !hasFeature(Feature.CONTAINER_REPOSITORIES) ? null : (
+        {!Client.userIsAdmin ? null : (
             <button
                 type="button"
                 className={ButtonClass}

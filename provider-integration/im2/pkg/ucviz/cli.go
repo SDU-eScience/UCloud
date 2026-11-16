@@ -17,6 +17,16 @@ import (
 var cliIdBase = ""
 var cliIdCounter = 0
 
+const StageLabelId = "ucloud-init-stage"
+const StageProgressId = "ucloud-init-progress"
+
+func percentageText(percentage util.Option[float64]) string {
+	if percentage.Present {
+		return fmt.Sprintf("%v%%", percentage.Value)
+	}
+	return "..."
+}
+
 func cliId() string {
 	result := fmt.Sprintf("%s%d", cliIdBase, cliIdCounter)
 	cliIdCounter++
@@ -40,6 +50,37 @@ func HandleCli(args []string, uiChannel io.Writer, dataChannel io.Writer, lock u
 	cliIdBase = "anon-" + util.RandomTokenNoTs(8)
 
 	switch args[0] {
+	case "stage":
+		if len(args) < 2 || len(args) > 3 {
+			printCliHelp("Usage: ucviz stage <text> [percent]")
+		}
+
+		stageText := args[1]
+
+		percentage := util.OptNone[float64]()
+		if len(args) == 3 {
+			raw, err := strconv.ParseFloat(strings.TrimSuffix(args[2], "%"), 64)
+			if err != nil {
+				printCliHelp(fmt.Sprintf("Invalid percentage: %s", err.Error()))
+			}
+			if raw < 0 || raw > 100 {
+				printCliHelp("Percentage must be between 0 and 100")
+			}
+			percentage.Set(raw)
+		}
+
+		uiChannelB := &bytes.Buffer{}
+		uiChannelS := NewWidgetStream(uiChannelB)
+		if percentage.Present {
+			uiChannelS.CreateProgressBar(StageProgressId, WidgetLocation{}, WidgetProgressBar{
+				Progress: percentage.Value / 100.0,
+			})
+		}
+		uiChannelS.CreateLabel(StageLabelId, WidgetLocation{}, WidgetLabel{Text: stageText})
+		_, _ = uiChannel.Write(uiChannelB.Bytes())
+
+		fmt.Fprintf(os.Stdout, "[%v] %s\n", percentageText(percentage), stageText)
+
 	case "widget":
 		if len(args) != 2 {
 			printCliHelp("No widget specified")

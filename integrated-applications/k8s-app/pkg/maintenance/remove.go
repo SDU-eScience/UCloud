@@ -1,0 +1,450 @@
+package maintenance
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+
+	"ucloud.dk/iapp/k8s/pkg/shared"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
+	"ucloud.dk/shared/pkg/log"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/ucx/ucxapi"
+)
+
+// Node removal
+// =====================================================================================================================
+// A removal runs in three stages. The first stage suspends the traffic of control plane nodes, drains the node when the
+// operator asked for it, and deletes the Kubernetes Node object, which makes k3s remove the etcd member on control
+// plane nodes. The second stage verifies that the control plane still answers. The third stage removes the
+// infrastructure: the job, the private network address, the node record and the input files. The stages are split by
+// the NodeDeleted and ResourcesRemoved flags, so an interrupted removal resumes where it stopped. Once the Kubernetes
+// Node object is deleted, the removal no longer accepts cancellation.
+
+const removeVerifyInterval = 5 * time.Second
+
+func RemovePastPointOfNoReturn(operation Operation) bool {
+	return operation.Kind == KindRemove && (operation.NodeDeleted || operation.ResourcesRemoved)
+}
+
+func runRemove(
+	ctx context.Context,
+	clientset *kubernetes.Clientset,
+	operation Operation,
+	worker *nodeWorker,
+) error {
+	if guardErr := removeResumeGuard(); guardErr != nil {
+		return guardErr
+	}
+
+	record, err := worker.clusterRecord()
+	if err != nil {
+		return fmt.Errorf("could not read the cluster record: %s", err)
+	}
+
+	node, known := removeNodeRecordOrReconstruct(record, operation.NodeName)
+	if !known {
+		return fmt.Errorf("the node %s is not part of this cluster", operation.NodeName)
+	}
+
+	if !operation.NodeDeleted {
+		if guardErr := controlPlaneRemovalGuard(ctx, clientset, operation); guardErr != nil {
+			return guardErr
+		}
+
+		if node.Group == k8sapi.GroupControlPlane && node.JobId != "" {
+			trafficErr := upgradeSuspendTraffic(operation, worker)
+			if trafficErr != nil {
+				return fmt.Errorf("could not suspend the traffic of the node: %w", trafficErr)
+			}
+		}
+
+		live, exists, liveErr := removeLiveNode(ctx, clientset, operation)
+		if liveErr != nil {
+			return liveErr
+		}
+
+		if exists && operation.NodeUid == "" {
+			nodeUid := string(live.UID)
+			if uidErr := worker.mutate(func(op *Operation) bool {
+				if op.NodeUid != "" {
+					return false
+				}
+				op.NodeUid = nodeUid
+				return true
+			}); uidErr != nil {
+				return fmt.Errorf("could not record the node uid: %w", uidErr)
+			}
+			operation.NodeUid = nodeUid
+		}
+
+		if exists && operation.Options.Drain {
+			outcome, drainErr := runCordonDrain(ctx, clientset, operation, worker, true)
+			if drainErr != nil {
+				return drainErr
+			}
+			if outcome != drainDone {
+				return nil
+			}
+
+			current, ok := worker.checkpoint()
+			if !ok {
+				return errConcluded
+			}
+			operation = current
+		}
+
+		if exists {
+			if guardErr := removeClusterPhaseGuard(); guardErr != nil {
+				return guardErr
+			}
+			if guardErr := controlPlaneRemovalGuard(ctx, clientset, operation); guardErr != nil {
+				return guardErr
+			}
+
+			if deleteErr := removeDeleteNode(ctx, clientset, operation, worker, live); deleteErr != nil {
+				return deleteErr
+			}
+		}
+
+		persistErr := worker.mutate(func(op *Operation) bool {
+			op.NodeDeleted = true
+			return true
+		})
+		if persistErr != nil {
+			return fmt.Errorf("could not record the node deletion: %w", persistErr)
+		}
+		operation.NodeDeleted = true
+	}
+
+	if node.Group == k8sapi.GroupControlPlane {
+		if verifyErr := removeVerifyControlPlane(ctx, clientset, worker); verifyErr != nil {
+			return verifyErr
+		}
+	}
+
+	if !operation.ResourcesRemoved {
+		if guardErr := removeResumeGuard(); guardErr != nil {
+			return guardErr
+		}
+
+		if resourcesErr := removeInfrastructure(worker, node); resourcesErr != nil {
+			return resourcesErr
+		}
+
+		persistErr := worker.mutate(func(op *Operation) bool {
+			op.ResourcesRemoved = true
+			return true
+		})
+		if persistErr != nil {
+			return fmt.Errorf("could not record the infrastructure removal: %w", persistErr)
+		}
+	}
+
+	finish(worker, k8sapi.MaintenancePhaseCompleted, "")
+	removeTombstoneOperation(worker)
+	return nil
+}
+
+func removeClusterPhaseGuard() error {
+	record, found, err := readClusterRecord()
+	if err != nil {
+		return fmt.Errorf("could not read the cluster record: %s", err)
+	}
+	if !found {
+		return errors.New("the cluster record does not exist")
+	}
+	if !shared.ClusterRecordPhaseOperational(record.Phase) {
+		return fmt.Errorf("the cluster is not ready (state: %s)", record.Phase)
+	}
+
+	return nil
+}
+
+func removeResumeGuard() error {
+	if phaseErr := removeClusterPhaseGuard(); phaseErr != nil {
+		return phaseErr
+	}
+
+	active, activeErr := recoveryIntentActive()
+	if activeErr != nil {
+		return activeErr
+	}
+	if active {
+		return errors.New("a recovery operation is in progress for this cluster")
+	}
+
+	return nil
+}
+
+func removeNodeRecordOrReconstruct(record shared.ClusterRecord, nodeName string) (shared.ClusterNodeRecord, bool) {
+	if node, known := clusterNodeRecord(record, nodeName); known {
+		return node, true
+	}
+
+	dash := strings.LastIndex(nodeName, "-")
+	if dash <= 0 || dash == len(nodeName)-1 {
+		return shared.ClusterNodeRecord{}, false
+	}
+
+	internalId, err := strconv.Atoi(nodeName[dash+1:])
+	if err != nil {
+		return shared.ClusterNodeRecord{}, false
+	}
+
+	return shared.ClusterNodeRecord{
+		InternalId: internalId,
+		Group:      nodeName[:dash],
+		Hostname:   nodeName,
+	}, true
+}
+
+func removeLiveNode(
+	ctx context.Context,
+	clientset *kubernetes.Clientset,
+	operation Operation,
+) (*corev1.Node, bool, error) {
+	live, err := clientset.CoreV1().Nodes().Get(ctx, operation.NodeName, metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("could not read the node %s: %s", operation.NodeName, err)
+	}
+
+	if operation.NodeUid != "" && string(live.UID) != operation.NodeUid {
+		return nil, false, errors.New("the node uid does not match the requested node")
+	}
+
+	return live, true, nil
+}
+
+func removeDeleteNode(
+	ctx context.Context,
+	clientset *kubernetes.Clientset,
+	operation Operation,
+	worker *nodeWorker,
+	live *corev1.Node,
+) error {
+	operationLogStage(worker, "deleting-node")
+
+	deleteErr := clientset.CoreV1().Nodes().Delete(ctx, operation.NodeName, metav1.DeleteOptions{
+		Preconditions: &metav1.Preconditions{UID: &live.UID},
+	})
+	if deleteErr != nil && !apierrors.IsNotFound(deleteErr) {
+		return fmt.Errorf("could not delete the Kubernetes node %s: %s", operation.NodeName, deleteErr)
+	}
+
+	return nil
+}
+
+func removeVerifyControlPlane(
+	ctx context.Context,
+	clientset *kubernetes.Clientset,
+	worker *nodeWorker,
+) error {
+	for {
+		if worker.ctx.Err() != nil {
+			return errConcluded
+		}
+		if _, ok := worker.checkpoint(); !ok {
+			return errConcluded
+		}
+
+		checkCtx, cancel := context.WithTimeout(ctx, apiRequestTimeout)
+		_, listErr := clientset.CoreV1().Nodes().List(checkCtx, metav1.ListOptions{})
+		cancel()
+		if listErr == nil {
+			return nil
+		}
+
+		log.Info(
+			"k8s-app maintenance %s: the control plane did not answer after the removal: %s",
+			worker.nodeName,
+			listErr,
+		)
+		operationLogStage(
+			worker,
+			"verifying-quorum",
+			"Waiting for the control plane to confirm that the etcd quorum is intact",
+		)
+		if !waitInterruptible(worker, removeVerifyInterval) {
+			return errConcluded
+		}
+	}
+}
+
+func removeInfrastructure(worker *nodeWorker, node shared.ClusterNodeRecord) error {
+	client, err := shared.RpcGrantClientNew()
+	if err != nil {
+		return fmt.Errorf("could not open the stack control client: %s", err)
+	}
+
+	if node.JobId != "" {
+		_, terminateErr := ucxapi.StackControlInvoke(client.Rpc, client.Token, &ucxapi.StackControlTerminateJobs, orcapi.ControlMutateRequest[fnd.FindByStringId]{
+			Items: []fnd.FindByStringId{{Id: node.JobId}},
+		})
+		if terminateErr != nil && terminateErr.StatusCode != 404 {
+			return fmt.Errorf("could not terminate the job of the node: %s", terminateErr)
+		}
+
+		if waitErr := removeWaitJobFinal(worker, client, node.JobId); waitErr != nil {
+			return waitErr
+		}
+	}
+
+	if node.PrivateIpIdentifier != "" {
+		if waitErr := removeWaitReservationFree(worker, client, node.PrivateIpIdentifier); waitErr != nil {
+			return waitErr
+		}
+	}
+
+	if recordErr := removeNodeRecordFromCluster(node.Hostname); recordErr != nil {
+		return recordErr
+	}
+
+	if removeErr := os.RemoveAll(shared.NodeDirForInternalId(node.InternalId)); removeErr != nil {
+		return fmt.Errorf("could not remove the data directory of the node: %s", removeErr)
+	}
+	tokenPath := filepath.Join(shared.NodeAgentCoordinatorTokensDir, shared.SanitizeForPath(node.Hostname))
+	if removeErr := os.Remove(tokenPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+		return fmt.Errorf("could not remove the coordinator token of the node: %s", removeErr)
+	}
+	return nil
+}
+
+func removeWaitJobFinal(worker *nodeWorker, client shared.RpcGrantClient, jobId string) error {
+	for {
+		if worker.ctx.Err() != nil {
+			return errConcluded
+		}
+		if _, ok := worker.checkpoint(); !ok {
+			return errConcluded
+		}
+
+		job, herr := ucxapi.StackControlInvoke(client.Rpc, client.Token, &ucxapi.StackControlRetrieveJob, orcapi.JobsControlRetrieveRequest{Id: jobId})
+		if herr != nil {
+			if herr.StatusCode != 404 {
+				return fmt.Errorf("could not read the job %s during the removal: %s", jobId, herr)
+			}
+			return nil
+		}
+		if !job.Status.State.IsFinal() {
+			operationLogStage(
+				worker,
+				"waiting-job",
+				fmt.Sprintf("Waiting for the job %s of the node to stop", jobId),
+			)
+			if !waitInterruptible(worker, removeVerifyInterval) {
+				return errConcluded
+			}
+			continue
+		}
+
+		return nil
+	}
+}
+
+func removeWaitReservationFree(worker *nodeWorker, client shared.RpcGrantClient, privateIpIdentifier string) error {
+	for attempt := 0; ; attempt++ {
+		if worker.ctx.Err() != nil {
+			return errConcluded
+		}
+		if _, ok := worker.checkpoint(); !ok {
+			return errConcluded
+		}
+
+		_, deleteErr := ucxapi.StackControlInvoke(client.Rpc, client.Token, &ucxapi.StackControlDeletePrivateNetworkIp, orcapi.ControlMutateRequest[fnd.FindByStringId]{
+			Items: []fnd.FindByStringId{{Id: privateIpIdentifier}},
+		})
+		if deleteErr == nil || deleteErr.StatusCode == 404 {
+			return nil
+		}
+		if deleteErr.StatusCode != 400 {
+			return fmt.Errorf("could not release the private network address: %s", deleteErr)
+		}
+
+		if attempt == 0 {
+			operationLogStage(
+				worker,
+				"waiting-reservation",
+				"Waiting for the private network address of the node to be released",
+			)
+		}
+		if !waitInterruptible(worker, removeVerifyInterval) {
+			return errConcluded
+		}
+	}
+}
+
+func removeNodeRecordFromCluster(nodeName string) error {
+	client, err := shared.ClusterStateClientNewHost()
+	if err != nil {
+		return err
+	}
+
+	return shared.ClusterRecordUpdate(client, func(record *shared.ClusterRecord) bool {
+		nodeGroup := ""
+		found := false
+		for i := range record.Nodes {
+			if record.Nodes[i].Hostname == nodeName {
+				nodeGroup = record.Nodes[i].Group
+				record.Nodes = append(record.Nodes[:i], record.Nodes[i+1:]...)
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+
+		lastPoolNode := nodeGroup != "" &&
+			nodeGroup != k8sapi.GroupControlPlane &&
+			len(shared.NodesInGroup(*record, nodeGroup)) == 0
+		if lastPoolNode {
+			pools := record.Pools[:0]
+			for _, pool := range record.Pools {
+				if pool.Name != nodeGroup {
+					pools = append(pools, pool)
+				}
+			}
+			record.Pools = pools
+		}
+
+		return true
+	})
+}
+
+func removeTombstoneOperation(worker *nodeWorker) {
+	client, err := stackClientNew()
+	if err != nil {
+		log.Warn("k8s-app maintenance %s: could not clear the maintenance record: %s", worker.nodeName, err)
+		return
+	}
+
+	record, readErr := stackValueRead[Operation](client, stackNodeKey(worker.nodeName), "maintenance record "+stackNodeKey(worker.nodeName))
+	if readErr != nil {
+		log.Warn("k8s-app maintenance %s: could not clear the maintenance record: %s", worker.nodeName, readErr)
+		return
+	}
+	if !record.Found || record.Value.Phase != k8sapi.MaintenancePhaseCompleted {
+		return
+	}
+
+	_, writeErr := shared.RpcGrantStateWrite(client, stackNodeKey(worker.nodeName), json.RawMessage("null"), record.Revision)
+	if writeErr != nil {
+		log.Warn("k8s-app maintenance %s: could not clear the maintenance record: %s", worker.nodeName, writeErr)
+	}
+}

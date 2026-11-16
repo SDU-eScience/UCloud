@@ -77,12 +77,11 @@ func ServiceGateway() {
 	})
 
 	AddService(service, DockerComposeService{
-		// NOTE: The gateway is from this repo with no changes:
-		// https://github.com/mholt/caddy-grpc-web
-		Image:    "dreg.cloud.sdu.dk/ucloud/caddy-gateway:1",
+		Image:    "caddy:2.11-alpine",
 		Hostname: "gateway",
 		Restart:  "always",
 		Ports:    []string{"80:80", "443:443"},
+		Networks: pinnedNetwork("172.18.0.6"),
 		Volumes: []string{
 			Mount(data, "/data"),
 			Mount(filepath.Join(configDir, "Caddyfile"), "/etc/caddy/Caddyfile"),

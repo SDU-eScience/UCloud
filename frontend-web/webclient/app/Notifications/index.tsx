@@ -56,6 +56,17 @@ function resolveNotification(event: Notification): {
         case "PROJECT_USER_REMOVED":
             return {icon: "projects", color: "textPrimary", color2: "textSecondary"};
 
+        case "NETWORK_RECLAIM_PENDING": {
+            const networkName = event.meta?.["networkName"] as string | undefined;
+            return {
+                icon: "networkWiredSolid",
+                color: "warningMain",
+                color2: "warningMain",
+                modifiedTitle: networkName ? `${networkName} is scheduled for deletion` : "Network scheduled for deletion",
+                modifiedMessage: event.message.replace(" unless it is used or protected.", " unless it is used."),
+            };
+        }
+
         case "NEW_GRANT_APPLICATION":
         case "GRANT_NEW_APPLICATION":
             const icon = "heroPaperAirplane";
@@ -243,6 +254,13 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
             break;
         }
         case "PROJECT_ROLE_CHANGE": {
+            break;
+        }
+        case "NETWORK_RECLAIM_PENDING": {
+            const networkId = notification.meta?.networkId as string | undefined;
+            if (networkId) {
+                navigate(AppRoutes.resource.properties("networks", networkId));
+            }
             break;
         }
         default:

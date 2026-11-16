@@ -177,6 +177,7 @@ export const Button: React.FunctionComponent<ButtonProps> = props => {
         {...extractDataTags(props)}
         ref={props.btnRef}
         title={props.title}
+        aria-label={props.ariaLabel}
         tabIndex={0}
     >
         {props.children}

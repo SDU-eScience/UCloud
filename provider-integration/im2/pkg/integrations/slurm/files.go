@@ -58,23 +58,32 @@ func InitializeFiles() ctrl.FileService {
 	}
 }
 
-func search(ctx context.Context, query, folder string, flags orc.FileFlags, output chan orc.ProviderFile) {
+func search(ctx context.Context, query, folder string, flags orc.FileFlags, output chan orc.ProviderFile) error {
 	initialFolder, ok := UCloudToInternal(folder)
 	driveId, ok2 := DriveIdFromUCloudPath(folder)
 	defer close(output)
 
 	if !ok || !ok2 {
-		return
+		return errors.New("unknown search folder")
 	}
 
 	drive, ok := RetrieveDrive(driveId)
 	if !ok {
-		return
+		return errors.New("unknown search drive")
 	}
 
 	normalizedQuery := strings.ToLower(query)
 
-	_ = filepath.WalkDir(initialFolder, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(initialFolder, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if path != initialFolder && flags.FilterHiddenFiles.Value && strings.HasPrefix(d.Name(), ".") {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 		select {
 		case <-ctx.Done():
 			return filepath.SkipAll
@@ -98,6 +107,7 @@ func search(ctx context.Context, query, folder string, flags orc.FileFlags, outp
 			return nil
 		}
 	})
+	return err
 }
 
 func transferSourceInitiate(request orc.FilesProviderTransferRequestInitiateSource) ([]string, *util.HttpError) {

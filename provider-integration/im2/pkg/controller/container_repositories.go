@@ -15,12 +15,29 @@ type ContainerRepositoryService struct {
 	Create          func(repository *orc.ContainerRepository) *util.HttpError
 	Delete          func(repository *orc.ContainerRepository) *util.HttpError
 	BrowseImages    func(request orc.ContainerRepositoriesProviderBrowseImagesRequest) (fnd.PageV2[orc.ContainerRepositoryImage], *util.HttpError)
-	DeleteImage     func(request orc.ContainerRepositoriesProviderDeleteImageRequest) *util.HttpError
+	DeleteImage     func(request orc.ContainerRepositoriesProviderDeleteImageRequest, username string) *util.HttpError
 	OnDeleted       func(repository *orc.ContainerRepository)
 	OnUpdatedLabels func(repository *orc.ContainerRepository) *util.HttpError
+	UpdateAcl       func(repository *orc.ContainerRepository) *util.HttpError
 }
 
 func initContainerRepositories() {
+	orc.ContainerRepositoriesProviderUpdateAcl.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orc.UpdatedAclWithResource[orc.ContainerRepository]]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+		response := fnd.BulkResponse[util.Empty]{}
+		for _, item := range request.Items {
+			repository := item.Resource
+			repository.Permissions.Value = privateNetworkMergeAcl(repository.Permissions.Value, item.Deleted, item.Added)
+			if ContainerRepositories.UpdateAcl != nil {
+				if err := ContainerRepositories.UpdateAcl(&repository); err != nil {
+					return response, err
+				}
+			}
+			ContainerRepositoryTrack(repository)
+			response.Responses = append(response.Responses, util.Empty{})
+		}
+		return response, nil
+	})
+
 	orc.ContainerRepositoriesProviderCreate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orc.ContainerRepository]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
 		response := fnd.BulkResponse[fnd.FindByStringId]{}
 		for _, item := range request.Items {
@@ -78,6 +95,7 @@ func initContainerRepositories() {
 
 	orc.ContainerRepositoriesProviderDeleteImage.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orc.ContainerRepositoriesProviderDeleteImageRequest]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
 		response := fnd.BulkResponse[util.Empty]{Responses: make([]util.Empty, 0, len(request.Items))}
+		username := GetUCloudUsername(info.HttpRequest)
 		for _, item := range request.Items {
 			if ContainerRepositories.DeleteImage == nil {
 				return fnd.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusBadRequest, "Container repository image deletion is not supported")
@@ -85,7 +103,7 @@ func initContainerRepositories() {
 			if item.Image == "" {
 				ContainerRepositoryTrack(item.ResolvedRepository)
 			}
-			if err := ContainerRepositories.DeleteImage(item); err != nil {
+			if err := ContainerRepositories.DeleteImage(item, username); err != nil {
 				return fnd.BulkResponse[util.Empty]{}, err
 			}
 			response.Responses = append(response.Responses, util.Empty{})

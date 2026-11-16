@@ -67,7 +67,7 @@ receives the reason `success_missing_usage`, and the middleware writes a warning
 | Request body | 16 MB |
 | Response header from the backend | 4 minutes |
 | A stream without data | 2 minutes |
-| Dial and TLS handshake | 10 seconds |
+| Dial and connection setup | 10 seconds |
 | Body of an upstream JSON answer | 8 MB |
 | One event of an upstream stream | 8 MB |
 | Write of one event to the client | 30 seconds |
@@ -101,4 +101,5 @@ A cancel request answers with the current state of the response, as a read does.
 survive a restart becomes `failed`.
 
 The adapter writes one audit record for one logical call, and it suppresses the record of the chat call inside it.
-Deleting a conversation writes `inference.conversations.delete`. See [Audit and Metrics](./observability.md).
+Deleting a response writes `inference.responses.delete`, and deleting a conversation writes
+`inference.conversations.delete`. See [Audit](./audit.md).

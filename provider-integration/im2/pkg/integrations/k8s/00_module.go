@@ -65,6 +65,8 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	controller.ProductsRegister(shared.LinkProducts)
 	controller.ProductsRegister(shared.LicenseProducts)
 	controller.ProductsRegister(shared.PrivateNetworkProducts)
+	controller.ProductsRegister(shared.PrivateNetworkIpProducts)
+	controller.ProductsRegister(shared.ServiceProducts)
 
 	filesystem.DriveScanListener = func(drive *orc.Drive, internalPath string) {
 		inference.InferenceDriveScanned(drive, internalPath)
@@ -93,6 +95,7 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 		if err := filesystem.MetadataConfigureCatalog(filesystem.MetadataCatalogConfig{
 			IOPS:              metadataConfig.IOPS,
 			ParallelScans:     metadataConfig.ParallelScans,
+			ParallelLookups:   metadataConfig.ParallelLookups,
 			EntriesPerSSTable: metadataConfig.EntriesPerSSTable,
 		}); err != nil {
 			log.Warn("Unable to configure metadata catalog: %s", err)
@@ -103,6 +106,8 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	filesystem.InitMetadataCli()
 	initJobsCli()
 	job_introspection.InitServerHandlers()
+	stackControlInitServer()
+	stackStateControlInitServer()
 	syncthing_metrics.InitCollector()
 	inference.Init()
 	if config.Registry.Enabled {
@@ -243,7 +248,7 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 				httpErr = &util.HttpError{StatusCode: http.StatusPaymentRequired, Why: reason, ErrorCode: "NOT_ENOUGH_LICENSE_CREDITS"}
 			}
 
-		case orc.AppParameterValueTypePrivateNetwork:
+		case orc.AppParameterValueTypePrivateNetwork, orc.AppParameterValueTypeUCloudNetwork:
 			if issue == controller.JobResourceAccessibilityIssueLocked {
 				httpErr = &util.HttpError{StatusCode: http.StatusPaymentRequired, Why: reason, ErrorCode: "NOT_ENOUGH_PRIVATE_NETWORK_CREDITS"}
 			}
