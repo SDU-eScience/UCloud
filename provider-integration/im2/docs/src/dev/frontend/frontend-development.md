@@ -60,7 +60,7 @@ Icons can be added to the site, by adding the file as an SVG in the folder `/app
 The icon is now available to use in the `name` parameter for the Icon-component.
 
 
-### Coding-style preferences
+## Coding-style preferences
 
 `let` is to be used over `var`, due to the reduced lifetime of `let`.
 

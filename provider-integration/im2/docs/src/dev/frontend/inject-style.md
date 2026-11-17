@@ -71,14 +71,6 @@ To ensure uniqueness, the function appends a number. The above could for instanc
 
 If just a classname is needed without any rules, see `makeClassName` function.
 
-### Drawbacks
-
-One of the drawbacks of `Unstyled` is the same as you'd experience writing CSS in general: whether or not a child-selector is still matched somewhere. 
-While separate tools exist to help with finding these cases, the aforementioned `makeClassName` can be used to leverage the TypeScript compiler to warn when it's the case.
-If the result of the `makeClassName` is no longer applied to any component, the rule can safely be deleted. This requires selectors to be written where references to classes in selectors has the classname interpolated. 
-
-`styled-components` will also handle browser quirks and transform rules to manage these, like Safari with rules with the `-webkit`-prefix. This has to be done manually when developing the UCloud platform.
-
 ## Baseline for features
 
 As the CSS standard is continuously updated, some features might be supported in one browser, and not another. Any CSS property used must be supported in Chrome, Safari, and Firefox. It should have a baseline of "Widely available" for at least 3 years.

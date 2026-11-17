@@ -1,8 +1,13 @@
 ### Use 
 
+If a list view of a single resource type with integrated context menu and keyboard actions, the Resource Browser-component is a possible solution. 
+
 To use the ResourceBrowser-component, a parent component written in React is required.
 
-The minimum viable use of the ResourceBrowser-component is as follows, with added comments:
+Below is a simple use, with comments, of the component, with a generic resource type that exists for the purpose of the example, along with a defined ResourceApi-class.
+
+In the event that the resource-type contains another resource type that is tightly coupled, this can be done as seen with [SharesOutgoing.tsx](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/app/Files/SharesOutgoing.tsx)
+
 
 ```typescript
 export function Browser(): React.ReactNode {
@@ -25,14 +30,16 @@ export function Browser(): React.ReactNode {
                 browser.setColumns([{name: "Title"}, {name: "Created at"}]);
 
                 // Behavior for when a row is activated by double mouse-click,
-                // or pressing enter.
-                browser.on("open", (_oldPath, newPath, resource) => {
+                // or pressing enter. The `_oldPath` and `_resource`-arguments 
+                // are ignored.
+                browser.on("open", (_oldPath, newPath, _resource) => {
                     callAPI(ResourceApi.browse({
                         ...defaultRetrieveFlags,
                         ...browser.browseFilters
                     })).then(result => {
                         // Caches the page at the path, for quicker future access.
                         browser.registerPage(result, newPath, true);
+                        // Renders the rows with the newly fetched content.
                         browser.renderRows();
                     })
                 });
