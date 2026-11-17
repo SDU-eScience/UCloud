@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"regexp"
 
-	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/cli"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -146,11 +145,7 @@ func (c *PublicLinkCreateCommand) Execute() error {
 		Items: []orcapi.IngressSpecification{{
 			Domain: createdLinks[0],
 			ResourceSpecification: orcapi.ResourceSpecification{
-				Product: apm.ProductReference{
-					Id:       "public-links",
-					Provider: c.Provider,
-					Category: "public-links",
-				},
+				Product: supports[0].Product.ToReference(),
 			},
 		}},
 	}

@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	acc "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/cli"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -339,15 +338,20 @@ func (c *PublicIPCreateCommand) Execute() error {
 		return err
 	}
 
+	products, httpErr := orcapi.PublicIpsRetrieveProducts.Invoke(util.Empty{})
+	if httpErr.AsError() != nil {
+		return fmt.Errorf("failed to retrieve products: %s", httpErr.Why)
+	}
+	supports, ok := products.ProductsByProvider[c.Provider]
+	if !ok || len(supports) == 0 {
+		return fmt.Errorf("provider %s not found", c.Provider)
+	}
+
 	res, httpErr := orcapi.PublicIpsCreate.Invoke(fnd.BulkRequest[orcapi.PublicIPSpecification]{
 		Items: []orcapi.PublicIPSpecification{{
 			ResourceSpecification: orcapi.ResourceSpecification{
-				Product: acc.ProductReference{
-					Id:       "public-ip",
-					Category: "public-ip",
-					Provider: c.Provider,
-				},
-				Labels: map[string]string{},
+				Product: supports[0].Product.ToReference(),
+				Labels:  map[string]string{},
 			},
 			Firewall: util.OptValue(orcapi.Firewall{
 				OpenPorts: ports,
