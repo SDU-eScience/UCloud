@@ -82,8 +82,8 @@
 # UCloud frontend
 
 - [Frontend](./dev/frontend/frontend-development.md)
-- [Frontend layout](./dev/frontend/frontend-layout.md)
-- [Frontend architecture](./dev/frontend/frontend-architecture.md)
+- [Layout](./dev/frontend/frontend-layout.md)
+- [Architecture](./dev/frontend/frontend-architecture.md)
 - [Network calls](./dev/frontend/network-calls.md)
 - [Styling (CSS)](./dev/frontend/inject-style.md)
 - [Testing](./dev/frontend/testing.md)

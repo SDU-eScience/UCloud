@@ -6,11 +6,11 @@ For a description of where UCloud frontend exists in the context of the UCloud p
 
 ## Technologies
 
-The UCloud frontend is written in Typescript, with the frontend library [React](https://en.wikipedia.org/wiki/React_(software)). Some use of the library Redux exists in the codebase, but it is rarely used when developing new features, instead replaced by `ExternalStore`. TypeScript was chosen to reduce the friction that comes from Vanilla JavaScript's dynamic nature, and TypeScript letting developers use upcoming TC-39 features, by compiling to an older target, making UCloud available for people running older versions of JavaScript. 
+The UCloud frontend is written in Typescript, with the frontend library [React](https://en.wikipedia.org/wiki/React_(software)). Some shared application state is managed using a custom solution `ExternalStore`, that components can connect to, using the `useSyncExternalStore`-hook provided by React. TypeScript was chosen to reduce the friction that comes from Vanilla JavaScript's dynamic nature, and TypeScript letting developers use upcoming TC-39 features, by compiling to an older target, making UCloud available for people running older versions of JavaScript. 
 
 `npm` is used as the package manager, and contains the various scripts for [running the UCloud frontend](#running-the-ui), [generating icons](#color-references-and-icons), etc. Drop-in replacements can be used if preferred.
 
-React was chosen because of its ubiquity and being battle-tested and the library authors use of "dogfooding". 
+React was chosen because of its ubiquity and being battle-tested and the library authors use of "dogfooding". [`React Router`](https://en.wikipedia.org/wiki/React_Router), used for navigation, also has a large userbase and is under a large organisation that uses it, like with React.
 
 Where the performance of React has not been adequate, Vanilla TypeScript/ECMAScript has been used instead. An example of this is the [ResourceBrowser](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/app/ui-components/ResourceBrowser.tsx) component, where very little use of React is present.
 
@@ -73,31 +73,74 @@ If a magic string/number is present more than once, it's to be extracted into a 
 
 HTML/JSX tags that close immediately and have no children, should have a space before closing, e.g. `<br />`, but not in the case of `<div></div>`.
 
-Imports and objects should not have a preceding or succeeding space.
 
-Yes
+<div class="table-wrapper">
+<table>
 
+<tr>
+    <th>
+        Rule
+    </th>
+    <td>
+        Imports and objects should not have a preceding or succeeding space.
+    </td>
+</tr>
+<tr>
+    <td>
+        Yes
+    </td>
+    <td>
+    
 ```typescript
 import {thing} from "thing";
 
 const foo = {thing: "a"};
 ```
 
-No
-
+</td>
+</tr>
+<tr>
+    <td>
+        No
+    </td>
+    <td>
+    
 ```typescript
 import { thing } from "thing";
 
 const foo = { thing: "a" };
 ````
 
-Spaces for alignment with newlines are fine, e.g.:
+<td>
+</tr>
+
+<tr>
+    <th>
+        Note
+    </th>
+    <td>
+        Spaces for alignment with newlines are fine, e.g.
+    </td>
+<td>
+</tr>
+<tr>
+    <td>
+        Yes
+    </td>
+<td>
 
 ```typescript
 import {
     thing
 } from "thing";
 ```
+
+</td>
+</tr>
+
+</table>
+</div>
+
 
 But newlines in imports should usually only happen with multiple imports from the same source.
 

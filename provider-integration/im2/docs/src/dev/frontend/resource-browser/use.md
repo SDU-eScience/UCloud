@@ -1,6 +1,6 @@
 ### Use 
 
-To use the ResourceBrowser-component, a parent component written in React is used.
+To use the ResourceBrowser-component, a parent component written in React is required.
 
 The minimum viable use of the ResourceBrowser-component is as follows, with added comments:
 
