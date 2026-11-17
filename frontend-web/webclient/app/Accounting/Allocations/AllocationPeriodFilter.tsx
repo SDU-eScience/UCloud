@@ -10,7 +10,7 @@ import {isLikelyMac} from "@/UtilityFunctions";
 import {format} from "date-fns";
 
 const AllocationPeriodFilterClass = injectStyle("allocation-period-filter", k => `
-    ${k} .period-trigger { display: flex; align-items: center; gap: 6px; height: 35px; padding: 0 14px; border: 1px solid var(--borderColor); border-radius: 8px; background: transparent; color: var(--textPrimary); font-size: 14px; }
+    ${k} .period-trigger { display: flex; align-items: center; gap: 6px; height: 35px; padding: 0 14px; border: 1px solid var(--borderColor); border-radius: 8px; background: transparent; color: var(--textPrimary); font-size: 14px; user-select: none; }
     ${k} .period-trigger:hover { background: var(--rowHover); }
     ${k} .period-trigger > svg { flex-shrink: 0; }
 `);
@@ -39,15 +39,17 @@ function calendarYearRange(year: number): AllocationDateRange {
     return {start: new Date(year, 0, 1), end: new Date(year, 11, 31)};
 }
 
-export function allocationCurrentCalendarYear(): AllocationDateRange {
-    return calendarYearRange(new Date().getFullYear());
+export function allocationCurrentCalendarYear(now = Date.now()): AllocationDateRange {
+    return calendarYearRange(new Date(now).getFullYear());
 }
 
 export function AllocationPeriodFilter(props: {
     value: AllocationDateRange;
     onChange: (value: AllocationDateRange) => void;
     navigationField?: boolean;
+    now?: number;
 }): React.ReactNode {
+    const currentDate = new Date(props.now ?? Date.now());
     const [open, setOpen] = useState(false);
     const [start, setStart] = useState(props.value.start);
     const [end, setEnd] = useState<Date | null>(props.value.end);
@@ -96,23 +98,26 @@ export function AllocationPeriodFilter(props: {
     const focusApply = () => {
         requestAnimationFrame(() => panelRef.current?.querySelector<HTMLButtonElement>(".period-apply")?.focus());
     };
+    const choosePreset = (range: AllocationDateRange) => {
+        selectPreset(range);
+        focusApply();
+    };
     const nextTwelveMonths = (): AllocationDateRange => {
-        const now = new Date();
+        const now = currentDate;
         return {start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + 12, 0)};
     };
     const onPanelKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
         const primaryPressed = isLikelyMac ? event.metaKey : event.ctrlKey;
         if (event.altKey && primaryPressed && !event.shiftKey) {
             let range: AllocationDateRange | null = null;
-            if (event.code === "KeyC") range = allocationCurrentCalendarYear();
-            if (event.code === "KeyL") range = calendarYearRange(new Date().getFullYear() - 1);
-            if (event.code === "KeyN") range = calendarYearRange(new Date().getFullYear() + 1);
+            if (event.code === "KeyC") range = calendarYearRange(currentDate.getFullYear());
+            if (event.code === "KeyL") range = calendarYearRange(currentDate.getFullYear() - 1);
+            if (event.code === "KeyN") range = calendarYearRange(currentDate.getFullYear() + 1);
             if (event.code === "KeyR") range = nextTwelveMonths();
             if (range) {
                 event.preventDefault();
                 event.stopPropagation();
-                selectPreset(range);
-                focusApply();
+                choosePreset(range);
                 return;
             }
             if (event.key === "Enter") {
@@ -183,16 +188,16 @@ export function AllocationPeriodFilter(props: {
             <div ref={setPanelNode} className={AllocationPeriodPanelClass} role="dialog" aria-label="Choose allocation period" onKeyDown={onPanelKeyDown}>
                 <h4>Allocation period</h4>
                 <div className="period-presets">
-                    <Button color="ghost" height={25} onClick={() => selectPreset(allocationCurrentCalendarYear())}>Current year<SubmitShortcut shortcut="C" /></Button>
+                    <Button color="ghost" height={25} onClick={() => choosePreset(calendarYearRange(currentDate.getFullYear()))}>Current year<SubmitShortcut shortcut="C" compact /></Button>
                     <Button color="ghost" height={25} onClick={() => {
-                        selectPreset(calendarYearRange(new Date().getFullYear() - 1));
-                    }}>Last year<SubmitShortcut shortcut="L" /></Button>
+                        choosePreset(calendarYearRange(currentDate.getFullYear() - 1));
+                    }}>Last year<SubmitShortcut shortcut="L" compact /></Button>
                     <Button color="ghost" height={25} onClick={() => {
-                        selectPreset(calendarYearRange(new Date().getFullYear() + 1));
-                    }}>Next year<SubmitShortcut shortcut="N" /></Button>
+                        choosePreset(calendarYearRange(currentDate.getFullYear() + 1));
+                    }}>Next year<SubmitShortcut shortcut="N" compact /></Button>
                     <Button color="ghost" height={25} onClick={() => {
-                        selectPreset(nextTwelveMonths());
-                    }}>Next 12 months<SubmitShortcut shortcut="R" /></Button>
+                        choosePreset(nextTwelveMonths());
+                    }}>Next 12 months<SubmitShortcut shortcut="R" compact /></Button>
                 </div>
                 <div className="period-bounds">
                     <button type="button" className="period-bound" aria-pressed={step === "start"} onClick={() => {
@@ -243,6 +248,7 @@ export function AllocationPeriodFilter(props: {
                                     setEnd(new Date(year, month + 1, 0));
                                 }
                                 setStep("start");
+                                focusApply();
                             }}
                         >{format(date, "MMM")}</button>;
                     })}
@@ -253,7 +259,7 @@ export function AllocationPeriodFilter(props: {
                         if (!end) return;
                         props.onChange({start, end});
                         closePicker();
-                    }}>Apply period<SubmitShortcut /></Button>
+                    }}>Apply period<SubmitShortcut compact /></Button>
                 </div>
             </div>
         </ClickableDropdown>

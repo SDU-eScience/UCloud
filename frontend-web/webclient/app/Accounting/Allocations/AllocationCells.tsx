@@ -43,6 +43,7 @@ export function AllocationUsage(props: {
     quota: number;
     unit: string;
     title?: string;
+    details?: string;
     compact?: boolean;
 }): React.ReactNode {
     const usage = formatNumber(props.usage, {precision: 2, removeTrailingZeros: true});
@@ -50,7 +51,7 @@ export function AllocationUsage(props: {
     const percentage = props.quota > 0 ? (props.usage / props.quota) * 100 : null;
     const label = percentage === null ? "—" : `${formatNumber(Math.round(percentage))}%`;
     const title = props.title ?? `${usage} ${props.unit} used of ${quota} ${props.unit} (${label})`;
-    return <TooltipV2 tooltip={title}>
+    return <TooltipV2 tooltip={props.details === undefined ? title : `${title}. ${props.details}`}>
         <div className={AllocationUsageStyle} data-compact={props.compact} data-exhausted={props.quota > 0 && props.usage >= props.quota}>
             <div className="usage-values"><span className="usage-value">{usage}</span><span className="usage-quota">{props.compact ? props.unit : `/ ${quota} ${props.unit}`}</span></div>
             <div className="usage-bottom">

@@ -35,10 +35,8 @@ import {initialState, stateReducer, useEventReducer} from "./State"
 import {GiftSection, RootAllocationSections} from "./ProviderOnlySections";
 import {projectInfoPi, useProjectInfos} from "@/Project/InfoCache";
 import {sendFailureNotification} from "@/Notifications";
-import {callAPI} from "@/Authentication/DataHook";
-import * as Grants from "@/Grants";
-import {DefaultTemplateRevision} from "@/Grants/Editor";
 import {AllocationPage} from "./AllocationPage";
+import {useProjectHasProviderTools} from "./ProviderTools";
 import {allocationCurrentCalendarYear} from "./AllocationPeriodFilter";
 import type {AllocationDateRange} from "@/Accounting/Allocations/AllocationGrid";
 
@@ -56,7 +54,6 @@ const Allocations: React.FunctionComponent = () => {
     const projectState = useProject();
     const projectRole = projectState.fetch().status.myRole ?? OldProjectRole.USER;
     const listRef = useRef<VariableSizeList<number[]>>(null);
-    const didUnmount = useDidUnmount();
 
     usePage("Allocations", SidebarTabId.PROJECT);
 
@@ -77,40 +74,6 @@ const Allocations: React.FunctionComponent = () => {
     }, [projectInfo]);
 
     const [dateRange, setDateRange] = useState<AllocationDateRange>(allocationCurrentCalendarYear);
-
-    const [settings, setSettings] = useState<Grants.RequestSettings>({
-        enabled: false,
-        description: "No description",
-        allowRequestsFrom: [],
-        excludeRequestsFrom: [],
-        templates: {
-            type: "structured",
-            structured: {
-                existingProject: [],
-                newProject: [],
-                personalProject: [],
-                revisionNumber: DefaultTemplateRevision
-            }
-        }
-    });
-
-    useEffect(() => {
-        if (!projectId) return;
-        (async () => {
-            try {
-                const res = await callAPI<Grants.RequestSettings>(
-                    {
-                        ...Grants.retrieveRequestSettings(),
-                        projectOverride: projectId,
-                    }
-                );
-
-                if (!didUnmount.current) setSettings(res);
-            } catch (e) {
-                // Ignoring failure
-            }
-        })();
-    }, [projectId]);
 
     React.useEffect(() => {
         const usernames = new Set<string>();
@@ -259,13 +222,16 @@ const Allocations: React.FunctionComponent = () => {
         />
     }
 
+    const hasManagedProviders = (state.remoteData.managedProviders ?? []).length > 0;
+    const hasProviderTools = useProjectHasProviderTools();
+
     return <AllocationPage
         dateRange={dateRange}
         onDateRangeChange={setDateRange}
-        providerTools={(state.remoteData.managedProviders ?? []).length > 0 ? <>
-            <RootAllocationSections state={state} dispatchEvent={dispatchEvent} />
+        providerTools={hasProviderTools ? <>
+            {hasManagedProviders ? <RootAllocationSections state={state} dispatchEvent={dispatchEvent} /> : null}
             <GiftSection state={state} dispatchEvent={dispatchEvent} />
-        </> : settings.enabled ? <GiftSection state={state} dispatchEvent={dispatchEvent} /> : null}
+        </> : undefined}
         subProjects={{
             projectId,
             onNewSubProject,

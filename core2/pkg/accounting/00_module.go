@@ -35,6 +35,7 @@ func Init() {
 	times["UsageReports"] = t.Mark()
 
 	initUsageGenerator()
+	accountingScenarioInit()
 	times["UsageGenerator"] = t.Mark()
 
 	initLowFundsScan()

@@ -4,11 +4,16 @@ import (
 	"os"
 	"slices"
 
+	"ucloud.dk/core/pkg/accounting"
 	"ucloud.dk/core/pkg/launcher"
 	"ucloud.dk/shared/pkg/util"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "accounting-scenarios" {
+		accounting.AccountingScenariosMain(os.Args[2:])
+		return
+	}
 	util.DeploymentName = "Core"
 	if slices.Contains(os.Args, "migrate") {
 		util.DeploymentName = "Core/Migrate"

@@ -74,7 +74,7 @@ const AllocationFiltersStyle = injectStyle("allocation-filters", k => `
     ${k} .allocation-state-row { gap: 2px; font-size: 12px; color: var(--textSecondary); }
     ${k} .allocation-search { flex: 1 1 280px; max-width: 380px; }
     ${k} .allocation-search .table-filter { width: 100%; }
-    ${k} .allocation-filter-trigger { display: flex; align-items: center; gap: 6px; height: 35px; padding: 0 14px; border: 1px solid var(--borderColor); border-radius: 8px; background: transparent; font-size: 14px; color: var(--textPrimary); }
+    ${k} .allocation-filter-trigger { display: flex; align-items: center; gap: 6px; height: 35px; padding: 0 14px; border: 1px solid var(--borderColor); border-radius: 8px; background: transparent; font-size: 14px; color: var(--textPrimary); user-select: none; }
     ${k} .allocation-filter-trigger:hover { background: var(--rowHover); }
     ${k} .allocation-result-count { margin-left: auto; font-size: 12px; color: var(--textSecondary); }
     ${k} .allocation-state-button { border: 0; border-radius: 8px; padding: 6px 8px; background: transparent; color: var(--textSecondary); cursor: pointer; font-size: 12px; }
@@ -109,6 +109,11 @@ export function AllocationFilters(props: {
         ["all", "All"], ["active", "Active"], ["expiring", "Expiring"],
         ["upcoming", "Upcoming"], ["exhausted", "Exhausted"], ["expired", "Expired"],
     ];
+    const hasFilters = props.query.trim() !== ""
+        || props.selectedProducts.length > 0
+        || props.selectedProviders.length > 0
+        || props.state !== "all"
+        || props.personalWorkspaces;
     return <div className={AllocationFiltersStyle}>
         <div className="allocation-toolbar">
             <div className={classConcat("allocation-search", UcxTableControlsClass)}>
@@ -150,7 +155,7 @@ export function AllocationFilters(props: {
                 <span>Personal workspaces</span>
                 <Toggle height={18} activeColor="primaryMain" checked={props.personalWorkspaces} onChange={props.onPersonalWorkspacesChange} ariaLabel="Personal workspaces" />
             </div>
-            <Button color="ghost" onClick={props.onClear}><Icon name="heroXMark" size={13} />Clear filters</Button>
+            {hasFilters ? <Button color="ghost" onClick={props.onClear}><Icon name="heroXMark" size={13} />Clear filters</Button> : null}
             <span className="allocation-result-count">{formatNumber(props.workspaceCount)} workspaces</span>
         </div>
     </div>;

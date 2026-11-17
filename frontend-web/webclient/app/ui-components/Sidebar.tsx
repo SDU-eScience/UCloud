@@ -1,4 +1,5 @@
 import {Client} from "@/Authentication/HttpClientInstance";
+import {useProjectHasProviderTools} from "@/Accounting/Allocations/ProviderTools";
 import * as React from "react";
 import {useCallback, useEffect} from "react";
 import {useDispatch, useSelector} from "react-redux";
@@ -409,7 +410,8 @@ function allSidebarCommands(state: HookStore, navigate: NavigateFunction): Comma
 
     const projectId = state.projectCache?.project.id;
     const canApply = !projectId || isAdminOrPI(state.projectCache?.project.status.myRole);
-    const sidebarSubCommands = sidebarSubEntries(canApply, !projectId, projectId);
+    const managesAnyProvider = Object.values(Client.userInfo?.providerProjects ?? {}).includes(projectId ?? "");
+    const sidebarSubCommands = sidebarSubEntries(canApply, !projectId, projectId, managesAnyProvider);
 
     for (const group of sideBarMenuElements) {
         if (group.predicate(state)) {
@@ -429,7 +431,12 @@ function allSidebarCommands(state: HookStore, navigate: NavigateFunction): Comma
     return result;
 }
 
-function sidebarSubEntries(canApply: boolean, isPersonalWorkspace: boolean, projectId: string | undefined): Record<SidebarTabId, LinkInfo[]> {
+function sidebarSubEntries(
+    canApply: boolean,
+    isPersonalWorkspace: boolean,
+    projectId: string | undefined,
+    hasProviderTools: boolean,
+): Record<SidebarTabId, LinkInfo[]> {
     return {
         [SidebarTabId.FILES]: [
             {
@@ -452,7 +459,7 @@ function sidebarSubEntries(canApply: boolean, isPersonalWorkspace: boolean, proj
             }] : []),
             ...(isPersonalWorkspace ? sharesLinksInfo : [])
         ],
-        [SidebarTabId.PROJECT]: projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId),
+        [SidebarTabId.PROJECT]: projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId, hasProviderTools),
         [SidebarTabId.RESOURCES]: ResourceSubLinksEntries,
         [SidebarTabId.INFERENCE]: InferenceSubLinksEntries,
         [SidebarTabId.APPLICATIONS]: [],
@@ -834,9 +841,10 @@ function ProjectSubLinks({canApply, isPersonalWorkspace, projectId}: {
     isPersonalWorkspace: boolean;
     projectId?: string
 }) {
+    const hasProviderTools = useProjectHasProviderTools();
     const sublinks = React.useMemo(() =>
-            projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId).filter(it => !it.disabled),
-        [canApply, isPersonalWorkspace, projectId]);
+            projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId, hasProviderTools).filter(it => !it.disabled),
+        [canApply, isPersonalWorkspace, projectId, hasProviderTools]);
     return sublinks.map(it => <SidebarEntry key={it.text} {...it} />);
 }
 
@@ -860,9 +868,14 @@ if (hasFeature(Feature.STACKS)) {
     });
 }
 
-function projectSidebarSubLinks(canApply: boolean, isPersonalWorkspace: boolean, projectId?: string): LinkInfo[] {
+function projectSidebarSubLinks(
+    canApply: boolean,
+    isPersonalWorkspace: boolean,
+    projectId: string | undefined,
+    hasProviderTools: boolean,
+): LinkInfo[] {
     const tab = SidebarTabId.PROJECT;
-    const {allocations, usage} = AppRoutes.accounting;
+    const {allocations, usage, providerTools} = AppRoutes.accounting;
     const {members, settings, subprojects} = AppRoutes.project;
     const {outgoing} = AppRoutes.grants;
     return [{
@@ -876,6 +889,13 @@ function projectSidebarSubLinks(canApply: boolean, isPersonalWorkspace: boolean,
         defaultHidden: true,
     }, {
         to: allocations(), text: "Allocations", icon: "heroBanknotes", tab, defaultHidden: true,
+    }, {
+        to: providerTools(),
+        text: "Provider tools",
+        icon: "heroWrenchScrewdriver",
+        tab,
+        disabled: !hasProviderTools,
+        defaultHidden: true,
     }, {
         to: subprojects(),
         icon: "heroUserGroup",

@@ -51,17 +51,29 @@ function findSpatialNavigationTarget(
     const forward = key === "ArrowRight" || key === "ArrowDown";
     const overlaps = (aStart: number, aEnd: number, bStart: number, bEnd: number) =>
         Math.min(aEnd, bEnd) > Math.max(aStart, bStart);
-    const visible = candidates.map(element => ({element, rect: element.getBoundingClientRect()})).filter(candidate => {
+    const currentCenter = vertical ? currentRect.top + currentRect.height / 2 : currentRect.left + currentRect.width / 2;
+    const centerDistance = (rect: DOMRect) => Math.abs((vertical ?
+        rect.top + rect.height / 2 : rect.left + rect.width / 2) - currentCenter);
+    const isAhead = (rect: DOMRect) => {
+        const candidateCenter = vertical ? rect.top + rect.height / 2 : rect.left + rect.width / 2;
+        return (candidateCenter - currentCenter) * (forward ? 1 : -1) > 4;
+    };
+    const available = candidates.map(element => ({element, rect: element.getBoundingClientRect()})).filter(candidate => {
         if (candidate.element === current || candidate.element.offsetParent === null ||
             isDisabledNavigationTarget(candidate.element)) return false;
-        const currentCenter = vertical ? currentRect.top + currentRect.height / 2 : currentRect.left + currentRect.width / 2;
-        const candidateCenter = vertical ? candidate.rect.top + candidate.rect.height / 2 : candidate.rect.left + candidate.rect.width / 2;
-        if ((candidateCenter - currentCenter) * (forward ? 1 : -1) <= 4) return false;
-        return vertical ?
-            overlaps(currentRect.left, currentRect.right, candidate.rect.left, candidate.rect.right) :
-            overlaps(currentRect.top, currentRect.bottom, candidate.rect.top, candidate.rect.bottom);
+        return isAhead(candidate.rect);
     });
-    if (visible.length === 0) return null;
+    const visible = available.filter(candidate => vertical ?
+        overlaps(currentRect.left, currentRect.right, candidate.rect.left, candidate.rect.right) :
+        overlaps(currentRect.top, currentRect.bottom, candidate.rect.top, candidate.rect.bottom)
+    );
+    if (visible.length === 0) {
+        if (available.length === 0) return null;
+        const nearest = available.reduce((best, candidate) =>
+            centerDistance(candidate.rect) < centerDistance(best.rect) ? candidate : best
+        );
+        return nearest.element;
+    }
 
     const primaryDistance = (rect: DOMRect) => Math.max(0, vertical ?
         (forward ? rect.top - currentRect.bottom : currentRect.top - rect.bottom) :
@@ -73,11 +85,8 @@ function findSpatialNavigationTarget(
         overlaps(nearest.rect.top, nearest.rect.bottom, candidate.rect.top, candidate.rect.bottom) :
         overlaps(nearest.rect.left, nearest.rect.right, candidate.rect.left, candidate.rect.right)
     );
-    const secondaryDistance = (rect: DOMRect) => vertical ?
-        Math.abs(rect.left + rect.width / 2 - (currentRect.left + currentRect.width / 2)) :
-        Math.abs(rect.top + rect.height / 2 - (currentRect.top + currentRect.height / 2));
     return sameLane.reduce((best, candidate) =>
-        secondaryDistance(candidate.rect) < secondaryDistance(best.rect) ? candidate : best
+        centerDistance(candidate.rect) < centerDistance(best.rect) ? candidate : best
     ).element;
 }
 
@@ -173,6 +182,7 @@ const SubmitShortcutClass = injectStyle("submit-shortcut", key => `
 export function SubmitShortcut(props: {
     shortcut?: string;
     modifiers?: KeyboardShortcutModifier[];
+    compact?: boolean;
 }): React.ReactNode {
     return <span
         className={`${ShortcutClass} ${SubmitShortcutClass}`}
@@ -183,6 +193,6 @@ export function SubmitShortcut(props: {
             mixBlendMode: "normal"
         }}
     >
-        {createKeyboardShortcut(props.shortcut ?? "Enter", props.modifiers ?? ["ctrl", "alt"])}
+        {createKeyboardShortcut(props.shortcut ?? "Enter", props.modifiers ?? ["ctrl", "alt"], props.compact)}
     </span>;
 }

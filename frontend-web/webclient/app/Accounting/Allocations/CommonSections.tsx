@@ -71,6 +71,8 @@ import {AllocationGrid} from "@/Accounting/Allocations/AllocationGrid";
 import type {AllocationDateRange, AllocationEditRequest} from "@/Accounting/Allocations/AllocationGrid";
 import {BulkAllocationWizard} from "./BulkAllocationWizard";
 import {allocationCurrentCalendarYear} from "./AllocationPeriodFilter";
+import {allocationWorkspaceInfo} from "./AllocationModel";
+import type {AllocationModel, AllocationModelProduct, AllocationModelRecipient} from "./AllocationModel";
 
 const allocationFiltersModalStyle: ReactModal.Styles = {
     ...largeModalStyle,
@@ -1214,7 +1216,8 @@ export function SubProjectList({
     selectedCategories,
     onCategoriesChange,
     periodControl,
-    demo
+    demo,
+    model
 }: {
     projectId: string | undefined,
     onNewSubProject: () => Promise<void>,
@@ -1237,22 +1240,20 @@ export function SubProjectList({
     onCategoriesChange?: (categories: string[]) => void,
     periodControl?: React.ReactNode,
     demo?: boolean
+    model: AllocationModel;
 }): React.ReactNode {
-    const [allocationRecipients, setAllocationRecipients] = useState<AllocationDisplayTreeRecipient[] | null>(null);
+    const [exportProducts, setExportProducts] = useState<AllocationModelProduct[]>([]);
+    const [allocationRecipients, setAllocationRecipients] = useState<AllocationModelRecipient[] | null>(null);
     React.useEffect(() => {
         setAllocationRecipients(null);
     }, [projectId]);
     const allocationCategories = useMemo(() => {
         const categories = new Map<string, ProductCategoryV2>();
-        for (const allocation of Object.values(state.yourAllocations)) {
-            for (const wallet of allocation.wallets) {
-                if (!wallet.category.freeToUse) {
-                    categories.set(`${wallet.category.provider}/${wallet.category.name}`, wallet.category);
-                }
-            }
+        for (const wallet of model.received) {
+            categories.set(`${wallet.category.provider}/${wallet.category.name}`, wallet.category);
         }
         return [...categories.values()];
-    }, [state.yourAllocations]);
+    }, [model]);
     const rerender = useForcedRender();
     const setNodeStateHack = useCallback((action: TreeAction, reference: string, group?: string | null) => {
         setNodeState(action, reference, group);
@@ -1267,13 +1268,13 @@ export function SubProjectList({
 
     const childProjectIds = useMemo(() => {
         const ids: string[] = [];
-        for (const recipient of state.subAllocations.recipients) {
-            if (recipient.owner.reference.type === "project") {
-                ids.push(recipient.owner.reference.projectId);
+        for (const product of model.products) {
+            if (product.owner.reference.type === "project") {
+                ids.push(product.owner.reference.projectId);
             }
         }
-        return ids;
-    }, [state.subAllocations.recipients]);
+        return [...new Set(ids)];
+    }, [model]);
 
 
     const childProjectInfo = useProjectInfos(projectInfo ? [] : childProjectIds);
@@ -1286,6 +1287,8 @@ export function SubProjectList({
             start: number;
             end: number;
             quota: number;
+            used: number | null;
+            attribution: string;
         }
 
         interface Row {
@@ -1295,13 +1298,17 @@ export function SubProjectList({
             provider: string;
             usage: number;
             quota: number;
+            unit: string;
+            activeBalance: number;
+            expiredUnused: number;
+            future: number;
             allocations: Allocation[];
         }
 
         type AllocationField = keyof Allocation;
 
         type AllocationFlatColumns = {
-            [K in `allocation${number}_${AllocationField}`]?: number;
+            [K in `allocation${number}_${AllocationField}`]?: number | string | null;
         };
 
         type FlattenedRow = Omit<Row, "allocations"> & AllocationFlatColumns;
@@ -1319,6 +1326,8 @@ export function SubProjectList({
                 acc[`allocation${n}_start`] = allocation.start;
                 acc[`allocation${n}_end`] = allocation.end;
                 acc[`allocation${n}_quota`] = allocation.quota;
+                acc[`allocation${n}_used`] = allocation.used;
+                acc[`allocation${n}_attribution`] = allocation.attribution;
 
                 return acc;
             }, {} as AllocationFlatColumns);
@@ -1332,40 +1341,31 @@ export function SubProjectList({
         const rows: Row[] = [];
         let maxAllocations = 0;
 
-        for (const recipient of state.subAllocations.recipients) {
-            for (const g of recipient.groups) {
-                maxAllocations = Math.max(maxAllocations, g.allocations.length);
-                let title = recipient.owner.title;
-                if (recipient.owner.reference.type === "project") {
-                    title = resolvedProjectInfo[recipient.owner.reference.projectId]?.title ?? title;
-                }
-
-
-                rows.push({
-                    workspace: title,
-                    pi: recipient.owner.reference.type === "user" ?
-                        recipient.owner.reference.username :
-                        resolvedProjectInfo[recipient.owner.reference.projectId]?.piUsername ?? recipient.owner.primaryUsername,
-                    category: g.category.name,
-                    provider: g.category.provider,
-                    usage: g.usageAndQuota.raw.usage,
-                    quota: g.usageAndQuota.raw.quota,
-                    allocations: g.allocations.map(alloc => {
-                        const normQuota = combineBalances([{
-                            category: g.category,
-                            balance: alloc.quota
-                        }])[0].normalizedBalance;
-
-                        return ({
-                            id: alloc.allocationId,
-                            grantApplication: alloc.grantedIn,
-                            start: alloc.start,
-                            end: alloc.end,
-                            quota: normQuota,
-                        });
-                    })
-                })
-            }
+        for (const product of exportProducts) {
+            const workspace = allocationWorkspaceInfo(product.owner, resolvedProjectInfo);
+            const allocations = product.grants.map(grant => ({
+                id: grant.allocationId,
+                grantApplication: grant.grantId,
+                start: grant.start,
+                end: grant.end,
+                quota: grant.quota,
+                used: grant.used,
+                attribution: grant.attribution,
+            }));
+            maxAllocations = Math.max(maxAllocations, allocations.length);
+            rows.push({
+                workspace: workspace.title,
+                pi: workspace.pi,
+                category: product.category.name,
+                provider: product.category.provider,
+                usage: product.amounts.used,
+                quota: product.amounts.granted,
+                unit: product.unit,
+                activeBalance: product.amounts.activeBalance,
+                expiredUnused: product.amounts.expiredUnused,
+                future: product.amounts.future,
+                allocations,
+            });
         }
 
         // Builds the export columns, including the right flat allocation column names
@@ -1375,8 +1375,12 @@ export function SubProjectList({
                 {key: "pi", value: "PI", defaultChecked: true},
                 {key: "category", value: "Category", defaultChecked: true},
                 {key: "provider", value: "Provider", defaultChecked: true},
-                {key: "usage", value: "Usage", defaultChecked: true},
-                {key: "quota", value: "Quota", defaultChecked: true},
+                {key: "usage", value: "Used", defaultChecked: true},
+                {key: "quota", value: "Total granted", defaultChecked: true},
+                {key: "unit", value: "Unit", defaultChecked: true},
+                {key: "activeBalance", value: "Active balance", defaultChecked: true},
+                {key: "expiredUnused", value: "Expired unused", defaultChecked: true},
+                {key: "future", value: "Future quota", defaultChecked: true},
             ] as const;
 
             const allocationFields: readonly AllocationField[] = [
@@ -1385,6 +1389,8 @@ export function SubProjectList({
                 "start",
                 "end",
                 "quota",
+                "used",
+                "attribution",
             ] as const;
 
             const allocationCols = Array.from({length: maxAllocations}).flatMap((_, i) => {
@@ -1409,7 +1415,7 @@ export function SubProjectList({
                 csvData: rows.map((r) => flattenAllocations(r, maxAllocations)),
             }
         );
-    }, [state.subAllocations, resolvedProjectInfo]);
+    }, [exportProducts, resolvedProjectInfo]);
 
     const togglePersonalWorkspaces = useCallback(() => {
         dispatchEvent({type: "ToggleViewOnlyProjects"});
@@ -1444,7 +1450,8 @@ export function SubProjectList({
             demo={demo}
             onClose={changed => {
                 setAllocationRecipients(null);
-                if (changed) dispatchEvent({type: "Init"});
+                if (!changed) return;
+                void loadWallets().then(wallets => dispatchEvent({type: "WalletsLoaded", wallets}));
             }}
         /> : null}
         <div className={subProjectsStyle}>
@@ -1458,8 +1465,8 @@ export function SubProjectList({
                         <div style={{padding: 20}}><HexSpin size={64} /></div>
                     </> : <AllocationGrid
                         key={projectId}
-                        recipients={state.subAllocations.recipients}
-                        recipientIndices={state.filteredSubProjectIndices}
+                        model={model}
+                        onVisibleProductsChange={setExportProducts}
                         projectInfo={resolvedProjectInfo}
                         dateRange={dateRange}
                         selectedCategories={selectedCategories}

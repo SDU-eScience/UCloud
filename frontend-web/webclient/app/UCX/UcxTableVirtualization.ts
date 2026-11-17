@@ -1,7 +1,7 @@
 import {RefObject, useCallback, useLayoutEffect, useMemo, useRef, useState} from "react";
 
 export type UcxTableItem =
-    | {key: string; kind: "row"; rowKey: string}
+    | {key: string; kind: "row"; rowKey: string; child?: boolean}
     | {key: string; kind: "group"; group: string}
     | {key: string; kind: "empty"}
     | {key: string; kind: "trailing"};

@@ -1,10 +1,9 @@
 import * as React from "react";
 import {useCallback, useLayoutEffect, useMemo} from "react";
-import {explainUnit, productTypeToIcon} from "@/Accounting";
+import {productTypeToIcon} from "@/Accounting";
 import type {ProductCategoryV2} from "@/Accounting";
-import type {State} from "./State";
-import {allocationDateRangeBounds, allocationOverlapsRange} from "./AllocationGrid";
-import type {AllocationDateRange} from "./AllocationGrid";
+import {allocationSelectProducts} from "./AllocationModel";
+import type {AllocationDateRange, AllocationModel} from "./AllocationModel";
 import {allocationCompareProducts, allocationDisplayUnit} from "./AllocationPresentation";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
@@ -16,11 +15,11 @@ import type {TableColumn, TableRow} from "@/UCX/protocol";
 import {injectStyle} from "@/Unstyled";
 import {Icon} from "@/ui-components";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {AllocationAmount, AllocationUsage} from "./AllocationCells";
+import {AllocationAmount} from "./AllocationCells";
 
 interface AllocationOverviewRow {
     category: ProductCategoryV2;
-    received: number;
+    quota: number;
     granted: number;
     used: number;
     future: number;
@@ -35,8 +34,8 @@ export function allocationCategoryKey(category: ProductCategoryV2): string {
 
 const allocationOverviewColumns: TableColumn[] = [
     {key: "overview.product", label: "Product", jsonPath: "product", sortType: TableColumnSortType.Text},
-    {key: "overview.granted", label: "Granted", jsonPath: "granted", sortType: TableColumnSortType.Number},
-    {key: "overview.used", label: "Usage", jsonPath: "used", sortType: TableColumnSortType.Number},
+    {key: "overview.usage", label: "Used", jsonPath: "usage", sortType: TableColumnSortType.Number},
+    {key: "overview.granted", label: "Total granted", jsonPath: "granted", sortType: TableColumnSortType.Number},
     {key: "overview.future", label: "Starting soon", jsonPath: "future", sortType: TableColumnSortType.Number},
     {key: "overview.expiring", label: "Expiring soon", jsonPath: "expiring", sortType: TableColumnSortType.Number},
     {key: "overview.exhausted", label: "Exhausted workspaces", jsonPath: "exhausted", sortType: TableColumnSortType.Number},
@@ -45,8 +44,8 @@ const allocationOverviewColumns: TableColumn[] = [
 
 const allocationOverviewWidths: Record<string, number> = {
     "overview.product": 300,
+    "overview.usage": 220,
     "overview.granted": 130,
-    "overview.used": 130,
     "overview.future": 120,
     "overview.expiring": 120,
     "overview.exhausted": 160,
@@ -71,7 +70,9 @@ const AllocationOverviewStyle = injectStyle("allocation-overview", k => `
 `);
 
 export function AllocationOverview(props: {
-    state: State;
+    model: AllocationModel;
+    loading: boolean;
+    personalWorkspaces: boolean;
     dateRange: AllocationDateRange;
     selectedCategories: string[];
     onSelectCategories: (categories: string[]) => void;
@@ -79,15 +80,13 @@ export function AllocationOverview(props: {
     const store = useMemo(() => new UcxTableStore(), []);
     const rows = useMemo(() => {
         const products = new Map<string, AllocationOverviewRow>();
-        const now = Date.now();
-        const range = allocationDateRangeBounds(props.dateRange);
         const ensureProduct = (category: ProductCategoryV2): AllocationOverviewRow => {
             const key = allocationCategoryKey(category);
             let row = products.get(key);
             if (!row) {
                 row = {
                     category,
-                    received: 0,
+                    quota: 0,
                     granted: 0,
                     used: 0,
                     future: 0,
@@ -100,40 +99,24 @@ export function AllocationOverview(props: {
             return row;
         };
 
-        const receivedByCategory = new Map<string, number>();
-        for (const allocation of Object.values(props.state.yourAllocations)) {
-            for (const wallet of allocation.wallets) {
-                const key = allocationCategoryKey(wallet.category);
-                receivedByCategory.set(key, (receivedByCategory.get(key) ?? 0) + wallet.usageAndQuota.raw.quota);
-            }
+        for (const wallet of props.model.received) {
+            const row = ensureProduct(wallet.category);
+            row.quota += wallet.amounts.activeQuota;
         }
-
-        for (const recipient of props.state.subAllocations.recipients) {
-            for (const group of recipient.groups) {
-                const row = ensureProduct(group.category);
-                const raw = group.usageAndQuota.raw;
-                const usage = raw.retiredAmountStillCounts ? raw.usage : Math.max(0, raw.usage - raw.retiredAmount);
-                row.granted += raw.quota;
-                row.used += usage;
-                const allocations = group.allocations.filter(it => allocationOverlapsRange(it.start, it.end, range));
-                if (allocations.length === 0) continue;
-                row.workspaces++;
-                const hasActiveAllocation = allocations.some(it => it.start <= now && it.end >= now);
-                if (hasActiveAllocation && raw.quota > 0 && usage >= raw.quota) row.exhausted++;
-                const factor = explainUnit(group.category).balanceFactor;
-                for (const allocation of allocations) {
-                    if (allocation.start > now && allocation.start <= now + 30 * 86400000) row.future += allocation.quota * factor;
-                    if (allocation.start <= now && allocation.end >= now && allocation.end <= now + 30 * 86400000) {
-                        row.expiring += allocation.quota * factor;
-                    }
-                }
-            }
-        }
-        for (const row of products.values()) {
-            row.received = receivedByCategory.get(allocationCategoryKey(row.category)) ?? 0;
+        for (const product of allocationSelectProducts(props.model, {
+            dateRange: props.dateRange,
+            personalWorkspaces: props.personalWorkspaces,
+        })) {
+            const row = ensureProduct(product.category);
+            row.granted += product.amounts.granted;
+            row.used += product.amounts.used;
+            row.future += product.amounts.startingSoon;
+            row.expiring += product.amounts.expiringSoon;
+            row.workspaces++;
+            if (product.states.has("exhausted")) row.exhausted++;
         }
         return [...products.values()].sort((a, b) => allocationCompareProducts(a.category, b.category));
-    }, [props.state.yourAllocations, props.state.subAllocations, props.dateRange]);
+    }, [props.model, props.dateRange, props.personalWorkspaces]);
 
     const number = (value: number) => formatNumber(value, {precision: 2, removeTrailingZeros: true});
     const providerCount = new Set(rows.map(row => row.category.provider)).size;
@@ -143,8 +126,8 @@ export function AllocationOverview(props: {
         group: row.category.provider,
         cells: [
             row.category.name,
-            `${row.granted}`,
             `${row.used}`,
+            `${row.granted}`,
             `${row.future}`,
             `${row.expiring}`,
             `${row.exhausted}`,
@@ -199,25 +182,16 @@ export function AllocationOverview(props: {
                 ><Icon name={selected ? "heroMagnifyingGlassMinus" : "heroMagnifyingGlassPlus"} size={16} /></button></TooltipV2>
             </div>;
         }
-        if (context.column.key === "overview.used") {
+        if (context.column.key === "overview.usage") {
             const unit = allocationDisplayUnit(row.category);
-            return <AllocationUsage
-                usage={row.used}
-                quota={row.granted}
-                unit={unit}
-                compact
-                title={`${number(row.used)} ${unit} used by sub-workspaces of ${number(row.granted)} ${unit} granted`}
-            />;
+            return <AllocationAmount value={row.used} unit={unit} title={row.category.accountingModel === "CONSUMPTION" ?
+                "All charges attributed to the displayed funding relationships, including retired allocations." :
+                "Current capacity charged to the displayed funding relationships."} />;
         }
         if (context.column.key === "overview.granted") {
             const unit = allocationDisplayUnit(row.category);
-            return <AllocationUsage
-                usage={row.granted}
-                quota={row.received}
-                unit={unit}
-                compact
-                title={`${number(row.granted)} ${unit} granted to sub-workspaces of ${number(row.received)} ${unit} received`}
-            />;
+            return <AllocationAmount value={row.granted} unit={unit}
+                title={`Original grants including expired allocations and future releases. ${number(row.quota)} ${unit} currently received.`} />;
         }
         const value = Number(context.cell);
         const count = context.column.key === "overview.exhausted" || context.column.key === "overview.workspaces";
@@ -247,7 +221,7 @@ export function AllocationOverview(props: {
                 fitToWidth
                 renderCell={renderCell}
                 onRowActivated={onRowActivated}
-                emptyMessage={props.state.remoteData.wallets === undefined ? "Loading allocations…" : "No allocations yet."}
+                emptyMessage={props.loading ? "Loading allocations…" : "No allocations yet."}
             />
         </div>
     </section>;

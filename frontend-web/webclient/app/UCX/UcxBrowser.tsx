@@ -935,6 +935,7 @@ export interface UcxTableCellRenderContext {
     cellIndex: number;
     rowIndex: number;
     isFirstInGroup: boolean;
+    isLastInGroup: boolean;
 }
 
 export interface UcxTableSelection {
@@ -962,6 +963,8 @@ interface UcxStreamedTableProps {
     columnWidths?: Record<string, number>;
     fitToWidth?: boolean;
     renderCell?: (context: UcxTableCellRenderContext) => React.ReactNode;
+    expandedRowKeys?: ReadonlySet<string>;
+    rowChildren?: ReadonlyMap<string, TableRow[]>;
     selection?: UcxTableSelection;
     actions?: UcxTableActionDef[];
     groupAction?: UcxTableActionDef;
@@ -979,8 +982,16 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     const stateKey = props.stateKey ?? tableId;
     const revision = useUcxTableRevision(store);
     const loaded = store.loadedFor(tableId);
-    const rowMap = store.rowsFor(tableId);
-    const rows = useMemo(() => Array.from(rowMap.values()), [rowMap, revision]);
+    const storedRows = store.rowsFor(tableId);
+    const rowMap = useMemo(() => {
+        if (!props.rowChildren) return storedRows;
+        const result = new Map(storedRows);
+        for (const children of props.rowChildren.values()) {
+            for (const row of children) result.set(row.key, row);
+        }
+        return result;
+    }, [storedRows, props.rowChildren, revision]);
+    const rows = useMemo(() => Array.from(storedRows.values()), [storedRows, revision]);
     const columns = store.columnsFor(tableId);
     const filter = store.filterFor(stateKey);
     const sort = props.sorted !== false ? store.sortFor(stateKey) : null;
@@ -1099,11 +1110,23 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         return sorted;
     }, [rows, props.sorted, props.preserveRowOrder, inlineGroups, props.inlineGroupColumn, props.showGroupHeaders, columns, sort, stateKey, store, revision]);
 
-    const filteredRows = useMemo(() => {
+    const filteredRootRows = useMemo(() => {
         const needle = filter.trim().toLowerCase();
         if (needle === "") return orderedRows;
         return orderedRows.filter(row => row.cells.some(cell => cell.toLowerCase().includes(needle)));
     }, [orderedRows, filter]);
+
+    const filteredRows = useMemo(() => {
+        if (!props.rowChildren) return filteredRootRows;
+        const result: TableRow[] = [];
+        const append = (row: TableRow) => {
+            result.push(row);
+            if (!props.expandedRowKeys?.has(row.key)) return;
+            for (const child of props.rowChildren?.get(row.key) ?? []) append(child);
+        };
+        for (const row of filteredRootRows) append(row);
+        return result;
+    }, [filteredRootRows, props.expandedRowKeys, props.rowChildren]);
 
     const rowIndexByKey = useMemo(() => {
         const result = new Map<string, number>();
@@ -1122,27 +1145,37 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         return result;
     }, [filteredRows, inlineGroups, props.inlineGroupColumn]);
 
-    const allFilteredSelected = selectionEnabled && filteredRows.length > 0
-        && filteredRows.every(row => selection!.selected.has(row.key));
+    const lastInGroupByKey = useMemo(() => {
+        const result = new Map<string, boolean>();
+        for (let index = 0; index < filteredRows.length; index++) {
+            const row = filteredRows[index];
+            const next = filteredRows[index + 1];
+            result.set(row.key, next === undefined || next.group !== row.group);
+        }
+        return result;
+    }, [filteredRows]);
+
+    const allFilteredSelected = selectionEnabled && filteredRootRows.length > 0
+        && filteredRootRows.every(row => selection!.selected.has(row.key));
 
     const toggleSelection = useCallback((rowKey: string) => {
-        if (!selection) return;
+        if (!selection || !storedRows.has(rowKey)) return;
         const next = new Set(selection.selected);
         if (next.has(rowKey)) next.delete(rowKey);
         else next.add(rowKey);
         selection.onChange(next);
-    }, [selection]);
+    }, [selection, storedRows]);
 
     const toggleAllFiltered = useCallback(() => {
         if (!selection) return;
         const next = new Set(selection.selected);
         if (allFilteredSelected) {
-            for (const row of filteredRows) next.delete(row.key);
+            for (const row of filteredRootRows) next.delete(row.key);
         } else {
-            for (const row of filteredRows) next.add(row.key);
+            for (const row of filteredRootRows) next.add(row.key);
         }
         selection.onChange(next);
-    }, [allFilteredSelected, filteredRows, selection]);
+    }, [allFilteredSelected, filteredRootRows, selection]);
 
     const selectedTable = selectedTableRef.current;
     const tableChanged = selectedTable?.tableId !== tableId || selectedTable?.stateKey !== stateKey || selectedTable?.viewId !== viewId;
@@ -1162,16 +1195,17 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         const items: UcxTableItem[] = [];
         let previousGroup: string | undefined;
         for (const row of filteredRows) {
-            if (props.inlineGroups !== true && props.showGroupHeaders !== false && row.group !== "" && previousGroup !== row.group) {
+            const child = !storedRows.has(row.key);
+            if (!child && props.inlineGroups !== true && props.showGroupHeaders !== false && row.group !== "" && previousGroup !== row.group) {
                 items.push({key: `group:${row.key}`, kind: "group", group: row.group});
             }
-            items.push({key: `row:${row.key}`, kind: "row", rowKey: row.key});
-            previousGroup = row.group;
+            items.push({key: `row:${row.key}`, kind: "row", rowKey: row.key, child});
+            if (!child) previousGroup = row.group;
         }
-        if (filteredRows.length === 0) items.push({key: "empty", kind: "empty"});
+        if (filteredRootRows.length === 0) items.push({key: "empty", kind: "empty"});
         if (trailingAction) items.push({key: "trailing", kind: "trailing"});
         return items;
-    }, [filteredRows, props.inlineGroups, props.showGroupHeaders, Boolean(trailingAction)]);
+    }, [filteredRows, storedRows, props.inlineGroups, props.showGroupHeaders, Boolean(trailingAction)]);
     const virtualization = useUcxTableVirtualization(tableItems, scrollRef, bodyRef);
     useLayoutEffect(() => {
         const pending = pendingInputFocusRef.current;
@@ -1195,8 +1229,8 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     }, [loaded, stateKey, store, virtualization.updateViewport]);
 
     useEffect(() => {
-        store.setStats(stateKey, {filtered: filteredRows.length, total: orderedRows.length, loaded});
-    }, [filteredRows.length, orderedRows.length, stateKey, store, tableId, loaded]);
+        store.setStats(stateKey, {filtered: filteredRootRows.length, total: orderedRows.length, loaded});
+    }, [filteredRootRows.length, orderedRows.length, stateKey, store, tableId, loaded]);
 
     const toggleSort = useCallback((columnKey: string) => {
         const current = store.sortFor(stateKey);
@@ -1406,7 +1440,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
 
     const rowMenuEntries = useMemo((): ActionEntry<TableRow, undefined>[] => {
         if (menuRowKey === null) return [];
-        const row = store.rowsFor(tableId).get(menuRowKey);
+        const row = rowMap.get(menuRowKey);
         if (!row || !row.actions || row.actions.length === 0) return [];
         const entries: ActionEntry<TableRow, undefined>[] = [];
         for (const def of actionDefs) {
@@ -1440,7 +1474,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
             });
         }
         return entries;
-    }, [actionDefs, menuRowKey, props, store, tableId]);
+    }, [actionDefs, menuRowKey, props, rowMap]);
 
     useEffect(() => {
         if (menuRenderTick === 0) return;
@@ -1743,7 +1777,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                     } : undefined}
                                 >
                                     {selectionEnabled ? <TableCell role="gridcell">
-                                        <div className="streamed-table-select-cell" onClick={event => event.stopPropagation()}>
+                                        {!item.child ? <div className="streamed-table-select-cell" onClick={event => event.stopPropagation()}>
                                             <Checkbox
                                                 size={15}
                                                 checked={selection!.selected.has(row.key)}
@@ -1758,7 +1792,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                                 }}
                                                 aria-label={`Select ${row.cells[0] ?? row.key}`}
                                             />
-                                        </div>
+                                        </div> : null}
                                     </TableCell> : null}
                                     {columns.map((col, cellIdx) => {
                                         const cell = row.cells[cellIdx] ?? "";
@@ -1770,6 +1804,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                                 cellIndex: cellIdx,
                                                 rowIndex: rowIndexByKey.get(row.key) ?? 0,
                                                 isFirstInGroup,
+                                                isLastInGroup: lastInGroupByKey.get(row.key) === true,
                                             })
                                             : cell;
                                         return col.copy === true ?
@@ -1863,7 +1898,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                 key={menuRowKey}
                 actions={rowMenuEntries}
                 selected={(() => {
-                    const row = store.rowsFor(tableId).get(menuRowKey);
+                    const row = rowMap.get(menuRowKey);
                     return row ? [row] : [];
                 })()}
                 callbacks={undefined}
@@ -2310,6 +2345,10 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
         box-shadow: 0 1px 0 var(--borderColor);
     }
 
+    ${k} .streamed-table-scroll tbody tr {
+        scroll-margin-top: var(--ucx-table-header-height);
+    }
+
     ${k} tr.group-row {
         position: sticky;
         top: var(--ucx-table-header-height);
@@ -2342,6 +2381,11 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
     ${k}:focus-within tr[data-highlighted="true"],
     ${k}:focus-within tr[data-selected="true"] {
         background-color: var(--browserActiveRow);
+    }
+
+    ${k} .streamed-table-scroll tr:focus,
+    ${k} .streamed-table-scroll tr:focus-visible {
+        outline: none;
     }
 
     ${k} tr.group-row > td {

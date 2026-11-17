@@ -52,7 +52,7 @@ export function AllocationBreakdownDialog(props: {
         <div className={AllocationBreakdownStyle}>
             <header>
                 <h3>Allocation breakdown</h3>
-                <p>{props.workspaceTitle ? `${props.workspaceTitle} · ` : ""}{props.category.name} · {props.category.provider}</p>
+                <p>{props.workspaceTitle ? `${props.workspaceTitle}, ` : ""}{props.category.name} ({props.category.provider})</p>
             </header>
             <div className="allocation-breakdown-body">
                 <table>

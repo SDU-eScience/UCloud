@@ -786,6 +786,7 @@ export interface AllocationDisplayTreeRecipient {
             retired?: boolean;
             quota: number;
             retiredQuota?: number;
+            retiredUsage?: number;
             note?: AllocationNote;
             isEditing: boolean;
             grantedIn?: number;
@@ -1151,6 +1152,7 @@ export function buildSubAllocations(allWallets: WalletV2[], onlyProjects: boolea
                     end: alloc.endDate,
                     grantedIn: alloc.grantedIn ?? undefined,
                     retiredQuota: alloc.retiredQuota,
+                    retiredUsage: alloc.retiredUsage ?? undefined,
                     retired: alloc.retired,
                     allocationPackage: alloc.allocationPackage,
                 });
@@ -1472,6 +1474,7 @@ export interface ParentOrChildWallet {
 }
 
 export interface AllocationGroup {
+    id?: number;
     usage: number;
     allocations: Allocation[];
 
