@@ -15,23 +15,23 @@ type VMListCommand struct {
 }
 
 type VMGetCommand struct {
-	VMId string `positional:"vm-id" usage:"VM Id"`
+	VMId string `positional:"vm-id" usage:"VM Id" required:"true"`
 }
 
 type VMDeleteCommand struct {
-	VMId string `positional:"vm-id" usage:"VM Id"`
+	VMId string `positional:"vm-id" usage:"VM Id" required:"true"`
 }
 
 type VMStopCommand struct {
-	VMId string `positional:"vm-id" usage:"VM Id"`
+	VMId string `positional:"vm-id" usage:"VM Id" required:"true"`
 }
 
 type VMStartCommand struct {
-	VMId string `positional:"vm-id" usage:"VM Id"`
+	VMId string `positional:"vm-id" usage:"VM Id" required:"true"`
 }
 
 type VMShellCommand struct {
-	VMId    string `positional:"vm-id" usage:"VM Id"`
+	VMId    string `positional:"vm-id" usage:"VM Id" required:"true"`
 	Rank    int    `flag:"rank" usage:"Rank" default:"0"`
 	Browser bool   `flag:"browser" usage:"Open the shell in a browser"`
 }
@@ -147,7 +147,7 @@ func (c *VMCreateCommand) Execute() error {
 		}
 		resources = append(resources, orcapi.AppParameterValue{
 			Type: orcapi.AppParameterValueTypeNetwork,
-			Id:  publicIp.Id,
+			Id:   publicIp.Id,
 		})
 	}
 
