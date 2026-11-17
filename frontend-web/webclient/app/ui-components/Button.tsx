@@ -55,11 +55,11 @@ export const ButtonClass = injectStyle("button", k => `
     ${k}:hover {
         background: var(--hoverColor, var(--primaryLight));
     }
-    
+
     ${k}:disabled {
         opacity: 0.25;
     }
-    
+
     ${k}:disabled:hover {
         background: var(--bgColor, var(--primaryMain));
     }
@@ -67,33 +67,33 @@ export const ButtonClass = injectStyle("button", k => `
     ${k}:focus {
         outline: none;
     }
-   
+
     ${k}[data-square=true] {
         border-radius: 0;
     }
-    
+
     ${k}[data-fullwidth=true] {
         width: 100%;
     }
-    
+
     ${k}[data-size=large] {
         height: 55px;
         border-radius: 15px;
         font-size: 16px;
     }
-    
+
     ${k}, ${k}[data-size=standard] {
         height: 35px;
         border-radius: 8px;
         font-size: 14px;
     }
-    
+
     ${k}[data-size=small] {
         height: 35px;
         border-radius: 8px;
         font-size: 14px;
     }
-    
+
     ${k}[data-size=extra-small] {
         height: 25px;
         border-radius: 6px;
@@ -113,7 +113,7 @@ export const ButtonClass = injectStyle("button", k => `
     ${k} svg {
         margin-right: 5px;
     }
-    
+
     ${k} svg:last-child {
         margin-right: 0;
     }
@@ -171,7 +171,6 @@ export const Button: React.FunctionComponent<ButtonProps> = props => {
         data-size={sizeName}
         style={inlineStyles}
         disabled={props.disabled}
-        aria-label={props.ariaLabel}
         type={props.type as any}
         {...extractEventHandlers(props)}
         {...extractDataTags(props)}
