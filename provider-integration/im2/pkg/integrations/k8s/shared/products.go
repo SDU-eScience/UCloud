@@ -37,6 +37,7 @@ func initProducts() {
 
 	for categoryName, category := range ServiceConfig.Compute.Machines {
 		productCategory := apm.ProductCategory{
+			AccountingModel:     apm.AccountingModelConsumption,
 			Name:                categoryName,
 			Provider:            config.Provider.Id,
 			ProductType:         apm.ProductTypeCompute,
@@ -182,6 +183,7 @@ func initProducts() {
 					DisplayFrequencySuffix: true,
 				},
 				AccountingFrequency: apm.AccountingFrequencyPeriodicHour,
+				AccountingModel:     apm.AccountingModelConsumption,
 				FreeToUse:           true,
 				AllowSubAllocations: false,
 			},
@@ -227,6 +229,7 @@ func initProducts() {
 						DisplayFrequencySuffix: true,
 					},
 					AccountingFrequency: apm.AccountingFrequencyPeriodicHour,
+					AccountingModel:     apm.AccountingModelConsumption,
 					FreeToUse:           true,
 					AllowSubAllocations: false,
 				},
@@ -260,6 +263,7 @@ func initProducts() {
 						DisplayFrequencySuffix: false,
 					},
 					AccountingFrequency: apm.AccountingFrequencyOnce,
+					AccountingModel:     apm.AccountingModelCapacity,
 					FreeToUse:           false,
 					AllowSubAllocations: true,
 				},
@@ -300,6 +304,7 @@ func initProducts() {
 						DisplayFrequencySuffix: false,
 					},
 					AccountingFrequency: apm.AccountingFrequencyOnce,
+					AccountingModel:     apm.AccountingModelCapacity,
 					FreeToUse:           true,
 				},
 				Name:        ingressName,
@@ -334,6 +339,7 @@ func initProducts() {
 				DisplayFrequencySuffix: false,
 			},
 			AccountingFrequency: apm.AccountingFrequencyOnce,
+			AccountingModel:     apm.AccountingModelCapacity,
 			FreeToUse:           true,
 		}
 
@@ -412,6 +418,7 @@ func initProducts() {
 						DisplayFrequencySuffix: false,
 					},
 					AccountingFrequency: apm.AccountingFrequencyOnce,
+					AccountingModel:     apm.AccountingModelCapacity,
 					FreeToUse:           true,
 				},
 				Name:        "private-network-ip",
@@ -448,6 +455,7 @@ func initProducts() {
 					DisplayFrequencySuffix: false,
 				},
 				AccountingFrequency: apm.AccountingFrequencyOnce,
+				AccountingModel:     apm.AccountingModelCapacity,
 				FreeToUse:           true,
 			},
 			Name:        "service",

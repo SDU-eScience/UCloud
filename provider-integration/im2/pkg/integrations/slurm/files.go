@@ -998,6 +998,7 @@ var storageSupport []orc.FSSupport
 func loadStorageProducts() {
 	for categoryName, category := range ServiceConfig.FileSystems {
 		productCategory := apm.ProductCategory{
+			AccountingModel:     apm.AccountingModelConsumption,
 			Name:                categoryName,
 			Provider:            cfg.Provider.Id,
 			ProductType:         apm.ProductTypeStorage,

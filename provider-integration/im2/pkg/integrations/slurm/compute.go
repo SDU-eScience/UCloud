@@ -666,6 +666,7 @@ func loadComputeProducts() {
 		}
 
 		productCategory := apm.ProductCategory{
+			AccountingModel:     apm.AccountingModelConsumption,
 			Name:                categoryName,
 			Provider:            config.Provider.Id,
 			ProductType:         apm.ProductTypeCompute,

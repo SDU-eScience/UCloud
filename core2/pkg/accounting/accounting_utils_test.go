@@ -32,6 +32,7 @@ var capacityCategory = accapi.ProductCategory{
 		DisplayFrequencySuffix: false,
 	},
 	AccountingFrequency: accapi.AccountingFrequencyOnce,
+	AccountingModel:     accapi.AccountingModelCapacity,
 	FreeToUse:           false,
 	AllowSubAllocations: true,
 }
@@ -47,6 +48,7 @@ var timeCategory = accapi.ProductCategory{
 		DisplayFrequencySuffix: true,
 	},
 	AccountingFrequency: accapi.AccountingFrequencyPeriodicHour,
+	AccountingModel:     accapi.AccountingModelConsumption,
 	FreeToUse:           false,
 	AllowSubAllocations: true,
 }

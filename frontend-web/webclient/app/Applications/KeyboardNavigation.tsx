@@ -1,6 +1,7 @@
 import * as React from "react";
 import {useEffect} from "react";
 import {createKeyboardShortcut, isLikelyMac} from "@/UtilityFunctions";
+import type {KeyboardShortcutModifier} from "@/UtilityFunctions";
 import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
 import {injectStyle} from "@/Unstyled";
 
@@ -145,10 +146,10 @@ export function KeyboardNavigation({children, className, style, horizontalSelect
     return <div className={className} style={style} onKeyDown={onKeyDown} onKeyDownCapture={onKeyDownCapture}>{children}</div>;
 }
 
-export function useSubmitShortcut(submit: () => void, disabled = false): void {
+export function useSubmitShortcut(submit: () => void, disabled = false, opts?: {allowInModal?: boolean}): void {
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
-            if (document.querySelector(".ReactModal__Overlay")) return;
+            if (!opts?.allowInModal && document.querySelector(".ReactModal__Overlay")) return;
             if (event.defaultPrevented) return;
             const primaryPressed = isLikelyMac ? event.metaKey : event.ctrlKey;
             if (!event.altKey || !primaryPressed || event.key !== "Enter") return;
@@ -158,7 +159,7 @@ export function useSubmitShortcut(submit: () => void, disabled = false): void {
 
         document.addEventListener("keydown", onKeyDown);
         return () => document.removeEventListener("keydown", onKeyDown);
-    }, [disabled, submit]);
+    }, [disabled, opts?.allowInModal, submit]);
 }
 
 const SubmitShortcutClass = injectStyle("submit-shortcut", key => `
@@ -169,16 +170,19 @@ const SubmitShortcutClass = injectStyle("submit-shortcut", key => `
     }
 `);
 
-export function SubmitShortcut(): React.ReactNode {
+export function SubmitShortcut(props: {
+    shortcut?: string;
+    modifiers?: KeyboardShortcutModifier[];
+}): React.ReactNode {
     return <span
         className={`${ShortcutClass} ${SubmitShortcutClass}`}
         style={{
             marginLeft: "12px",
-            backgroundColor: "var(--successDark)",
-            color: "var(--fixedWhite)",
+            backgroundColor: "var(--hoverColor, var(--successDark))",
+            color: "inherit",
             mixBlendMode: "normal"
         }}
     >
-        {createKeyboardShortcut("Enter", ["ctrl", "alt"])}
+        {createKeyboardShortcut(props.shortcut ?? "Enter", props.modifiers ?? ["ctrl", "alt"])}
     </span>;
 }

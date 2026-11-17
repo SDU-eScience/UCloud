@@ -7,6 +7,7 @@ import (
 	"slices"
 	"time"
 
+	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 )
 
@@ -26,8 +27,7 @@ type findingsRepairAllocationRow struct {
 	Retired             bool
 	RetiredUsage        int64
 	RetiredQuota        int64
-	AccountingFrequency string
-	ProductType         string
+	AccountingModel     accapi.AccountingModel
 }
 
 type findingsRepairAllocationDeletion struct {
@@ -101,7 +101,7 @@ type findingsRepairReport struct {
 	Blockers           []string `yaml:"blockers,omitempty"`
 }
 
-func accountingRepairFindingsTx(tx *db.Transaction) findingsRepairReport {
+func accountingUpgradeRepairFindingsTx(tx *db.Transaction) findingsRepairReport {
 	nowRow, ok := db.Get[struct{ Now time.Time }](
 		tx,
 		"select transaction_timestamp() as now",
@@ -112,7 +112,7 @@ func accountingRepairFindingsTx(tx *db.Transaction) findingsRepairReport {
 	}
 
 	groups := selectFindingsRepairGroups(tx)
-	allocations := selectFindingsRepairAllocations(tx)
+	allocations := accountingUpgradeSelectRepairAllocations(tx)
 	result := findingsRepairReport{
 		findingsRepairPlan: planFindingsRepair(groups, allocations, nowRow.Now),
 	}
@@ -125,7 +125,7 @@ func accountingRepairFindingsTx(tx *db.Transaction) findingsRepairReport {
 			result.Clamps = append(result.Clamps, clamp)
 		}
 	}
-	result.Recomputations, result.Blockers = planFindingsRepairRecomputations(tx, result.findingsRepairPlan, nowRow.Now)
+	result.Recomputations, result.Blockers = accountingUpgradePlanRepairRecomputations(tx, result.findingsRepairPlan, nowRow.Now)
 	result.Blocked = len(result.Blockers) > 0
 	if result.Blocked {
 		return result
@@ -165,7 +165,7 @@ func accountingRepairFindingsTx(tx *db.Transaction) findingsRepairReport {
 	if len(selectFindingsRepairNonAllocationClamps(tx)) > 0 {
 		panic("accounting findings repair left a negative wallet, group, or scoped usage value")
 	}
-	remainingAllocations := selectFindingsRepairAllocations(tx)
+	remainingAllocations := accountingUpgradeSelectRepairAllocations(tx)
 	for _, allocation := range remainingAllocations {
 		if allocation.Quota < 0 || allocation.RetiredUsage < 0 || allocation.RetiredQuota < 0 {
 			panic(fmt.Sprintf("accounting findings repair left negative values on allocation %d", allocation.Id))
@@ -180,7 +180,7 @@ func accountingRepairFindingsTx(tx *db.Transaction) findingsRepairReport {
 	if remainingPlan := planFindingsRepair(remainingGroups, remainingAllocations, nowRow.Now); len(remainingPlan.AllocationUpdates) > 0 {
 		panic("accounting findings repair left stale allocation retirement state")
 	}
-	if remaining := selectFindingsRepairRecomputationDivergences(tx, nowRow.Now); len(remaining) > 0 {
+	if remaining := accountingUpgradeSelectRepairRecomputationDivergences(tx, nowRow.Now); len(remaining) > 0 {
 		panic(fmt.Sprintf("accounting findings repair left %d derived wallet divergences", len(remaining)))
 	}
 	result.Applied = true
@@ -194,23 +194,6 @@ func selectFindingsRepairGroups(tx *db.Transaction) []findingsRepairGroupRow {
 			select id, parent_wallet, associated_wallet, tree_usage
 			from accounting.allocation_groups
 			order by id
-		`,
-		db.Params{},
-	)
-}
-
-func selectFindingsRepairAllocations(tx *db.Transaction) []findingsRepairAllocationRow {
-	return db.Select[findingsRepairAllocationRow](
-		tx,
-		`
-			select a.id, a.associated_allocation_group as group_id, a.quota,
-				a.allocation_start_time, a.allocation_end_time, a.retired,
-				a.retired_usage, a.retired_quota, pc.accounting_frequency, pc.product_type
-			from accounting.wallet_allocations_v2 a
-			join accounting.allocation_groups ag on ag.id = a.associated_allocation_group
-			join accounting.wallets_v2 w on w.id = ag.associated_wallet
-			join accounting.product_categories pc on pc.id = w.product_category
-			order by a.id
 		`,
 		db.Params{},
 	)
@@ -270,7 +253,7 @@ func persistFindingsRepairNonAllocationClamps(tx *db.Transaction) {
 	)
 }
 
-func planFindingsRepairRecomputations(tx *db.Transaction, plan findingsRepairPlan, now time.Time) ([]findingsRepairRecomputation, []string) {
+func accountingUpgradePlanRepairRecomputations(tx *db.Transaction, plan findingsRepairPlan, now time.Time) ([]findingsRepairRecomputation, []string) {
 	persistedRows := db.Select[findingsRepairWalletState](
 		tx,
 		`select id, excess_usage, total_allocated, total_retired_allocated, was_locked from accounting.wallets_v2 order by id`,
@@ -281,9 +264,9 @@ func planFindingsRepairRecomputations(tx *db.Transaction, plan findingsRepairPla
 		persisted[row.Id] = row
 	}
 
-	productsLoadFromTx(tx)
+	accountingUpgradeLoadProducts(tx)
 	var blockers []string
-	accountingLoadFromTx(tx, now, func(message string) { blockers = append(blockers, message) })
+	accountingUpgradeLoadAccounting(tx, now, func(message string) { blockers = append(blockers, message) })
 	if len(blockers) > 0 {
 		return nil, blockers
 	}
@@ -476,8 +459,8 @@ func persistFindingsRepairRecomputations(tx *db.Transaction, recomputations []fi
 	}
 }
 
-func selectFindingsRepairRecomputationDivergences(tx *db.Transaction, now time.Time) []findingsRepairRecomputation {
-	result, blockers := planFindingsRepairRecomputations(tx, findingsRepairPlan{}, now)
+func accountingUpgradeSelectRepairRecomputationDivergences(tx *db.Transaction, now time.Time) []findingsRepairRecomputation {
+	result, blockers := accountingUpgradePlanRepairRecomputations(tx, findingsRepairPlan{}, now)
 	if len(blockers) > 0 {
 		panic(fmt.Sprintf("could not verify derived wallet state: %v", blockers))
 	}
@@ -562,7 +545,7 @@ func planFindingsRepair(groups []findingsRepairGroupRow, allocations []findingsR
 				allocation.RetiredQuota = 0
 				changedAllocations[allocation.Id] = true
 			}
-		} else if allocation.AccountingFrequency == "ONCE" && allocation.ProductType != "INFERENCE" {
+		} else if allocation.AccountingModel == accapi.AccountingModelCapacity {
 			if allocation.RetiredUsage > allocation.RetiredQuota {
 				appendFindingsLifecycleChange(
 					&result,
@@ -603,7 +586,7 @@ func planFindingsRepair(groups []findingsRepairGroupRow, allocations []findingsR
 		if allocation.Retired || now.Before(allocation.AllocationEndTime) {
 			continue
 		}
-		capacity := allocation.AccountingFrequency == "ONCE" && allocation.ProductType != "INFERENCE"
+		capacity := allocation.AccountingModel == accapi.AccountingModelCapacity
 		var toRetire int64
 		if capacity {
 			toRetire = max(0, min(allocation.Quota, capacityRetirementUsage[allocation.GroupId]))

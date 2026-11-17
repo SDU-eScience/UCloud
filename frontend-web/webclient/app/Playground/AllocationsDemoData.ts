@@ -1,5 +1,6 @@
-import type {Allocation, AllocationGroup, AllocationGroupWithChild, ProductCategoryV2, ProductType, WalletV2} from "@/Accounting";
+import type {AccountingModel, Allocation, AllocationGroup, AllocationGroupWithChild, ProductCategoryV2, ProductType, WalletV2} from "@/Accounting";
 import type {ProjectInfo} from "@/Project/InfoCache";
+import {allocationSlices} from "@/Accounting/Allocations/AllocationSlices";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOW = Date.now();
@@ -13,6 +14,7 @@ interface DemoWorkspace {
 type DemoPeriod = "active" | "expiring" | "upcoming" | "expired";
 
 interface DemoAllocationSpec {
+    splitMonths?: number;
     quota: number;
     usage: number;
     period: DemoPeriod;
@@ -56,7 +58,7 @@ function periodFor(period: DemoPeriod): {start: number; end: number} {
     }
 }
 
-function demoCategory(name: string, provider: string, productType: ProductType, unit: string): ProductCategoryV2 {
+function demoCategory(name: string, provider: string, productType: ProductType, unit: string, accountingModel: AccountingModel): ProductCategoryV2 {
     return {
         name,
         provider,
@@ -68,6 +70,7 @@ function demoCategory(name: string, provider: string, productType: ProductType, 
             displayFrequencySuffix: false,
         },
         accountingFrequency: productType === "COMPUTE" ? "PERIODIC_HOUR" : "ONCE",
+        accountingModel,
         freeToUse: false,
     };
 }
@@ -75,14 +78,14 @@ function demoCategory(name: string, provider: string, productType: ProductType, 
 const K8S_PROVIDER = "k8";
 const ODENSE_PROVIDER = "sdu-odense";
 
-const ZEN5 = demoCategory("cpu-amd-zen5", K8S_PROVIDER, "COMPUTE", "CPU-h");
-const B200 = demoCategory("gpu-nvidia-b200", K8S_PROVIDER, "COMPUTE", "GPU-h");
-const B300 = demoCategory("gpu-nvidia-b300", K8S_PROVIDER, "COMPUTE", "GPU-h");
-const K8S_STORAGE = demoCategory("storage", K8S_PROVIDER, "STORAGE", "GB");
-const INFERENCE = demoCategory("inference", K8S_PROVIDER, "INFERENCE", "Credits");
-const ZEN4 = demoCategory("cpu-amd-zen4", ODENSE_PROVIDER, "COMPUTE", "CPU-h");
-const H100 = demoCategory("gpu-nvidia-h100", ODENSE_PROVIDER, "COMPUTE", "GPU-h");
-const ODENSE_STORAGE = demoCategory("storage", ODENSE_PROVIDER, "STORAGE", "GB");
+const ZEN5 = demoCategory("cpu-amd-zen5", K8S_PROVIDER, "COMPUTE", "CPU-h", "CONSUMPTION");
+const B200 = demoCategory("gpu-nvidia-b200", K8S_PROVIDER, "COMPUTE", "GPU-h", "CONSUMPTION");
+const B300 = demoCategory("gpu-nvidia-b300", K8S_PROVIDER, "COMPUTE", "GPU-h", "CONSUMPTION");
+const K8S_STORAGE = demoCategory("storage", K8S_PROVIDER, "STORAGE", "GB", "CAPACITY");
+const INFERENCE = demoCategory("inference", K8S_PROVIDER, "INFERENCE", "Credits", "CONSUMPTION");
+const ZEN4 = demoCategory("cpu-amd-zen4", ODENSE_PROVIDER, "COMPUTE", "CPU-h", "CONSUMPTION");
+const H100 = demoCategory("gpu-nvidia-h100", ODENSE_PROVIDER, "COMPUTE", "GPU-h", "CONSUMPTION");
+const ODENSE_STORAGE = demoCategory("storage", ODENSE_PROVIDER, "STORAGE", "GB", "CONSUMPTION");
 
 const ALPHAFOLD: DemoWorkspace = {
     projectId: "demo-alphafold",
@@ -140,7 +143,7 @@ const DEMO_PRODUCTS: DemoProductSpec[] = [
         children: [
             {
                 workspace: ALPHAFOLD,
-                allocations: [{quota: 24_000, usage: 18_200, period: "active", grantId: 4101}],
+                allocations: [{quota: 24_000, usage: 18_200, period: "active", grantId: 4101, splitMonths: 1}],
             },
             {
                 workspace: GENOME,
@@ -364,7 +367,30 @@ export function buildDemoWallets(): WalletV2[] {
     return DEMO_PRODUCTS.map(spec => {
         const childSpecs = [...spec.children, ...fillerChildSpecs(spec)];
         const children: AllocationGroupWithChild[] = childSpecs.map(childSpec => {
-            const built = childSpec.allocations.map(allocation => {
+            const built = childSpec.allocations.flatMap<{spec: DemoAllocationSpec; period: {start: number; end: number}; row: Allocation}>(allocation => {
+                if (allocation.splitMonths) {
+                    const year = new Date(NOW).getFullYear();
+                    const slices = allocationSlices(new Date(year, 0, 1).getTime(), new Date(year + 1, 0, 1).getTime(), allocation.splitMonths, allocation.quota);
+                    return slices.map(slice => {
+                        const retired = slice.end <= NOW;
+                        const usage = Math.round(allocation.usage * slice.quota / allocation.quota);
+                        return {
+                            spec: {...allocation, quota: slice.quota, usage},
+                            period: {start: slice.start, end: slice.end - 1},
+                            row: {
+                                id: allocationId++,
+                                startDate: slice.start,
+                                endDate: slice.end,
+                                quota: retired ? 0 : slice.quota,
+                                grantedIn: allocation.grantId,
+                                allocationPackage: true,
+                                retired,
+                                retiredQuota: retired ? slice.quota : 0,
+                                retiredUsage: 0,
+                            } satisfies Allocation,
+                        };
+                    });
+                }
                 const period = periodFor(allocation.period);
                 const row: Allocation = {
                     id: allocationId++,
@@ -374,7 +400,7 @@ export function buildDemoWallets(): WalletV2[] {
                     grantedIn: allocation.grantId,
                     retiredUsage: 0,
                 };
-                return {spec: allocation, period, row};
+                return [{spec: allocation, period, row}];
             });
 
             const active = built.filter(it => it.period.start <= NOW && it.period.end >= NOW);

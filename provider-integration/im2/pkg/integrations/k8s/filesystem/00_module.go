@@ -746,9 +746,10 @@ func loadStorageProducts() {
 	}
 
 	pc := apm.ProductCategory{
-		Name:        shared.ServiceConfig.FileSystem.Name,
-		Provider:    cfg.Provider.Id,
-		ProductType: apm.ProductTypeStorage,
+		AccountingModel: apm.AccountingModelCapacity,
+		Name:            shared.ServiceConfig.FileSystem.Name,
+		Provider:        cfg.Provider.Id,
+		ProductType:     apm.ProductTypeStorage,
 		AccountingUnit: apm.AccountingUnit{
 			Name:                   billingUnit,
 			NamePlural:             billingUnit,

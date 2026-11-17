@@ -504,7 +504,8 @@ func grantsWouldCreateCycle(recipient accapi.Recipient, requests []accapi.Alloca
 	recipientOwner := internalOwnerByReference(recipientRef)
 
 	for _, req := range requests {
-		if req.BalanceRequested.GetOrDefault(0) <= 0 {
+		quota := req.BalanceRequested.GetOrDefault(0)
+		if quota < 0 || (quota == 0 && !req.AllocationPackage) {
 			// Skip these requests entirely (no edge is created).
 			continue
 		}
@@ -626,7 +627,7 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 
 	period := revision.AllocationPeriod
 
-	requestsSeen := map[util.Tuple3[string, string, string]]util.Empty{}
+	requestsSeen := map[util.Tuple3[string, string, string]][]accapi.AllocationRequest{}
 	hasRequest := false
 	for _, allocReq := range revision.AllocationRequests {
 		if allocReq.BalanceRequested.Present {
@@ -646,11 +647,12 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		}
 
 		key := util.Tuple3[string, string, string]{allocReq.Category, allocReq.Provider, allocReq.GrantGiver}
-		if _, seen := requestsSeen[key]; seen {
-			return 0, util.HttpErr(http.StatusBadRequest, "duplicate request")
-		} else {
-			requestsSeen[key] = util.Empty{}
+		for _, previous := range requestsSeen[key] {
+			if !allocReq.AllocationPackage || !previous.AllocationPackage {
+				return 0, util.HttpErr(http.StatusBadRequest, "duplicate request")
+			}
 		}
+		requestsSeen[key] = append(requestsSeen[key], allocReq)
 	}
 
 	if !hasRequest {
@@ -664,6 +666,33 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 	if period.Present && period.Value.Start.Present && period.Value.End.Present {
 		if period.Value.Start.Value.Time().After(period.Value.End.Value.Time()) {
 			return 0, util.HttpErr(http.StatusBadRequest, "application has an invalid period specified")
+		}
+	}
+	for _, requests := range requestsSeen {
+		for index, request := range requests {
+			if !request.AllocationPackage {
+				continue
+			}
+			if revision.Form.Type != accapi.FormTypeGrantGiverInitiated {
+				return 0, util.HttpErr(http.StatusBadRequest, "split allocations must be created by the grant giver")
+			}
+			if !request.Period.Start.Present || !request.Period.End.Present {
+				return 0, util.HttpErr(http.StatusBadRequest, "each allocation slice must have a start and end date")
+			}
+			start := request.Period.Start.Value.Time()
+			end := request.Period.End.Value.Time()
+			if !start.Before(end) {
+				return 0, util.HttpErr(http.StatusBadRequest, "allocation slices must have a positive duration")
+			}
+			if (period.Value.Start.Present && start.Before(period.Value.Start.Value.Time())) ||
+				end.After(period.Value.End.Value.Time().Add(time.Millisecond)) {
+				return 0, util.HttpErr(http.StatusBadRequest, "allocation slices must be within the allocation period")
+			}
+			for _, previous := range requests[:index] {
+				if start.Before(previous.Period.End.Value.Time()) && end.After(previous.Period.Start.Value.Time()) {
+					return 0, util.HttpErr(http.StatusBadRequest, "allocation slices must not overlap")
+				}
+			}
 		}
 	}
 
@@ -763,14 +792,25 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 	var err *util.HttpError
 
 	grantGiverInitiatedId := ""
-	grantGivers := map[string][]accapi.ProductCategory{}
+	type grantCategoryRequest struct {
+		Category accapi.ProductCategory
+		Request  accapi.AllocationRequest
+	}
+	grantGivers := map[string][]grantCategoryRequest{}
 	for _, allocReq := range revision.AllocationRequests {
 		category, catErr := ProductCategoryRetrieve(actor, allocReq.Category, allocReq.Provider)
 		if catErr != nil {
 			err = catErr
 			break
 		} else {
-			grantGivers[allocReq.GrantGiver] = append(grantGivers[allocReq.GrantGiver], category)
+			if allocReq.AllocationPackage && category.AccountingModel != accapi.AccountingModelConsumption {
+				err = util.HttpErr(http.StatusBadRequest, "only consumption-based allocations can be split")
+				break
+			}
+			grantGivers[allocReq.GrantGiver] = append(grantGivers[allocReq.GrantGiver], grantCategoryRequest{
+				Category: category,
+				Request:  allocReq,
+			})
 		}
 	}
 
@@ -880,10 +920,19 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 				}
 
 				owner := internalOwnerByReference(grantGiver)
-				for _, cat := range categories {
+				for _, categoryRequest := range categories {
+					cat := categoryRequest.Category
+					allocReq := categoryRequest.Request
+					requestStart := allocationStart
+					if allocReq.AllocationPackage {
+						if allocReq.BalanceRequested.GetOrDefault(0) == 0 {
+							continue
+						}
+						requestStart = allocReq.Period.Start.Value.Time()
+					}
 					aBucket := internalBucketOrInit(cat)
 					w := internalWalletByOwner(aBucket, now, owner.Id)
-					quota, ok := internalWalletTotalQuotaContributingAt(aBucket, w, allocationStart)
+					quota, ok := internalWalletTotalQuotaContributingAt(aBucket, w, requestStart)
 					if quota == 0 || !ok {
 						wallets := internalRetrieveWallets(now, grantGiver, walletFilter{
 							Provider: util.OptValue(cat.Provider),
@@ -891,9 +940,9 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 						})
 
 						if len(wallets) > 0 {
-							err = availabilityError(wallets[0], cat, allocationStart)
+							err = availabilityError(wallets[0], cat, requestStart)
 						} else {
-							err = availabilityError(accapi.WalletV2{}, cat, allocationStart)
+							err = availabilityError(accapi.WalletV2{}, cat, requestStart)
 						}
 						break outer
 					}
@@ -2314,7 +2363,7 @@ func lGrantsAwardResources(app *grantApplication) {
 		if !req.BalanceRequested.Present {
 			quota = 0
 		}
-		if quota <= 0 {
+		if quota < 0 || (quota == 0 && !req.AllocationPackage) {
 			continue
 		}
 
@@ -2330,7 +2379,13 @@ func lGrantsAwardResources(app *grantApplication) {
 		parentWallet := internalWalletByOwner(accBucket, now, parentOwner)
 
 		var allocationId accAllocId
-		allocationId, err = internalAllocateNoCommit(now, accBucket, start, end, quota, wallet, parentWallet, util.OptValue(grantedIn))
+		allocationStart := start
+		allocationEnd := end
+		if req.AllocationPackage {
+			allocationStart = req.Period.Start.Value.Time()
+			allocationEnd = req.Period.End.Value.Time()
+		}
+		allocationId, err = internalAllocateNoCommit(now, accBucket, allocationStart, allocationEnd, quota, wallet, parentWallet, util.OptValue(grantedIn))
 		if err != nil {
 			log.Warn("could not allocate resources in %s: %s", app.Application.Id, err.Error())
 			for i := len(createdAllocations) - 1; i >= 0; i-- {
@@ -2338,6 +2393,11 @@ func lGrantsAwardResources(app *grantApplication) {
 				internalRollbackAllocation(created.bucket, created.id)
 			}
 			return
+		}
+		if req.AllocationPackage {
+			accBucket.Mu.Lock()
+			accBucket.AllocationsById[allocationId].AllocationPackage = true
+			accBucket.Mu.Unlock()
 		}
 		createdAllocations = append(createdAllocations, createdAllocation{bucket: accBucket, id: allocationId})
 	}

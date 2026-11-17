@@ -229,6 +229,7 @@ export interface AccountingUnit {
 }
 
 export type AccountingFrequency = "ONCE" | "PERIODIC_SECOND" | "PERIODIC_MINUTE" | "PERIODIC_HOUR" | "PERIODIC_DAY";
+export type AccountingModel = "CAPACITY" | "CONSUMPTION";
 
 export function frequencyToMillis(frequency: AccountingFrequency): number {
     switch (frequency) {
@@ -267,6 +268,7 @@ export interface ProductCategoryV2 {
     productType: ProductType;
     accountingUnit: AccountingUnit;
     accountingFrequency: AccountingFrequency;
+    accountingModel: AccountingModel;
     freeToUse: boolean;
 }
 
@@ -438,7 +440,7 @@ export function guesstimateProductCategoryDescription(
 }
 
 type BalanceAndCategory = {balance: number; category: ProductCategoryV2;}
-type CombinedBalance = {productType: ProductType, normalizedBalance: number, unit: string};
+type CombinedBalance = {productType: ProductType, accountingModel: AccountingModel, normalizedBalance: number, unit: string};
 
 export function combineBalances(
     balances: BalanceAndCategory[]
@@ -451,11 +453,13 @@ export function combineBalances(
         const unit = explainUnit(it.category);
         const normalizedBalance = unit.balanceFactor * it.balance;
 
-        const existing = result.find(it => it.unit === unit.name && it.productType === unit.productType);
+        const existing = result.find(balance =>
+            balance.unit === unit.name && balance.productType === unit.productType
+            && balance.accountingModel === it.category.accountingModel);
         if (existing) {
             existing.normalizedBalance += normalizedBalance;
         } else {
-            result.push({unit: unit.name, normalizedBalance, productType: it.category.productType});
+            result.push({unit: unit.name, normalizedBalance, productType: it.category.productType, accountingModel: it.category.accountingModel});
         }
     }
 
@@ -778,6 +782,8 @@ export interface AllocationDisplayTreeRecipient {
 
         allocations: {
             allocationId: number;
+            allocationPackage?: boolean;
+            retired?: boolean;
             quota: number;
             retiredQuota?: number;
             note?: AllocationNote;
@@ -942,16 +948,12 @@ export function buildYourAllocations(allWallets: WalletV2[]): AllocationDisplayT
             const combineMaxUsable = combineBalances(maxUsableBalances);
             const combineRetire = combineBalances(retired)
 
-            const combineShouldUseRetired = wallets.map(wallet =>
-                wallet.paysFor.accountingFrequency === "ONCE"
-            );
-
             for (let i = 0; i < combinedQuotas.length; i++) {
                 const usage = combinedUsage[i];
                 const quota = combinedQuotas[i];
                 const maxUsable = combineMaxUsable[i]
                 const retired = combineRetire[i]
-                const shouldUseRetired = combineShouldUseRetired[i]
+                const shouldUseRetired = quota.accountingModel === "CAPACITY";
                 if (quota.normalizedBalance !== 0) {
                     entry.usageAndQuota.push(new UsageAndQuota({
                         usage: usage.normalizedBalance,
@@ -981,7 +983,7 @@ export function buildYourAllocations(allWallets: WalletV2[]): AllocationDisplayT
                 )
 
                 const retiredAmount = combineBalances([{balance: totalRetired, category: wallet.paysFor}])
-                const shouldUseRetired = wallet.paysFor.accountingFrequency === "ONCE";
+                const shouldUseRetired = wallet.paysFor.accountingModel === "CAPACITY";
 
                 const visibleAllocations = wallet.allocationGroups.flatMap(({group}) =>
                     group.allocations.filter(alloc => allocationIsVisible(alloc, now))
@@ -1005,13 +1007,13 @@ export function buildYourAllocations(allWallets: WalletV2[]): AllocationDisplayT
                         totalAllocated: wallet.totalAllocated,
 
                         allocations: visibleAllocations.map(alloc => {
-                            const shouldShowRetiredAmount = wallet.paysFor.accountingFrequency !== "ONCE";
+                            const shouldShowRetiredAmount = wallet.paysFor.accountingModel === "CONSUMPTION";
 
                             const note = allocationNote(alloc);
 
                             let quotaString = "";
                             if (shouldShowRetiredAmount && note !== undefined) {
-                                const isCapacityBased = wallet.paysFor.accountingFrequency === "ONCE";
+                                const isCapacityBased = wallet.paysFor.accountingModel === "CAPACITY";
                                 if (isCapacityBased) {
                                     quotaString = balanceToString(
                                         wallet.paysFor,
@@ -1105,7 +1107,7 @@ export function buildSubAllocations(allWallets: WalletV2[], onlyProjects: boolea
                 subAllocations.recipients.push(recipient);
             }
 
-            const shouldUseRetired = wallet.paysFor.accountingFrequency === "ONCE";
+            const shouldUseRetired = wallet.paysFor.accountingModel === "CAPACITY";
 
 
             const combinedRetired = childGroup.group.allocations.reduce((acc, val) => acc + (val.retiredUsage ?? 0), 0);
@@ -1149,6 +1151,8 @@ export function buildSubAllocations(allWallets: WalletV2[], onlyProjects: boolea
                     end: alloc.endDate,
                     grantedIn: alloc.grantedIn ?? undefined,
                     retiredQuota: alloc.retiredQuota,
+                    retired: alloc.retired,
+                    allocationPackage: alloc.allocationPackage,
                 });
             }
             newGroup.totalGranted = totalAllocated;
@@ -1159,7 +1163,8 @@ export function buildSubAllocations(allWallets: WalletV2[], onlyProjects: boolea
             const uqBuilder: UsageAndQuota[] = [];
             for (const group of recipient.groups) {
                 const existing = uqBuilder.find(it =>
-                    it.type === group.category.productType && it.raw.unit === group.usageAndQuota.raw.unit);
+                    it.type === group.category.productType && it.raw.unit === group.usageAndQuota.raw.unit
+                    && it.raw.retiredAmountStillCounts === group.usageAndQuota.raw.retiredAmountStillCounts);
 
                 if (existing) {
                     existing.raw.usage += group.usageAndQuota.raw.usage;
@@ -1248,7 +1253,7 @@ export interface AllocationInputUnit {
 export function allocationInputUnit(category: ProductCategoryV2): AllocationInputUnit {
     if (
         category.productType === "STORAGE" &&
-        category.accountingFrequency === "ONCE" &&
+        category.accountingModel === "CAPACITY" &&
         category.accountingUnit.name === "B"
     ) {
         return {name: "GB", rawUnitsPerInputUnit: 1_000_000_000};
@@ -1477,6 +1482,7 @@ export interface AllocationGroup {
 }
 
 export interface Allocation {
+    allocationPackage?: boolean;
     id: number;
     startDate: number;
     endDate: number;

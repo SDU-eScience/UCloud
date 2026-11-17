@@ -218,12 +218,61 @@ func ProductCreate(actor rpc.Actor, products []accapi.ProductV2) *util.HttpError
 	bucket := util.ReadOrInsertBucket(&productsByProvider.Mu, productsByProvider.Buckets, providerId, nil)
 
 	bucket.Mu.Lock()
+	products = slices.Clone(products)
 
 	var err *util.HttpError
 
 	// NOTE(Dan): Constraints on the products are largely implemented by the database. As a result, we just fire off
 	// the query and see if we succeed. If we do, we can start replacing products.
 	db.NewTx0(func(tx *db.Transaction) {
+		categoryNames := make([]string, 0, len(products))
+		for _, product := range products {
+			categoryNames = append(categoryNames, product.Category.Name)
+		}
+		storedCategories := db.Select[struct {
+			Category        string
+			AccountingModel accapi.AccountingModel
+		}](
+			tx,
+			`
+				select
+					category,
+					accounting_model
+				from
+					accounting.product_categories
+				where
+					provider = :provider
+					and category = any(cast(:categories as text[]))
+			`,
+			db.Params{
+				"provider":   providerId,
+				"categories": categoryNames,
+			},
+		)
+		if failure := tx.ConsumeError(); failure != nil {
+			err = util.HttpErr(http.StatusBadRequest, "%s", failure.Error())
+			return
+		}
+		models := map[string]accapi.AccountingModel{}
+		for _, category := range storedCategories {
+			models[category.Category] = category.AccountingModel
+		}
+		for index := range products {
+			category := &products[index].Category
+			storedModel, exists := models[category.Name]
+			if category.AccountingModel == "" && exists {
+				category.AccountingModel = storedModel
+			}
+			if !accapi.AccountingModelValid(category.AccountingModel) {
+				err = util.HttpErr(http.StatusBadRequest, "category %s must specify accountingModel as CAPACITY or CONSUMPTION", category.Name)
+				return
+			}
+			if exists && category.AccountingModel != storedModel {
+				err = util.HttpErr(http.StatusBadRequest, "the accounting model of category %s cannot be changed", category.Name)
+				return
+			}
+			models[category.Name] = category.AccountingModel
+		}
 		for _, item := range products {
 			db.Exec(
 				tx,
@@ -248,6 +297,7 @@ func ProductCreate(actor rpc.Actor, products []accapi.ProductV2) *util.HttpError
 								:product_type product_type, 
 								ac.id accounting_unit,
 								:frequency frequency,
+								cast(:accounting_model as accounting.accounting_model) accounting_model,
 								cast(:charge_type as accounting.charge_type) charge_t,
 								cast(:free_to_use as bool) free,
 								cast(:allow_sub_allocations as bool) allow_sub_allocations
@@ -255,10 +305,10 @@ func ProductCreate(actor rpc.Actor, products []accapi.ProductV2) *util.HttpError
 						)
 					insert into accounting.product_categories
 						(provider, category, product_type, accounting_unit, accounting_frequency, charge_type,
-						 free_to_use, allow_sub_allocations) 
+						 free_to_use, allow_sub_allocations, accounting_model)
 					select
 						provider, category, product_type, accounting_unit, frequency, charge_t,
-						free, allow_sub_allocations
+						free, allow_sub_allocations, accounting_model
 					from inserts
 					on conflict (provider, category)  
 					do update set
@@ -275,6 +325,7 @@ func ProductCreate(actor rpc.Actor, products []accapi.ProductV2) *util.HttpError
 					"display":     item.Category.AccountingUnit.DisplayFrequencySuffix,
 
 					"frequency":             string(item.Category.AccountingFrequency),
+					"accounting_model":      item.Category.AccountingModel,
 					"product_type":          string(item.ProductType),
 					"free_to_use":           item.Category.FreeToUse,
 					"charge_type":           translateToChargeType(item.Category),
@@ -492,14 +543,10 @@ func ProductCategoriesByProvider(actor rpc.Actor, provider string) []accapi.Prod
 }
 
 func translateToChargeType(category accapi.ProductCategory) string {
-	if category.ProductType == accapi.ProductTypeInference {
-		return "ABSOLUTE"
-	}
-
-	switch category.AccountingFrequency {
-	case accapi.AccountingFrequencyOnce:
+	switch category.AccountingModel {
+	case accapi.AccountingModelCapacity:
 		return "DIFFERENTIAL_QUOTA"
-	case accapi.AccountingFrequencyPeriodicSecond, accapi.AccountingFrequencyPeriodicMinute, accapi.AccountingFrequencyPeriodicHour, accapi.AccountingFrequencyPeriodicDay:
+	case accapi.AccountingModelConsumption:
 		return "ABSOLUTE"
 	default:
 		return "ABSOLUTE"
@@ -581,35 +628,36 @@ func productsLoad() {
 	db.NewTx0(productsLoadFromTx)
 }
 
+type accountingProductRow struct {
+	Name                      string
+	Category                  string
+	Provider                  string
+	Price                     int64
+	Description               string
+	Cpu                       sql.NullInt32
+	Gpu                       sql.NullInt32
+	MemoryInGigs              sql.NullInt32
+	CpuModel                  sql.NullString
+	GpuModel                  sql.NullString
+	MemoryModel               sql.NullString
+	HiddenInGrantApplications bool
+	FractionNumerator         sql.Null[int]
+	FractionDenominator       sql.Null[int]
+
+	ProductType         string
+	AccountingFrequency string
+	AccountingModel     accapi.AccountingModel
+	FreeToUse           bool
+	AllowSubAllocations bool
+
+	UnitName          string
+	UnitNamePlural    string
+	UnitFreqSuffix    bool
+	UnitFloatingPoint bool
+}
+
 func productsLoadFromTx(tx *db.Transaction) {
-	providers := map[string]util.Empty{}
-	productsByProvider.Buckets = make(map[string]*providerBucket)
-	rows := db.Select[struct {
-		Name                      string
-		Category                  string
-		Provider                  string
-		Price                     int64
-		Description               string
-		Cpu                       sql.NullInt32
-		Gpu                       sql.NullInt32
-		MemoryInGigs              sql.NullInt32
-		CpuModel                  sql.NullString
-		GpuModel                  sql.NullString
-		MemoryModel               sql.NullString
-		HiddenInGrantApplications bool
-		FractionNumerator         sql.Null[int]
-		FractionDenominator       sql.Null[int]
-
-		ProductType         string
-		AccountingFrequency string
-		FreeToUse           bool
-		AllowSubAllocations bool
-
-		UnitName          string
-		UnitNamePlural    string
-		UnitFreqSuffix    bool
-		UnitFloatingPoint bool
-	}](
+	rows := db.Select[accountingProductRow](
 		tx,
 		`
 				select
@@ -625,6 +673,7 @@ func productsLoadFromTx(tx *db.Transaction) {
 					
 					pc.product_type,
 					pc.accounting_frequency,
+					pc.accounting_model,
 					pc.free_to_use,
 					pc.allow_sub_allocations,
 					
@@ -640,7 +689,12 @@ func productsLoadFromTx(tx *db.Transaction) {
 		    `,
 		db.Params{},
 	)
+	accountingLoadProductRows(rows)
+}
 
+func accountingLoadProductRows(rows []accountingProductRow) {
+	providers := map[string]util.Empty{}
+	productsByProvider.Buckets = make(map[string]*providerBucket)
 	for _, row := range rows {
 		cat := accapi.ProductCategory{
 			Name:        row.Category,
@@ -653,6 +707,7 @@ func productsLoadFromTx(tx *db.Transaction) {
 				DisplayFrequencySuffix: row.UnitFreqSuffix,
 			},
 			AccountingFrequency: accapi.AccountingFrequency(row.AccountingFrequency),
+			AccountingModel:     row.AccountingModel,
 			FreeToUse:           row.FreeToUse,
 			AllowSubAllocations: row.AllowSubAllocations,
 		}

@@ -93,9 +93,10 @@ func (license *LicenseEntry) toProduct() apm.ProductV2 {
 	return apm.ProductV2{
 		Type: apm.ProductTypeCLicense,
 		Category: apm.ProductCategory{
-			Name:        license.Name,
-			Provider:    cfg.Provider.Id,
-			ProductType: apm.ProductTypeLicense,
+			AccountingModel: apm.AccountingModelCapacity,
+			Name:            license.Name,
+			Provider:        cfg.Provider.Id,
+			ProductType:     apm.ProductTypeLicense,
 			AccountingUnit: apm.AccountingUnit{
 				Name:                   "License",
 				NamePlural:             "Licenses",

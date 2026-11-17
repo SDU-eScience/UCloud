@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"testing"
 	"time"
+	accapi "ucloud.dk/shared/pkg/accounting"
 )
 
 func TestPlanFindingsRepairCyclesDeletesHighestAllocationUntilAGroupIsEmpty(t *testing.T) {
@@ -57,7 +58,7 @@ func TestPlanFindingsRepairClampsAndRetiresAllocations(t *testing.T) {
 			AllocationEndTime:   now,
 			RetiredUsage:        -2,
 			RetiredQuota:        -3,
-			AccountingFrequency: "ONCE",
+			AccountingModel:     accapi.AccountingModelCapacity,
 		},
 		{
 			Id:                  21,
@@ -65,7 +66,7 @@ func TestPlanFindingsRepairClampsAndRetiresAllocations(t *testing.T) {
 			Quota:               80,
 			AllocationStartTime: now.Add(-2 * time.Hour),
 			AllocationEndTime:   now.Add(-time.Hour),
-			AccountingFrequency: "PERIODIC_HOUR",
+			AccountingModel:     accapi.AccountingModelConsumption,
 		},
 	}
 
@@ -96,7 +97,7 @@ func TestPlanFindingsRepairUsesCapacityRetirementSemantics(t *testing.T) {
 			Quota:               100,
 			AllocationStartTime: now.Add(-2 * time.Hour),
 			AllocationEndTime:   now.Add(-time.Hour),
-			AccountingFrequency: "ONCE",
+			AccountingModel:     accapi.AccountingModelCapacity,
 		},
 	}
 
@@ -116,7 +117,7 @@ func TestPlanFindingsRepairRecomputesPrematureRetirement(t *testing.T) {
 	allocations := []findingsRepairAllocationRow{{
 		Id: 20, GroupId: 10, Quota: 30,
 		AllocationStartTime: now.Add(-time.Hour), AllocationEndTime: now.Add(time.Hour),
-		Retired: true, RetiredUsage: 30, RetiredQuota: 100, AccountingFrequency: "PERIODIC_HOUR",
+		Retired: true, RetiredUsage: 30, RetiredQuota: 100, AccountingModel: accapi.AccountingModelConsumption,
 	}}
 
 	plan := planFindingsRepair(groups, allocations, now)
@@ -145,7 +146,7 @@ func TestPlanFindingsRepairNormalizesRetirementState(t *testing.T) {
 			AllocationEndTime:   now.Add(-time.Hour),
 			RetiredUsage:        4,
 			RetiredQuota:        9,
-			AccountingFrequency: "ONCE",
+			AccountingModel:     accapi.AccountingModelCapacity,
 		},
 		{
 			Id:                  21,
@@ -156,7 +157,7 @@ func TestPlanFindingsRepairNormalizesRetirementState(t *testing.T) {
 			Retired:             true,
 			RetiredUsage:        60,
 			RetiredQuota:        50,
-			AccountingFrequency: "ONCE",
+			AccountingModel:     accapi.AccountingModelCapacity,
 		},
 		{
 			Id:                  22,
@@ -167,7 +168,7 @@ func TestPlanFindingsRepairNormalizesRetirementState(t *testing.T) {
 			Retired:             true,
 			RetiredUsage:        40,
 			RetiredQuota:        70,
-			AccountingFrequency: "PERIODIC_HOUR",
+			AccountingModel:     accapi.AccountingModelConsumption,
 		},
 	}
 
@@ -188,14 +189,13 @@ func TestPlanFindingsRepairNormalizesRetirementState(t *testing.T) {
 
 func TestAccountingFindingsRepairRetirementBatch(t *testing.T) {
 	for _, tc := range []struct {
-		name      string
-		frequency string
-		product   string
-		capacity  bool
+		name     string
+		model    accapi.AccountingModel
+		capacity bool
 	}{
-		{name: "capacity", frequency: "ONCE", product: "STORAGE", capacity: true},
-		{name: "consumption", frequency: "PERIODIC_HOUR", product: "COMPUTE"},
-		{name: "inference", frequency: "ONCE", product: "INFERENCE"},
+		{name: "capacity", model: accapi.AccountingModelCapacity, capacity: true},
+		{name: "consumption", model: accapi.AccountingModelConsumption},
+		{name: "inference", model: accapi.AccountingModelConsumption},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			now := time.Date(2026, time.November, 10, 12, 0, 0, 0, time.UTC)
@@ -212,8 +212,7 @@ func TestAccountingFindingsRepairRetirementBatch(t *testing.T) {
 			}
 			for index := range allocations {
 				allocation := &allocations[index]
-				allocation.AccountingFrequency = tc.frequency
-				allocation.ProductType = tc.product
+				allocation.AccountingModel = tc.model
 				allocation.AllocationStartTime = now.Add(-2 * time.Hour)
 				allocation.AllocationEndTime = now
 				if allocation.Retired {

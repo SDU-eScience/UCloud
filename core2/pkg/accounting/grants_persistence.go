@@ -153,20 +153,21 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 		)
 
 		resourcesPromise := db.BatchSelect[struct {
-			ApplicationId    int
-			CreditsRequested int
-			Category         string
-			Provider         string
-			StartDate        sql.Null[time.Time]
-			EndDate          sql.Null[time.Time]
-			GrantGiver       string
-			RevisionNumber   int
+			ApplicationId     int
+			CreditsRequested  int
+			Category          string
+			Provider          string
+			StartDate         sql.Null[time.Time]
+			EndDate           sql.Null[time.Time]
+			GrantGiver        string
+			RevisionNumber    int
+			AllocationPackage bool
 		}](
 			b,
 			`
 				select 
 					application_id, coalesce(credits_requested, quota_requested_bytes) as credits_requested,
-					pc.category, pc.provider, start_date, end_date, grant_giver, revision_number
+					pc.category, pc.provider, start_date, end_date, grant_giver, revision_number, allocation_package
 				from
 					"grant".requested_resources rr
 					join accounting.product_categories pc on rr.product_category = pc.id
@@ -297,27 +298,21 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 			for i := range app.Status.Revisions {
 				revision := &app.Status.Revisions[i]
 				if revision.RevisionNumber == resource.RevisionNumber {
-					period := revision.Document.AllocationPeriod
-					if !period.Present {
-						start := util.SqlNullToOpt(resource.StartDate)
-						if start.Present {
-							period.Value.Start.Set(fndapi.Timestamp(start.Value))
-						}
-
-						end := util.SqlNullToOpt(resource.EndDate)
-						if end.Present {
-							period.Value.End.Set(fndapi.Timestamp(end.Value))
-						}
-
-						period.Present = true
+					period := revision.Document.AllocationPeriod.Value
+					if resource.StartDate.Valid {
+						period.Start.Set(fndapi.Timestamp(resource.StartDate.V))
+					}
+					if resource.EndDate.Valid {
+						period.End.Set(fndapi.Timestamp(resource.EndDate.V))
 					}
 
 					revision.Document.AllocationRequests = append(revision.Document.AllocationRequests, accapi.AllocationRequest{
-						Category:         resource.Category,
-						Provider:         resource.Provider,
-						GrantGiver:       resource.GrantGiver,
-						BalanceRequested: util.OptValue(int64(resource.CreditsRequested)),
-						Period:           period.Value,
+						Category:          resource.Category,
+						Provider:          resource.Provider,
+						GrantGiver:        resource.GrantGiver,
+						BalanceRequested:  util.OptValue(int64(resource.CreditsRequested)),
+						Period:            period,
+						AllocationPackage: resource.AllocationPackage,
 					})
 					break
 				}
@@ -971,19 +966,28 @@ func lGrantsPersist(app *grantApplication) {
 			var resourceStart []int64
 			var resourceEnd []int64
 			var resourceQuota []int64
+			var resourcePackage []bool
 
 			for _, rev := range appl.Status.Revisions {
 				start := rev.Document.AllocationPeriod.Value.Start.Value.UnixMilli() // TODO This is not good enough
 				end := rev.Document.AllocationPeriod.Value.End.Value.UnixMilli()
 
 				for _, resource := range rev.Document.AllocationRequests {
+					resourcePeriod := resource.Period
+					resourceStartTime := start
+					resourceEndTime := end
+					if resource.AllocationPackage {
+						resourceStartTime = resourcePeriod.Start.Value.UnixMilli()
+						resourceEndTime = resourcePeriod.End.Value.UnixMilli()
+					}
 					resourceRevId = append(resourceRevId, rev.RevisionNumber)
 					resourceCatName = append(resourceCatName, resource.Category)
 					resourceCatProvider = append(resourceCatProvider, resource.Provider)
 					resourceGrantGiver = append(resourceGrantGiver, resource.GrantGiver)
-					resourceStart = append(resourceStart, start)
-					resourceEnd = append(resourceEnd, end)
+					resourceStart = append(resourceStart, resourceStartTime)
+					resourceEnd = append(resourceEnd, resourceEndTime)
 					resourceQuota = append(resourceQuota, resource.BalanceRequested.GetOrDefault(0))
+					resourcePackage = append(resourcePackage, resource.AllocationPackage)
 				}
 			}
 
@@ -999,11 +1003,12 @@ func lGrantsPersist(app *grantApplication) {
 								unnest(cast(:grant_givers as text[])) as grant_giver,
 								to_timestamp(unnest(cast(:resource_start as int8[])) / 1000.0) as resource_start,
 								to_timestamp(unnest(cast(:resource_end as int8[])) / 1000.0) as resource_end,
-								unnest(cast(:resource_quota as int8[])) as quota
+								unnest(cast(:resource_quota as int8[])) as quota,
+								unnest(cast(:resource_package as bool[])) as allocation_package
 						)
 						insert into "grant".requested_resources
 							(application_id, credits_requested, quota_requested_bytes, product_category,
-							start_date, end_date, grant_giver, revision_number)
+							start_date, end_date, grant_giver, revision_number, allocation_package)
 						select
 							:app_id,
 							d.quota,
@@ -1012,7 +1017,8 @@ func lGrantsPersist(app *grantApplication) {
 							d.resource_start,
 							d.resource_end,
 							d.grant_giver,
-							d.rev
+							d.rev,
+							d.allocation_package
 						from
 							data d
 							join accounting.product_categories pc on 
@@ -1026,14 +1032,15 @@ func lGrantsPersist(app *grantApplication) {
 							rr.revision_number is null
 					`,
 					db.Params{
-						"app_id":         app.lId(),
-						"rev_ids":        resourceRevId,
-						"cat_names":      resourceCatName,
-						"cat_providers":  resourceCatProvider,
-						"grant_givers":   resourceGrantGiver,
-						"resource_start": resourceStart,
-						"resource_end":   resourceEnd,
-						"resource_quota": resourceQuota,
+						"app_id":           app.lId(),
+						"rev_ids":          resourceRevId,
+						"cat_names":        resourceCatName,
+						"cat_providers":    resourceCatProvider,
+						"grant_givers":     resourceGrantGiver,
+						"resource_start":   resourceStart,
+						"resource_end":     resourceEnd,
+						"resource_quota":   resourceQuota,
+						"resource_package": resourcePackage,
 					},
 				)
 			}

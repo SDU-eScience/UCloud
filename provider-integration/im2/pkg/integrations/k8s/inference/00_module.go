@@ -390,9 +390,10 @@ func Init() {
 	inferenceGlobals.Product = apm.ProductV2{
 		Type: apm.ProductTypeCInference,
 		Category: apm.ProductCategory{
-			Name:        "inference",
-			Provider:    cfg.Provider.Id,
-			ProductType: apm.ProductTypeInference,
+			AccountingModel: apm.AccountingModelConsumption,
+			Name:            "inference",
+			Provider:        cfg.Provider.Id,
+			ProductType:     apm.ProductTypeInference,
 			AccountingUnit: apm.AccountingUnit{
 				Name:                   "Credit",
 				NamePlural:             "Credits",

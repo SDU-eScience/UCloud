@@ -388,12 +388,12 @@ func initUsageReports() {
 				Reports          []internalUsageReportWithProduct
 				Title            string
 				UnitAndFrequency accapi.AccountingUnitAndFrequency
+				AccountingModel  accapi.AccountingModel
 				Products         []accapi.ProductCategoryIdV2
 			}
 
 			computeReportsByUnit := map[string]*aggregatedReport{}
-			storageReportsTimeBased := &aggregatedReport{}
-			storageReportsCapacity := &aggregatedReport{}
+			storageReportsByUnit := map[string]*aggregatedReport{}
 
 			var reports []accapi.UsageReport
 			for _, w := range wallets {
@@ -430,6 +430,7 @@ func initUsageReports() {
 					report :=
 						usageCollapseReports(historicReportsWithProduct)
 					apiReport := report.ToApi()
+					apiReport.AccountingModel = w.PaysFor.AccountingModel
 					apiReport.Title = w.PaysFor.Name
 					apiReport.ProductsCovered = []accapi.ProductCategoryIdV2{w.PaysFor.ToId()}
 					apiReport.UnitAndFrequency = accapi.AccountingUnitAndFrequency{
@@ -454,16 +455,18 @@ func initUsageReports() {
 						scalingFactor = float64(freq.ToSeconds()) / (60.0 * 60.0)
 
 						if freq.IsPeriodic() {
-							current, ok := computeReportsByUnit[w.PaysFor.AccountingUnit.Name]
+							key := string(w.PaysFor.AccountingModel) + "/" + w.PaysFor.AccountingUnit.Name
+							current, ok := computeReportsByUnit[key]
 							if !ok {
 								report = &aggregatedReport{
-									Title: fmt.Sprintf("%s-hours", w.PaysFor.AccountingUnit.Name),
+									Title:           fmt.Sprintf("%s-hours", w.PaysFor.AccountingUnit.Name),
+									AccountingModel: w.PaysFor.AccountingModel,
 									UnitAndFrequency: accapi.AccountingUnitAndFrequency{
 										Unit:      w.PaysFor.AccountingUnit,
 										Frequency: accapi.AccountingFrequencyPeriodicHour,
 									},
 								}
-								computeReportsByUnit[w.PaysFor.AccountingUnit.Name] = report
+								computeReportsByUnit[key] = report
 							} else {
 								report = current
 							}
@@ -473,21 +476,25 @@ func initUsageReports() {
 
 					} else if productType == accapi.ProductTypeStorage {
 						if w.PaysFor.AccountingUnit.Name == "GB" {
+							title := "GB"
+							frequency := accapi.AccountingFrequencyOnce
 							if freq.IsPeriodic() {
 								scalingFactor = float64(freq.ToSeconds()) / (60.0 * 60.0 * 24.0)
-								report = storageReportsTimeBased
-								report.Title = "GB-days"
-								report.UnitAndFrequency = accapi.AccountingUnitAndFrequency{
-									Unit:      w.PaysFor.AccountingUnit,
-									Frequency: accapi.AccountingFrequencyPeriodicDay,
+								title = "GB-days"
+								frequency = accapi.AccountingFrequencyPeriodicDay
+							}
+							key := string(w.PaysFor.AccountingModel) + "/" + title
+							report = storageReportsByUnit[key]
+							if report == nil {
+								report = &aggregatedReport{
+									Title:           title,
+									AccountingModel: w.PaysFor.AccountingModel,
+									UnitAndFrequency: accapi.AccountingUnitAndFrequency{
+										Unit:      w.PaysFor.AccountingUnit,
+										Frequency: frequency,
+									},
 								}
-							} else {
-								report = storageReportsCapacity
-								report.Title = "GB"
-								report.UnitAndFrequency = accapi.AccountingUnitAndFrequency{
-									Unit:      w.PaysFor.AccountingUnit,
-									Frequency: accapi.AccountingFrequencyOnce,
-								}
+								storageReportsByUnit[key] = report
 							}
 						} else {
 							report = nil // TODO?
@@ -539,9 +546,16 @@ func initUsageReports() {
 				}
 			}
 
-			allAggregatedReports := append([]*aggregatedReport{}, storageReportsCapacity, storageReportsTimeBased)
+			var allAggregatedReports []*aggregatedReport
+			for _, report := range storageReportsByUnit {
+				allAggregatedReports = append(allAggregatedReports, report)
+			}
 			for _, report := range computeReportsByUnit {
 				allAggregatedReports = append(allAggregatedReports, report)
+			}
+			titleCounts := map[string]int{}
+			for _, report := range allAggregatedReports {
+				titleCounts[report.Title]++
 			}
 			for _, report := range allAggregatedReports {
 				if report.Title == "" || len(report.Products) == 0 {
@@ -551,8 +565,12 @@ func initUsageReports() {
 				collapsed := usageCollapseReports(report.Reports)
 				apiReport := collapsed.ToApi()
 				apiReport.Title = report.Title
+				if titleCounts[report.Title] > 1 {
+					apiReport.Title = fmt.Sprintf("%s (%s)", report.Title, report.AccountingModel)
+				}
 				apiReport.ProductsCovered = report.Products
 				apiReport.UnitAndFrequency = report.UnitAndFrequency
+				apiReport.AccountingModel = report.AccountingModel
 
 				reports = append(reports, apiReport)
 			}

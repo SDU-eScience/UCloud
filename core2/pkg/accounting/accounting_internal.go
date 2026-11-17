@@ -175,16 +175,7 @@ type internalBucket struct {
 }
 
 func (b *internalBucket) IsCapacityBased() bool { // does not require any mutex
-	if b.Category.ProductType == accapi.ProductTypeInference {
-		return false
-	}
-
-	switch b.Category.AccountingFrequency {
-	case accapi.AccountingFrequencyOnce:
-		return true
-	default:
-		return false
-	}
+	return b.Category.AccountingModel == accapi.AccountingModelCapacity
 }
 
 type internalWallet struct {
@@ -249,7 +240,8 @@ type internalAllocation struct {
 	Group     accGroupId
 
 	// GrantedIn links grant-awarded allocations to the logical grant commit. Root/manual allocations have no grant ID.
-	GrantedIn util.Option[accGrantId]
+	GrantedIn         util.Option[accGrantId]
+	AllocationPackage bool
 
 	// Quota is the amount this allocation contributes while current. Capacity retirement leaves the original value here
 	// but excludes the allocation from contributing quota. Non-capacity retirement replaces it with RetiredUsage so the
@@ -706,6 +698,23 @@ func internalUpdateAllocation(
 	proposedNewEnd := iAlloc.End
 	if newEnd.Present {
 		proposedNewEnd = newEnd.Value.Time()
+	}
+	if iAlloc.AllocationPackage {
+		if !proposedNewStart.Before(proposedNewEnd) {
+			b.Mu.Unlock()
+			return grantedIn, changelog, util.HttpErr(http.StatusBadRequest, "allocation slices must have a positive duration")
+		}
+		group := iWallet.AllocationsByParent[iAlloc.Parent]
+		for siblingId := range group.Allocations {
+			sibling := b.AllocationsById[siblingId]
+			if siblingId == allocationId || !sibling.AllocationPackage || sibling.GrantedIn != iAlloc.GrantedIn {
+				continue
+			}
+			if proposedNewStart.Before(sibling.End) && proposedNewEnd.After(sibling.Start) {
+				b.Mu.Unlock()
+				return grantedIn, changelog, util.HttpErr(http.StatusBadRequest, "allocation slices must not overlap")
+			}
+		}
 	}
 
 	proposedNewQuota := iAlloc.Quota
@@ -2185,10 +2194,11 @@ func lInternalWalletToApi(
 				GrantedIn: util.OptDefaultOrMap(alloc.GrantedIn, util.OptNone[int64](), func(val accGrantId) util.Option[int64] {
 					return util.OptValue(int64(val))
 				}),
-				RetiredUsage: alloc.RetiredUsage,
-				RetiredQuota: alloc.RetiredQuota,
-				Retired:      alloc.Retired,
-				Activated:    alloc.Active,
+				RetiredUsage:      alloc.RetiredUsage,
+				AllocationPackage: alloc.AllocationPackage,
+				RetiredQuota:      alloc.RetiredQuota,
+				Retired:           alloc.Retired,
+				Activated:         alloc.Active,
 			})
 
 			if alloc.Active && (!alloc.Retired || retiredContributes) {

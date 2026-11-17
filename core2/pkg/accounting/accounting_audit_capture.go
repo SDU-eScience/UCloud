@@ -154,7 +154,7 @@ func accountingAuditFindings(snapshot snapshotReport) []AccountingAuditFinding {
 	return result
 }
 
-func captureAccountingAuditWallets(tx *db.Transaction, now time.Time) []AccountingAuditWallet {
+func accountingUpgradeCaptureAuditWallets(tx *db.Transaction, now time.Time) []AccountingAuditWallet {
 	rows := db.Select[accountingAuditWalletRow](
 		tx,
 		`

@@ -58,7 +58,7 @@ type snapshotReport struct {
 	Buckets  []snapshotBucket  `yaml:"buckets"`
 }
 
-func analyzeSnapshotFromTx(tx *db.Transaction, now time.Time) snapshotReport {
+func accountingUpgradeAnalyzeSnapshotFromTx(tx *db.Transaction, now time.Time) snapshotReport {
 	result := snapshotReport{
 		Findings: []snapshotFinding{},
 		Buckets:  []snapshotBucket{},
@@ -90,8 +90,8 @@ func analyzeSnapshotFromTx(tx *db.Transaction, now time.Time) snapshotReport {
 		persistedWalletValues[row.Id] = row
 	}
 
-	productsLoadFromTx(tx)
-	accountingLoadFromTx(tx, now, func(message string) {
+	accountingUpgradeLoadProducts(tx)
+	accountingUpgradeLoadAccounting(tx, now, func(message string) {
 		result.Summary.LoadErrors++
 		result.Findings = append(result.Findings, snapshotFinding{
 			Code:    snapshotLoadFindingCode(message),

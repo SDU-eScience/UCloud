@@ -1086,6 +1086,7 @@ const products: ProductV2Compute[] = (() => {
     }));
 
     const gpuCategory: ProductCategoryV2 = {
+        accountingModel: "CONSUMPTION",
         name: "gpu-nvidia-b200",
         provider: "ucloud",
         productType: "COMPUTE",
@@ -1156,6 +1157,7 @@ function generateProducts(
     while (coreCount <= opts.maxCpuCount) {
         const name = opts.maxGpuCount == null ? `${opts.baseName}-${coreCount}` : `${opts.baseName}-${iteration}`;
         const category: ProductCategoryV2 = {
+            accountingModel: opts.payByCoreHours ? "CONSUMPTION" : "CAPACITY",
             name: opts.baseName,
             provider: opts.providerName,
             productType: "COMPUTE",

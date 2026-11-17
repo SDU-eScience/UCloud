@@ -1,10 +1,12 @@
 import * as React from "react";
-import {useEffect, useRef, useState} from "react";
+import {useLayoutEffect, useRef, useState} from "react";
 import {Button, Icon} from "@/ui-components";
+import {SubmitShortcut} from "@/Applications/KeyboardNavigation";
 import {IconButton} from "@/ui-components/IconButton";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {injectStyle} from "@/Unstyled";
 import type {AllocationDateRange} from "@/Accounting/Allocations/AllocationGrid";
+import {isLikelyMac} from "@/UtilityFunctions";
 import {format} from "date-fns";
 
 const AllocationPeriodFilterClass = injectStyle("allocation-period-filter", k => `
@@ -16,8 +18,8 @@ const AllocationPeriodFilterClass = injectStyle("allocation-period-filter", k =>
 const AllocationPeriodPanelClass = injectStyle("allocation-period-panel", k => `
     ${k} { box-sizing: border-box; padding: 12px; color: var(--textPrimary); cursor: default; max-height: min(478px, calc(100vh - 34px)); overflow-y: auto; }
     ${k} h4 { margin: 0; font-size: 14px; font-weight: 600; }
-    ${k} .period-presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
-    ${k} .period-presets > button { flex: 1; min-width: 0; padding: 4px 6px; white-space: nowrap; }
+    ${k} .period-presets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 8px 0; }
+    ${k} .period-presets > button { min-width: 0; padding: 4px 8px; white-space: nowrap; justify-content: space-between; }
     ${k} .period-bounds { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0 12px; }
     ${k} .period-bound { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0 0 6px; border: 0; border-bottom: 1px solid transparent; background: transparent; color: var(--textSecondary); cursor: pointer; font-size: 13px; line-height: 16px; text-align: left; }
     ${k} .period-bound small { color: var(--textSecondary); font-size: 11px; }
@@ -33,14 +35,18 @@ const AllocationPeriodPanelClass = injectStyle("allocation-period-panel", k => `
     ${k} button:focus-visible { outline: 2px solid var(--textPrimary); outline-offset: 2px; }
 `);
 
-export function allocationCurrentCalendarYear(): AllocationDateRange {
-    const year = new Date().getFullYear();
+function calendarYearRange(year: number): AllocationDateRange {
     return {start: new Date(year, 0, 1), end: new Date(year, 11, 31)};
+}
+
+export function allocationCurrentCalendarYear(): AllocationDateRange {
+    return calendarYearRange(new Date().getFullYear());
 }
 
 export function AllocationPeriodFilter(props: {
     value: AllocationDateRange;
     onChange: (value: AllocationDateRange) => void;
+    navigationField?: boolean;
 }): React.ReactNode {
     const [open, setOpen] = useState(false);
     const [start, setStart] = useState(props.value.start);
@@ -50,14 +56,25 @@ export function AllocationPeriodFilter(props: {
     const [hoveredMonth, setHoveredMonth] = useState<number | null>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
+    const pendingFocusMonthRef = useRef<number | null>(null);
 
-    useEffect(() => {
-        if (!open) return;
+    const setPanelNode = React.useCallback((node: HTMLDivElement | null) => {
+        panelRef.current = node;
+        if (!node) return;
+        requestAnimationFrame(() => {
+            node.querySelector<HTMLButtonElement>(".period-month[aria-pressed='true']")?.focus();
+        });
+    }, []);
+
+    useLayoutEffect(() => {
+        const month = pendingFocusMonthRef.current;
+        if (month === null) return;
+        pendingFocusMonthRef.current = null;
         const frame = requestAnimationFrame(() => {
-            panelRef.current?.querySelector<HTMLButtonElement>(".period-month[aria-pressed='true']")?.focus();
+            panelRef.current?.querySelectorAll<HTMLButtonElement>(".period-month")[month]?.focus();
         });
         return () => cancelAnimationFrame(frame);
-    }, [open]);
+    }, [year]);
 
     const closePicker = () => {
         setOpen(false);
@@ -76,11 +93,72 @@ export function AllocationPeriodFilter(props: {
     const rangeStart = previewEnd === null ? startMonth : Math.min(startMonth, previewEnd);
     const rangeEnd = previewEnd === null ? startMonth : Math.max(startMonth, previewEnd);
 
+    const focusApply = () => {
+        requestAnimationFrame(() => panelRef.current?.querySelector<HTMLButtonElement>(".period-apply")?.focus());
+    };
+    const nextTwelveMonths = (): AllocationDateRange => {
+        const now = new Date();
+        return {start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + 12, 0)};
+    };
+    const onPanelKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+        const primaryPressed = isLikelyMac ? event.metaKey : event.ctrlKey;
+        if (event.altKey && primaryPressed && !event.shiftKey) {
+            let range: AllocationDateRange | null = null;
+            if (event.code === "KeyC") range = allocationCurrentCalendarYear();
+            if (event.code === "KeyL") range = calendarYearRange(new Date().getFullYear() - 1);
+            if (event.code === "KeyN") range = calendarYearRange(new Date().getFullYear() + 1);
+            if (event.code === "KeyR") range = nextTwelveMonths();
+            if (range) {
+                event.preventDefault();
+                event.stopPropagation();
+                selectPreset(range);
+                focusApply();
+                return;
+            }
+            if (event.key === "Enter") {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!end) return;
+                props.onChange({start, end});
+                closePicker();
+                return;
+            }
+        }
+        if (event.altKey || event.ctrlKey || event.metaKey) return;
+        if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            closePicker();
+            return;
+        }
+        const movementKeys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"];
+        if (!movementKeys.includes(event.key)) return;
+        const buttons = Array.from(panelRef.current?.querySelectorAll<HTMLButtonElement>(".period-month") ?? []);
+        const currentIndex = buttons.indexOf(document.activeElement as HTMLButtonElement);
+        if (currentIndex === -1) return;
+        let targetIndex = currentIndex;
+        if (event.key === "ArrowLeft") targetIndex--;
+        if (event.key === "ArrowRight") targetIndex++;
+        if (event.key === "ArrowUp") targetIndex -= 3;
+        if (event.key === "ArrowDown") targetIndex += 3;
+        if (event.key === "Home") targetIndex = 0;
+        if (event.key === "End") targetIndex = 11;
+        event.preventDefault();
+        event.stopPropagation();
+        if (targetIndex < 0 || targetIndex > 11) {
+            pendingFocusMonthRef.current = ((targetIndex % 12) + 12) % 12;
+            setYear(year + (targetIndex < 0 ? -1 : 1));
+        } else {
+            buttons[targetIndex]?.focus();
+        }
+    };
+
     return <div
         ref={wrapperRef}
         className={AllocationPeriodFilterClass}
     >
         <ClickableDropdown
+            data-navigation-field={props.navigationField ? true : undefined}
             open={open}
             onClose={() => setOpen(false)}
             onOpeningTriggerClick={() => {
@@ -95,25 +173,26 @@ export function AllocationPeriodFilter(props: {
             triggerAriaLabel="Choose allocation period"
             focusable
             rightAligned
-            width={360}
+            width={380}
             height={480}
             keepOpenOnClick
             colorOnHover={false}
             paddingControlledByContent
             noYPadding
         >
-            <div ref={panelRef} className={AllocationPeriodPanelClass} role="dialog" aria-label="Choose allocation period">
+            <div ref={setPanelNode} className={AllocationPeriodPanelClass} role="dialog" aria-label="Choose allocation period" onKeyDown={onPanelKeyDown}>
                 <h4>Allocation period</h4>
                 <div className="period-presets">
-                    <Button color="ghost" height={25} onClick={() => selectPreset(allocationCurrentCalendarYear())}>Current year</Button>
+                    <Button color="ghost" height={25} onClick={() => selectPreset(allocationCurrentCalendarYear())}>Current year<SubmitShortcut shortcut="C" /></Button>
                     <Button color="ghost" height={25} onClick={() => {
-                        const previous = new Date().getFullYear() - 1;
-                        selectPreset({start: new Date(previous, 0, 1), end: new Date(previous, 11, 31)});
-                    }}>Last year</Button>
+                        selectPreset(calendarYearRange(new Date().getFullYear() - 1));
+                    }}>Last year<SubmitShortcut shortcut="L" /></Button>
                     <Button color="ghost" height={25} onClick={() => {
-                        const now = new Date();
-                        selectPreset({start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + 12, 0)});
-                    }}>Next 12 months</Button>
+                        selectPreset(calendarYearRange(new Date().getFullYear() + 1));
+                    }}>Next year<SubmitShortcut shortcut="N" /></Button>
+                    <Button color="ghost" height={25} onClick={() => {
+                        selectPreset(nextTwelveMonths());
+                    }}>Next 12 months<SubmitShortcut shortcut="R" /></Button>
                 </div>
                 <div className="period-bounds">
                     <button type="button" className="period-bound" aria-pressed={step === "start"} onClick={() => {
@@ -170,11 +249,11 @@ export function AllocationPeriodFilter(props: {
                 </div>
                 <div className="period-footer">
                     <Button color="errorMain" onClick={closePicker}>Cancel</Button>
-                    <Button color="successMain" disabled={!end} onClick={() => {
+                    <Button className="period-apply" color="successMain" disabled={!end} onClick={() => {
                         if (!end) return;
                         props.onChange({start, end});
                         closePicker();
-                    }}>Apply period</Button>
+                    }}>Apply period<SubmitShortcut /></Button>
                 </div>
             </div>
         </ClickableDropdown>

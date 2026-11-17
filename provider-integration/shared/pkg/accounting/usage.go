@@ -34,6 +34,7 @@ type UsageRetrieveResponse struct {
 }
 
 type UsageReport struct {
+	AccountingModel  AccountingModel            `json:"accountingModel"`
 	Title            string                     `json:"title"`
 	ProductsCovered  []ProductCategoryIdV2      `json:"productsCovered"`
 	UnitAndFrequency AccountingUnitAndFrequency `json:"unitAndFrequency"`
@@ -68,8 +69,8 @@ type UsageReportAbsoluteDataPoint struct {
 }
 
 type UsageReportOverTime struct {
-	Delta            []UsageReportDeltaDataPoint    `json:"delta"`
-	Absolute         []UsageReportAbsoluteDataPoint `json:"absolute"`
+	Delta            []UsageReportDeltaDataPoint            `json:"delta"`
+	Absolute         []UsageReportAbsoluteDataPoint         `json:"absolute"`
 	ChildrenAbsolute []UsageReportAbsoluteChildrenDataPoint `json:"childrenAbsolute"`
 }
 

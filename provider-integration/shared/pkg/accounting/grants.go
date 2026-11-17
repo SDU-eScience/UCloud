@@ -561,30 +561,33 @@ func (r *Recipient) Valid() bool {
 }
 
 type AllocationRequest struct {
-	Category         string             `json:"category"`
-	Provider         string             `json:"provider"`
-	GrantGiver       string             `json:"grantGiver"`
-	BalanceRequested util.Option[int64] `json:"balanceRequested"`
-	Period           Period             `json:"period"`
+	Category          string             `json:"category"`
+	Provider          string             `json:"provider"`
+	GrantGiver        string             `json:"grantGiver"`
+	BalanceRequested  util.Option[int64] `json:"balanceRequested"`
+	Period            Period             `json:"period"`
+	AllocationPackage bool               `json:"allocationPackage,omitempty"`
 }
 
 func (ar AllocationRequest) MarshalJSON() ([]byte, error) {
 	type wrapper struct {
-		Category         string              `json:"category"`
-		Provider         string              `json:"provider"`
-		GrantGiver       string              `json:"grantGiver"`
-		BalanceRequested util.Option[int64]  `json:"balanceRequested"`
-		Period           Period              `json:"period"`
-		GrantGiverTitle  util.Option[string] `json:"grantGiverTitle"`
+		Category          string              `json:"category"`
+		Provider          string              `json:"provider"`
+		GrantGiver        string              `json:"grantGiver"`
+		BalanceRequested  util.Option[int64]  `json:"balanceRequested"`
+		Period            Period              `json:"period"`
+		GrantGiverTitle   util.Option[string] `json:"grantGiverTitle"`
+		AllocationPackage bool                `json:"allocationPackage,omitempty"`
 	}
 
 	w := wrapper{
-		Category:         ar.Category,
-		Provider:         ar.Provider,
-		GrantGiver:       ar.GrantGiver,
-		BalanceRequested: ar.BalanceRequested,
-		Period:           ar.Period,
-		GrantGiverTitle:  util.OptValue(ar.GrantGiver),
+		Category:          ar.Category,
+		Provider:          ar.Provider,
+		GrantGiver:        ar.GrantGiver,
+		BalanceRequested:  ar.BalanceRequested,
+		Period:            ar.Period,
+		GrantGiverTitle:   util.OptValue(ar.GrantGiver),
+		AllocationPackage: ar.AllocationPackage,
 	}
 
 	return json.Marshal(w)

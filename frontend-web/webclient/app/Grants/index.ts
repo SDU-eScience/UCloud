@@ -242,6 +242,7 @@ export type Recipient =
     {type: "personalWorkspace", username: string;};
 
 export interface AllocationRequest {
+    allocationPackage?: boolean;
     category: string;
     provider: string;
     grantGiver: string;

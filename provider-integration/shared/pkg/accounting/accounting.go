@@ -46,14 +46,15 @@ type AllocationGroup struct {
 }
 
 type Allocation struct {
-	Id           int64              `json:"id,omitempty"`
-	StartDate    fnd.Timestamp      `json:"startDate"`
-	EndDate      fnd.Timestamp      `json:"endDate"`
-	Quota        int64              `json:"quota"`
-	GrantedIn    util.Option[int64] `json:"grantedIn"`
-	RetiredQuota int64              `json:"retiredQuota"`
-	Activated    bool               `json:"actived"`
-	Retired      bool               `json:"retired"`
+	Id                int64              `json:"id,omitempty"`
+	StartDate         fnd.Timestamp      `json:"startDate"`
+	EndDate           fnd.Timestamp      `json:"endDate"`
+	Quota             int64              `json:"quota"`
+	GrantedIn         util.Option[int64] `json:"grantedIn"`
+	AllocationPackage bool               `json:"allocationPackage,omitempty"`
+	RetiredQuota      int64              `json:"retiredQuota"`
+	Activated         bool               `json:"actived"`
+	Retired           bool               `json:"retired"`
 
 	// deprecated - do not use
 	RetiredUsage int64 `json:"retiredUsage"`

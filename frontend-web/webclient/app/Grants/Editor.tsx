@@ -772,7 +772,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 const alreadyThere = [...category.allocators.values()].find(allocator => allocator.grantGiverId === request.grantGiver && allocator.grantGiverTitle === request.grantGiverTitle)
                 const inputValue = Accounting.allocationInputValue(category.category, request.balanceRequested);
                 if (alreadyThere) {
-                    category.totalBalanceRequested[request.grantGiver] = inputValue;
+                    category.totalBalanceRequested[request.grantGiver] = request.allocationPackage
+                        ? (category.totalBalanceRequested[request.grantGiver] ?? 0) + inputValue
+                        : inputValue;
                 } else {
                     category.allocators.add({
                         grantGiverId: request.grantGiver,

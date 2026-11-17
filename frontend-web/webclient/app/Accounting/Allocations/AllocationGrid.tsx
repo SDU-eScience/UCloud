@@ -26,6 +26,8 @@ import {allocationCompareProducts, allocationDisplayUnit} from "./AllocationPres
 import {AllocationFilters} from "./AllocationFilters";
 import type {AllocationFilterState} from "./AllocationFilters";
 import {AllocationAmount, AllocationUsage} from "./AllocationCells";
+import {AllocationBreakdownDialog} from "./AllocationBreakdownDialog";
+import type {AllocationSlice} from "./AllocationSlices";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EXPIRING_WINDOW_MS = 30 * DAY_MS;
@@ -110,6 +112,8 @@ interface AllocationGridRow {
     productQuota: number;
     productUsage: number;
     productAvailable: number;
+    slices?: AllocationSlice[];
+    activeSliceQuota?: number;
 }
 
 export function allocationDateRangeBounds(range?: AllocationDateRange): {start: number | null; end: number | null} {
@@ -198,11 +202,6 @@ function workspaceInfo(recipient: AllocationDisplayTreeRecipient, projectInfo: R
     };
 }
 
-function effectiveUsage(raw: {usage: number; retiredAmount: number; retiredAmountStillCounts: boolean}): number {
-    if (raw.retiredAmountStillCounts) return raw.usage;
-    return Math.max(0, raw.usage - raw.retiredAmount);
-}
-
 function openGrantApplication(grantId: number): void {
     window.open(window.origin + "/app" + AppRoutes.grants.editor(grantId), "_blank");
 }
@@ -224,12 +223,16 @@ function renderWorkspaceCell(row: AllocationGridRow, isFirstInGroup: boolean): R
     </div>;
 }
 
-function renderProductCell(row: AllocationGridRow): React.ReactNode {
+function renderProductCell(row: AllocationGridRow, onBreakdown: () => void): React.ReactNode {
     return <div className="allocation-product">
         <ProviderLogo providerId={row.provider} size={14} />
         <span className="allocation-product-name">{row.productName}</span>
         <span className="allocation-product-meta">
             {getShortProviderTitle(row.provider)}
+            {row.slices ? <> · <button className="allocation-breakdown-link" onClick={event => {
+                event.stopPropagation();
+                onBreakdown();
+            }}>{row.slices.length} slices</button></> : null}
         </span>
     </div>;
 }
@@ -279,6 +282,10 @@ function renderGrantCell(
 }
 
 const AllocationGridClass = injectStyle("allocation-grid", k => `
+    ${k} .allocation-breakdown-link { border: 0; padding: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+    ${k} .allocation-breakdown-link:hover { text-decoration: underline; }
+    ${k} .allocation-package-quota { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    ${k} .allocation-package-quota small { color: var(--textSecondary); font-size: 10.5px; }
     ${k} {
         display: flex;
         flex-direction: column;
@@ -449,6 +456,7 @@ const AllocationGridClass = injectStyle("allocation-grid", k => `
 `);
 
 export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
+    const [breakdownKey, setBreakdownKey] = useState<string | null>(null);
     const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
     const store = useMemo(() => new UcxTableStore(), []);
     useLayoutEffect(() => {
@@ -485,27 +493,51 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
 
             const workspace = workspaceInfo(recipient, props.projectInfo);
             for (const group of recipient.groups) {
-                const usage = effectiveUsage(group.usageAndQuota.raw);
+                const usage = group.usageAndQuota.raw.usage;
                 const quota = group.usageAndQuota.raw.quota;
                 const available = quota - usage;
                 const unitInfo = explainUnit(group.category);
                 const unit = allocationDisplayUnit(group.category);
 
+                const packages = new Map<string, typeof group.allocations>();
                 for (const allocation of group.allocations) {
-                    if (!allocationOverlapsRange(allocation.start, allocation.end, range)) continue;
+                    const key = allocation.allocationPackage && allocation.grantedIn !== undefined
+                        ? `package:${recipientIdx}/${group.category.provider}/${group.category.name}/${allocation.grantedIn}`
+                        : `allocation:${allocation.allocationId}`;
+                    const entries = packages.get(key) ?? [];
+                    entries.push(allocation);
+                    packages.set(key, entries);
+                }
+                for (const [key, allocations] of packages) {
+                    if (!allocations.some(allocation => allocationOverlapsRange(
+                        allocation.start,
+                        allocation.allocationPackage ? allocation.end - 1 : allocation.end,
+                        range,
+                    ))) continue;
+                    const allocation = allocations[0];
+                    const packaged = allocation.allocationPackage && allocation.grantedIn !== undefined;
+                    const slices = packaged ? allocations.map(entry => ({
+                        allocationId: entry.allocationId,
+                        start: entry.start,
+                        end: entry.end,
+                        quota: entry.retired ? entry.retiredQuota ?? entry.quota : entry.quota,
+                    })).sort((a, b) => a.start - b.start) : undefined;
+                    const start = slices ? Math.min(...slices.map(slice => slice.start)) : allocation.start;
+                    const end = slices ? Math.max(...slices.map(slice => slice.end)) - 1 : allocation.end;
+                    const packageQuota = slices ? slices.reduce((sum, slice) => sum + slice.quota, 0) : allocation.quota;
 
-                    const normalizedQuota = allocation.quota * unitInfo.balanceFactor;
-                    const state = stateForAllocation(allocation.start, allocation.end, usage, quota);
-                    const lifecycleState = lifecycleStateForAllocation(allocation.start, allocation.end);
+                    const normalizedQuota = packageQuota * unitInfo.balanceFactor;
+                    const state = stateForAllocation(start, end, usage, quota);
+                    const lifecycleState = lifecycleStateForAllocation(start, end);
 
                     result.push({
-                        key: `allocation:${allocation.allocationId}`,
+                        key,
                         group: `${workspace.title}\u0000${workspace.id}`,
                         category: group.category,
                         allocationId: allocation.allocationId,
                         recipientIndex: recipientIdx,
-                        start: allocation.start,
-                        end: allocation.end,
+                        start,
+                        end,
                         grantId: allocation.grantedIn,
                         workspaceTitle: workspace.title,
                         workspacePi: workspace.pi,
@@ -517,10 +549,13 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                         lifecycleState,
                         isLastInGroup: false,
                         allocationQuota: normalizedQuota,
-                        allocationQuotaRaw: allocation.quota,
+                        allocationQuotaRaw: packageQuota,
                         productQuota: quota,
                         productUsage: usage,
                         productAvailable: available,
+                        slices,
+                        activeSliceQuota: slices?.filter(slice => slice.start <= Date.now() && Date.now() < slice.end)
+                            .reduce((sum, slice) => sum + slice.quota * unitInfo.balanceFactor, 0),
                     });
                 }
             }
@@ -621,6 +656,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                 disabledReason: "Expired allocations cannot be edited",
             },
             ...(row.grantId === undefined ? [] : [{id: "viewGrant", enabled: true}]),
+            ...(row.slices ? [{id: "breakdown", enabled: true}] : []),
         ],
     })), [rows]);
 
@@ -672,6 +708,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
     const actionDefs = useMemo((): UcxTableActionDef[] => [
         {id: "edit", label: "Edit allocation", icon: "heroPencil", kind: "custom", shortcut: "e"},
         {id: "viewGrant", label: "View grant application", icon: "heroArrowTopRightOnSquare", kind: "custom"},
+        {id: "breakdown", label: "View allocation breakdown", icon: "heroBars3", kind: "custom"},
     ], []);
 
     const openGrant = props.onOpenGrant ?? openGrantApplication;
@@ -681,6 +718,10 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         if (!row) return;
 
         if (event.actionId === "edit") {
+            if (row.slices) {
+                setBreakdownKey(row.key);
+                return;
+            }
             props.onEdit({
                 category: row.category,
                 allocationId: row.allocationId,
@@ -691,6 +732,8 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             });
         } else if (event.actionId === "viewGrant" && row.grantId !== undefined) {
             openGrant(row.grantId);
+        } else if (event.actionId === "breakdown") {
+            setBreakdownKey(row.key);
         }
     }, [openGrant, props.onEdit, rowByKey]);
 
@@ -698,7 +741,9 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         const row = rowByKey.get(event.rowKey);
         if (!row) return;
 
-        if (row.grantId !== undefined) {
+        if (row.slices) {
+            setBreakdownKey(row.key);
+        } else if (row.grantId !== undefined) {
             openGrant(row.grantId);
         } else if (row.end >= Date.now()) {
             props.onEdit({
@@ -720,10 +765,16 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             case COLUMN_KEYS.workspace:
                 return renderWorkspaceCell(row, context.isFirstInGroup);
             case COLUMN_KEYS.product:
-                return renderProductCell(row);
+                return renderProductCell(row, () => setBreakdownKey(row.key));
             case COLUMN_KEYS.period:
                 return renderPeriodCell(row);
             case COLUMN_KEYS.quota:
+                if (row.slices) return <TooltipV2 tooltip="Total quota for this package. Active quota belongs to the current slice only.">
+                    <div className="allocation-package-quota">
+                        <span>{formatNumber(row.allocationQuota, {precision: 2, removeTrailingZeros: true})} <small>{row.unit}</small></span>
+                        <small>{formatNumber(row.activeSliceQuota ?? 0, {precision: 2, removeTrailingZeros: true})} active</small>
+                    </div>
+                </TooltipV2>;
                 return renderNumber(row.allocationQuota, row.unit, "Quota for this allocation");
             case COLUMN_KEYS.usage:
                 return renderUsageCell(row);
@@ -741,7 +792,26 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         }
     }, [props.renderGrantLink, rowByKey]);
 
+    const breakdownRow = baseRows.find(row => row.key === breakdownKey);
     return <div className={AllocationGridClass}>
+        {breakdownRow?.slices ? <AllocationBreakdownDialog
+            category={breakdownRow.category}
+            workspaceTitle={breakdownRow.workspaceTitle}
+            slices={breakdownRow.slices}
+            onClose={() => setBreakdownKey(null)}
+            onEdit={slice => {
+                if (slice.allocationId === undefined) return;
+                setBreakdownKey(null);
+                props.onEdit({
+                    category: breakdownRow.category,
+                    allocationId: slice.allocationId,
+                    start: slice.start,
+                    end: slice.end,
+                    quota: slice.quota,
+                    workspaceTitle: breakdownRow.workspaceTitle,
+                });
+            }}
+        /> : null}
         <AllocationFilters
             query={query}
             onQueryChange={setQuery}

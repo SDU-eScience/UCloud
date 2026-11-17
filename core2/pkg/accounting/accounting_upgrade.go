@@ -228,7 +228,7 @@ func AccountingUpgrade(tx *db.Transaction) {
 	bundle.Blockers = append(bundle.Blockers, bundle.Duplicates.Blockers...)
 	accountingUpgradeCheck(tx, &bundle)
 	bundle.Phase = "approved findings repairs"
-	bundle.Repairs = accountingRepairFindingsTx(tx)
+	bundle.Repairs = accountingUpgradeRepairFindingsTx(tx)
 	bundle.Blockers = append(bundle.Blockers, bundle.Repairs.Blockers...)
 	accountingUpgradeCheck(tx, &bundle)
 	bundle.Phase = "derived flow"
@@ -740,7 +740,7 @@ func accountingUpgradeCycles(tx *db.Transaction, bundle *accountingUpgradeBundle
 		}
 	}
 	accountingUpgradeCheck(tx, bundle)
-	bundle.Cycles = planFindingsRepairCycles(groups, selectFindingsRepairAllocations(tx))
+	bundle.Cycles = planFindingsRepairCycles(groups, accountingUpgradeSelectRepairAllocations(tx))
 	ids := []int64{}
 	for _, deletion := range bundle.Cycles.AllocationDeletions {
 		ids = append(ids, deletion.Id)
@@ -762,7 +762,7 @@ func accountingUpgradeCycles(tx *db.Transaction, bundle *accountingUpgradeBundle
 }
 
 func accountingUpgradeCapture(tx *db.Transaction, now time.Time, legacy bool) AccountingAuditCapture {
-	snapshot := analyzeSnapshotFromTx(tx, now)
+	snapshot := accountingUpgradeAnalyzeSnapshotFromTx(tx, now)
 	for _, bucket := range accGlobals.BucketsByCategory {
 		bucket.legacyProjection = legacy
 		if legacy {
@@ -774,7 +774,7 @@ func accountingUpgradeCapture(tx *db.Transaction, now time.Time, legacy bool) Ac
 	result := AccountingAuditCapture{
 		SchemaVersion: accountingAuditSchemaVersion, CapturedAt: now, Database: "upgrade",
 		Totals: snapshot.Totals, Findings: accountingAuditFindings(snapshot),
-		Wallets: captureAccountingAuditWallets(tx, now), Groups: captureAccountingAuditGroups(tx),
+		Wallets: accountingUpgradeCaptureAuditWallets(tx, now), Groups: captureAccountingAuditGroups(tx),
 		Allocations: captureAccountingAuditAllocations(tx, now), Scopes: captureAccountingAuditScopes(tx),
 	}
 	allocationCounts := map[AccWalletId]int{}
@@ -801,8 +801,8 @@ func accountingUpgradeCapture(tx *db.Transaction, now time.Time, legacy bool) Ac
 }
 
 func accountingUpgradeFlow(tx *db.Transaction, bundle *accountingUpgradeBundle) {
-	productsLoadFromTx(tx)
-	accountingLoadFromTx(tx, bundle.CapturedAt, func(message string) { bundle.Blockers = append(bundle.Blockers, message) })
+	accountingUpgradeLoadProducts(tx)
+	accountingUpgradeLoadAccounting(tx, bundle.CapturedAt, func(message string) { bundle.Blockers = append(bundle.Blockers, message) })
 	accountingUpgradeCheck(tx, bundle)
 	categories := make([]accapi.ProductCategoryIdV2, 0, len(accGlobals.BucketsByCategory))
 	for category := range accGlobals.BucketsByCategory {

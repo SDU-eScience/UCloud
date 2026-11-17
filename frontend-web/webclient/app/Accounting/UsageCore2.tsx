@@ -1,6 +1,7 @@
 import * as React from "react";
 import {
     AccountingFrequency,
+    AccountingModel,
     AccountingUnit,
     balanceToStringFromUnit,
     explainUnitEx,
@@ -43,6 +44,7 @@ export interface UsageRetrieveResponse {
 }
 
 export interface UsageReport {
+    accountingModel: AccountingModel;
     title: string;
     productsCovered: ProductCategoryId[];
     unitAndFrequency: {
@@ -224,7 +226,7 @@ const UsagePage: React.FunctionComponent = () => {
                 let foundOldReport = false;
                 if (s.openReport !== undefined) {
                     for (const r of s.reports) {
-                        if (s.openReport.title === r.title) {
+                        if (s.openReport.title === r.title && s.openReport.accountingModel === r.accountingModel) {
                             foundOldReport = true;
                             s.openReport = r;
                             break;
@@ -815,7 +817,7 @@ const UsagePage: React.FunctionComponent = () => {
             }
 
             {r.usageOverTime.delta.length <= 1 ? null : (
-                r.unitAndFrequency.frequency == "ONCE" ? null : (
+                r.accountingModel !== "CONSUMPTION" ? null : (
                     <Card>
                         <Flex mb={8}>
                             <h3 style={{flexGrow: 1}}>Change in usage over time</h3>

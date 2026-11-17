@@ -441,6 +441,47 @@ type accountingLoadTimes struct {
 	Allocations      time.Duration
 }
 
+type accountingAllocationRow struct {
+	Id                  int
+	WalletId            int
+	ParentWallet        int
+	GrantedIn           int
+	AllocationPackage   bool
+	AllocGroup          int
+	Quota               int64
+	AllocationStartTime time.Time
+	AllocationEndTime   time.Time
+	Retired             bool
+	RetiredUsage        int64
+	RetiredQuota        int64
+}
+
+func accountingSelectAllocations(tx *db.Transaction) []accountingAllocationRow {
+	return db.Select[accountingAllocationRow](
+		tx,
+		`
+			select
+				alloc.id,
+				ag.associated_wallet as wallet_id,
+				coalesce(ag.parent_wallet, 0) as parent_wallet,
+				coalesce(alloc.granted_in, 0) as granted_in,
+				alloc.allocation_package,
+				alloc.associated_allocation_group as alloc_group,
+				alloc.quota,
+				alloc.allocation_start_time,
+				alloc.allocation_end_time,
+				alloc.retired,
+				alloc.retired_usage,
+				alloc.retired_quota
+			from
+				accounting.wallet_allocations_v2 alloc
+				join accounting.allocation_groups ag on alloc.associated_allocation_group = ag.id
+			order by alloc.id
+		`,
+		db.Params{},
+	)
+}
+
 func accountingLoad() {
 	loadTimes := db.NewTx(func(tx *db.Transaction) accountingLoadTimes {
 		return accountingLoadFromTx(tx, time.Now(), nil)
@@ -460,6 +501,15 @@ func accountingLoad() {
 }
 
 func accountingLoadFromTx(tx *db.Transaction, now time.Time, onLoadError func(string)) accountingLoadTimes {
+	return accountingLoadWithAllocationsFromTx(tx, now, onLoadError, accountingSelectAllocations)
+}
+
+func accountingLoadWithAllocationsFromTx(
+	tx *db.Transaction,
+	now time.Time,
+	onLoadError func(string),
+	loadAllocations func(*db.Transaction) []accountingAllocationRow,
+) accountingLoadTimes {
 	var loadTimes accountingLoadTimes
 	{
 		timer := util.NewTimer()
@@ -684,40 +734,7 @@ func accountingLoadFromTx(tx *db.Transaction, now time.Time, onLoadError func(st
 
 		// Allocations
 		// -------------------------------------------------------------------------------------------------------------
-		allocations := db.Select[struct {
-			Id                  int
-			WalletId            int
-			ParentWallet        int
-			GrantedIn           int
-			AllocGroup          int
-			Quota               int64
-			AllocationStartTime time.Time
-			AllocationEndTime   time.Time
-			Retired             bool
-			RetiredUsage        int64
-			RetiredQuota        int64
-		}](
-			tx,
-			`
-				select
-					alloc.id,
-					ag.associated_wallet as wallet_id,
-					coalesce(ag.parent_wallet, 0) as parent_wallet,
-					coalesce(alloc.granted_in, 0) as granted_in,
-					alloc.associated_allocation_group as alloc_group,
-					alloc.quota,
-					alloc.allocation_start_time,
-					alloc.allocation_end_time,
-					alloc.retired,
-					alloc.retired_usage,
-					alloc.retired_quota
-				from
-					accounting.wallet_allocations_v2 alloc
-					join accounting.allocation_groups ag on alloc.associated_allocation_group = ag.id
-				order by alloc.id
-		    `,
-			db.Params{},
-		)
+		allocations := loadAllocations(tx)
 
 		for _, row := range allocations {
 			b, wallet, ok := internalWalletById(AccWalletId(row.WalletId))
@@ -736,19 +753,20 @@ func accountingLoadFromTx(tx *db.Transaction, now time.Time, onLoadError func(st
 				ag.Allocations[accAllocId(row.Id)] = util.Empty{}
 
 				alloc := &internalAllocation{
-					Id:           accAllocId(row.Id),
-					BelongsTo:    wallet.Id,
-					Parent:       AccWalletId(row.ParentWallet),
-					Group:        accGroupId(row.AllocGroup),
-					Quota:        row.Quota,
-					Start:        row.AllocationStartTime,
-					End:          row.AllocationEndTime,
-					Retired:      row.Retired,
-					RetiredUsage: row.RetiredUsage,
-					RetiredQuota: row.RetiredQuota,
-					Active:       !now.Before(row.AllocationStartTime), // TODO we don't know if it was activated
-					Dirty:        false,
-					Committed:    true,
+					Id:                accAllocId(row.Id),
+					BelongsTo:         wallet.Id,
+					Parent:            AccWalletId(row.ParentWallet),
+					Group:             accGroupId(row.AllocGroup),
+					Quota:             row.Quota,
+					Start:             row.AllocationStartTime,
+					End:               row.AllocationEndTime,
+					Retired:           row.Retired,
+					RetiredUsage:      row.RetiredUsage,
+					RetiredQuota:      row.RetiredQuota,
+					AllocationPackage: row.AllocationPackage,
+					Active:            !now.Before(row.AllocationStartTime), // TODO we don't know if it was activated
+					Dirty:             false,
+					Committed:         true,
 				}
 
 				if row.GrantedIn != 0 {
@@ -838,15 +856,16 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 		}{}
 
 		allocationRequests := struct {
-			Id              []int64
-			AllocationGroup []int64
-			GrantedIn       []int64 // 0 -> null
-			Quota           []int64
-			Start           []int64
-			End             []int64
-			Retired         []bool
-			RetiredUsage    []int64
-			RetiredQuota    []int64
+			Id                []int64
+			AllocationGroup   []int64
+			GrantedIn         []int64 // 0 -> null
+			AllocationPackage []bool
+			Quota             []int64
+			Start             []int64
+			End               []int64
+			Retired           []bool
+			RetiredUsage      []int64
+			RetiredQuota      []int64
 		}{}
 
 		groupRequests := struct {
@@ -911,6 +930,7 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 					allocationRequests.Id = append(allocationRequests.Id, int64(alloc.Id))
 					allocationRequests.AllocationGroup = append(allocationRequests.AllocationGroup, int64(alloc.Group))
 					allocationRequests.GrantedIn = append(allocationRequests.GrantedIn, int64(alloc.GrantedIn.GetOrDefault(0)))
+					allocationRequests.AllocationPackage = append(allocationRequests.AllocationPackage, alloc.AllocationPackage)
 					allocationRequests.Quota = append(allocationRequests.Quota, alloc.Quota)
 					allocationRequests.Start = append(allocationRequests.Start, alloc.Start.UnixMilli())
 					allocationRequests.End = append(allocationRequests.End, alloc.End.UnixMilli())
@@ -1062,6 +1082,7 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 									unnest(cast(:id as int8[])) as id,
 									unnest(cast(:allocation_group as int8[])) as allocation_group,
 									unnest(cast(:granted_in as int8[])) as granted_in,
+									unnest(cast(:allocation_package as bool[])) as allocation_package,
 									unnest(cast(:quota as int8[])) as quota,
 									unnest(cast(:start as int8[])) as start_time,
 									unnest(cast(:end as int8[])) as end_time,
@@ -1071,7 +1092,7 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 							)
 							insert into accounting.wallet_allocations_v2
 								(id, associated_allocation_group, granted_in, quota, allocation_start_time, 
-									allocation_end_time, retired, retired_usage, retired_quota) 
+									allocation_end_time, retired, retired_usage, retired_quota, allocation_package)
 							select
 								d.id,
 								d.allocation_group,
@@ -1084,11 +1105,13 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 								to_timestamp(d.end_time / 1000.0),
 								d.retired,
 								d.retired_usage,
-								d.retired_quota
+								d.retired_quota,
+								d.allocation_package
 							from
 								data d
 							on conflict (id) do update set
 								granted_in = excluded.granted_in,
+								allocation_package = excluded.allocation_package,
 								quota = excluded.quota,
 								allocation_start_time = excluded.allocation_start_time,
 								allocation_end_time = excluded.allocation_end_time,
@@ -1098,15 +1121,16 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 							where wallet_allocations_v2.associated_allocation_group = excluded.associated_allocation_group
 						`,
 					db.Params{
-						"id":               allocationRequests.Id,
-						"allocation_group": allocationRequests.AllocationGroup,
-						"granted_in":       allocationRequests.GrantedIn,
-						"quota":            allocationRequests.Quota,
-						"start":            allocationRequests.Start,
-						"end":              allocationRequests.End,
-						"retired":          allocationRequests.Retired,
-						"retired_usage":    allocationRequests.RetiredUsage,
-						"retired_quota":    allocationRequests.RetiredQuota,
+						"id":                 allocationRequests.Id,
+						"allocation_group":   allocationRequests.AllocationGroup,
+						"granted_in":         allocationRequests.GrantedIn,
+						"allocation_package": allocationRequests.AllocationPackage,
+						"quota":              allocationRequests.Quota,
+						"start":              allocationRequests.Start,
+						"end":                allocationRequests.End,
+						"retired":            allocationRequests.Retired,
+						"retired_usage":      allocationRequests.RetiredUsage,
+						"retired_quota":      allocationRequests.RetiredQuota,
 					},
 				)
 			}

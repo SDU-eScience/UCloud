@@ -458,6 +458,7 @@ func testProviderProduct(provider string, productType accapi.ProductType, free b
 			Provider:            provider,
 			ProductType:         productType,
 			AccountingFrequency: accapi.AccountingFrequencyOnce,
+			AccountingModel:     accapi.AccountingModelCapacity,
 			FreeToUse:           free,
 		},
 		ProductType: productType,

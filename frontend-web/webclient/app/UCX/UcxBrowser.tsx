@@ -952,6 +952,7 @@ interface UcxStreamedTableProps {
     showControls?: boolean;
     rowHeight?: number;
     activateOnSpace?: boolean;
+    navigateInputs?: boolean;
     renderGroupHeader?: (group: string) => React.ReactNode;
     sorted?: boolean;
     preserveRowOrder?: boolean;
@@ -990,6 +991,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     const rootRef = useRef<HTMLDivElement | null>(null);
     const scrollRef = useRef<HTMLDivElement | null>(null);
     const bodyRef = useRef<HTMLTableSectionElement | null>(null);
+    const pendingInputFocusRef = useRef<{rowKey: string; cellIndex: number} | null>(null);
     useLayoutEffect(() => {
         const pane = rootRef.current?.closest("[data-ucx-pane='content']");
         if (pane && document.activeElement === pane) {
@@ -1171,6 +1173,16 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         return items;
     }, [filteredRows, props.inlineGroups, props.showGroupHeaders, Boolean(trailingAction)]);
     const virtualization = useUcxTableVirtualization(tableItems, scrollRef, bodyRef);
+    useLayoutEffect(() => {
+        const pending = pendingInputFocusRef.current;
+        if (!pending) return;
+        const row = bodyRef.current?.querySelector<HTMLTableRowElement>(`[data-row-key="${CSS.escape(pending.rowKey)}"]`);
+        const input = row?.cells[pending.cellIndex]?.querySelector<HTMLInputElement>("input:not(:disabled)");
+        if (!input) return;
+        pendingInputFocusRef.current = null;
+        input.focus({preventScroll: true});
+        input.select();
+    }, [revision, virtualization.visible]);
     const restoredStateRef = useRef<string | null>(null);
     useLayoutEffect(() => {
         if (!loaded || restoredStateRef.current === stateKey) return;
@@ -1454,6 +1466,23 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                 && event.target.dataset.ucxTableFilter === stateKey
                 && (browser == null || browser.contains(event.target));
             if (!regionContains(root) && !filterFocused) return;
+            if (props.navigateInputs && event.target instanceof HTMLInputElement
+                && root.contains(event.target) && !filterFocused
+                && (event.key === "ArrowUp" || event.key === "ArrowDown")
+                && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+                const cell = event.target.closest("td");
+                const rowKey = cell?.closest("[data-row-key]")?.getAttribute("data-row-key");
+                if (!cell || !rowKey) return;
+                event.preventDefault();
+                const index = filteredRows.findIndex(row => row.key === rowKey);
+                const next = filteredRows[index + (event.key === "ArrowDown" ? 1 : -1)];
+                if (!next) return;
+                pendingInputFocusRef.current = {rowKey: next.key, cellIndex: cell.cellIndex};
+                selectedKeyRef.current = next.key;
+                store.setSelected(stateKey, next.key);
+                virtualization.scrollToRow(next.key);
+                return;
+            }
             if (isEditableTarget(event.target) && !filterFocused) return;
             if (menuOpenRefState.current) return;
             if (filterFocused && event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
@@ -1524,6 +1553,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     }, [
         activateSelection,
         props.activateOnSpace,
+        props.navigateInputs,
         filteredRows,
         moveSelection,
         openMenuForSelection,
@@ -1532,6 +1562,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         store,
         toggleSelection,
         triggerActionByShortcut,
+        virtualization.scrollToRow,
     ]);
 
     const emptyMessage = props.emptyMessage ?? "No resources found.";

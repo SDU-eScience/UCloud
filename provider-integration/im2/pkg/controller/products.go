@@ -102,6 +102,13 @@ func ProductsRegister(products []apm.ProductV2) {
 		newCategory := newCategories[categoryId]
 		oldCategory, exists := existingCategories[categoryId]
 		if exists {
+			if newCategory.AccountingModel == "" {
+				newCategory.AccountingModel = oldCategory.AccountingModel
+			}
+			if newCategory.AccountingModel != oldCategory.AccountingModel {
+				log.Error("The accounting model of category %s cannot be changed. Create a new category instead.", categoryId)
+				os.Exit(1)
+			}
 			newJson, _ := json.Marshal(newCategories)
 			oldJson, _ := json.Marshal(oldCategory)
 			if newCategory.AccountingUnit != oldCategory.AccountingUnit {
@@ -134,11 +141,16 @@ func ProductsRegister(products []apm.ProductV2) {
 				os.Exit(1)
 			}
 		}
+		if !apm.AccountingModelValid(newCategory.AccountingModel) {
+			log.Error("Category %s must specify accountingModel as CAPACITY or CONSUMPTION.", categoryId)
+			os.Exit(1)
+		}
 
 		productCategoryStore(newCategory)
 
 		var items []apm.ProductV2
 		for _, item := range catItems {
+			item.Category.AccountingModel = newCategory.AccountingModel
 			items = append(items, item)
 		}
 		_, err := apm.ProductsCreate.Invoke(fnd.BulkRequest[apm.ProductV2]{Items: items})

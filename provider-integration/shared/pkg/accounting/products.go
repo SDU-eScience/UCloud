@@ -100,6 +100,7 @@ type ProductCategory struct {
 	ProductType         ProductType         `json:"productType,omitempty"`
 	AccountingUnit      AccountingUnit      `json:"accountingUnit"`
 	AccountingFrequency AccountingFrequency `json:"accountingFrequency,omitempty"`
+	AccountingModel     AccountingModel     `json:"accountingModel,omitempty"`
 	FreeToUse           bool                `json:"freeToUse,omitempty"`
 	AllowSubAllocations bool                `json:"allowSubAllocations,omitempty"`
 }
@@ -135,6 +136,17 @@ type AccountingUnit struct {
 	NamePlural             string `json:"namePlural"`
 	FloatingPoint          bool   `json:"floatingPoint"`
 	DisplayFrequencySuffix bool   `json:"displayFrequencySuffix"`
+}
+
+type AccountingModel string
+
+const (
+	AccountingModelCapacity    AccountingModel = "CAPACITY"
+	AccountingModelConsumption AccountingModel = "CONSUMPTION"
+)
+
+func AccountingModelValid(model AccountingModel) bool {
+	return model == AccountingModelCapacity || model == AccountingModelConsumption
 }
 
 type AccountingFrequency string
