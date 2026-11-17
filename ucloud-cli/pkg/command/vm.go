@@ -41,6 +41,7 @@ type VMCreateCommand struct {
 	Product        string `flag:"product" usage:"Product"`
 	SSH            bool   `flag:"ssh" usage:"Enable SSH"`
 	PublicIp       string `flag:"public-ip" usage:"Public IP"`
+	PublicLink     string `flag:"public-link" usage:"Public Link"`
 	PrivateNetwork string `flag:"private-network" usage:"Private Network"`
 	Workspace      string `flag:"workspace" usage:"Workspace"`
 
@@ -151,10 +152,11 @@ func (c *VMCreateCommand) Execute() error {
 	}
 
 	job := &JobCreateCommand{
-		App:       c.Image,
-		Product:   c.Product,
-		SSH:       c.SSH,
-		Workspace: c.Workspace,
+		App:        c.Image,
+		Product:    c.Product,
+		SSH:        c.SSH,
+		PublicLink: c.PublicLink,
+		Workspace:  c.Workspace,
 	}
 	if err := createApp(job, foundApp, resources...); err != nil {
 		return err
