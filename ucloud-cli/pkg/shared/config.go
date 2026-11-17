@@ -1,7 +1,6 @@
 package shared
 
 import (
-	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -15,7 +14,6 @@ import (
 
 type Config struct {
 	Username           string                 `yaml:"username"`
-	TokenRef           string                 `yaml:"tokenRef,omitempty"`
 	CurrentWorkspace   util.Option[string]    `yaml:"currentWorkspace"`
 	DefaultEnvironment string                 `yaml:"defaultEnvironment"`
 	Environments       map[string]Environment `yaml:"environments"`
@@ -25,7 +23,8 @@ type Config struct {
 var TestMode = false
 
 type Environment struct {
-	URL string `yaml:"url"`
+	URL      string `yaml:"url"`
+	TokenRef string `yaml:"tokenRef,omitempty"`
 }
 
 type Workspace struct {
@@ -151,18 +150,26 @@ func UpdateConfig(config *Config) (*Config, error) {
 		cfg.CurrentWorkspace = config.CurrentWorkspace
 	}
 	cfg.DefaultEnvironment = selectChange(cfg.DefaultEnvironment, config.DefaultEnvironment)
-	cfg.TokenRef = selectChange(cfg.TokenRef, config.TokenRef)
-	if config.Environments != nil && !maps.Equal(cfg.Environments, config.Environments) {
-		cfg.Environments = config.Environments
+	if config.Environments != nil {
+		for name, env := range config.Environments {
+			merged, ok := cfg.Environments[name]
+			if !ok {
+				cfg.Environments[name] = env
+				continue
+			}
+			merged.URL = selectChange(merged.URL, env.URL)
+			merged.TokenRef = selectChange(merged.TokenRef, env.TokenRef)
+			cfg.Environments[name] = merged
+		}
 	}
 	return SaveConfig(cfg)
 }
 
 func (cfg *Config) initUCloudClient() {
-	baseURL := cfg.Environments[cfg.DefaultEnvironment].URL
+	env := cfg.Environments[cfg.DefaultEnvironment]
 	rpc.DefaultClient = &rpc.Client{
-		RefreshToken: cfg.TokenRef,
-		BasePath:     baseURL,
+		RefreshToken: env.TokenRef,
+		BasePath:     env.URL,
 		Client: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -192,11 +199,9 @@ func GetActiveWorkspace(cfg *Config) string {
 func PrintConfig(cfg *Config) {
 	t := termio.Table{}
 	t.AppendHeader("Username")
-	t.AppendHeader("TokenRef")
 	t.AppendHeader("CurrentWorkspace")
 	t.AppendHeader("DefaultEnvironment")
 	t.Cell("%v", cfg.Username)
-	t.Cell("%v", cfg.TokenRef)
 	t.Cell("%v", cfg.CurrentWorkspace)
 	t.Cell("%v", cfg.DefaultEnvironment)
 	t.Print()
@@ -214,9 +219,11 @@ func PrintEnvironments(cfg *Config) {
 	t := termio.Table{}
 	t.AppendHeader("Name")
 	t.AppendHeader("URL")
+	t.AppendHeader("Connected")
 	for name, env := range cfg.Environments {
 		t.Cell("%v", name)
 		t.Cell("%v", env.URL)
+		t.Cell("%v", env.TokenRef != "")
 	}
 	t.Print()
 }

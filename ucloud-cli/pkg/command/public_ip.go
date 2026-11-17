@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	acc "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/cli"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -178,8 +177,7 @@ func findPublicIpByIpRange(ips []string, publicIps []orcapi.PublicIp) ([]orcapi.
 	return nil, fmt.Errorf("no public ip found")
 }
 
-func findPublicIpByIds(ids []string, publicIps []orcapi.PublicIp) ([]orcapi.PublicIp, error) {
-	foundPublicIps := make([]orcapi.PublicIp, 0)
+func findPublicIpByIds(ids []string, publicIps []orcapi.PublicIp) ([]orcapi.PublicIp, error) {	foundPublicIps := make([]orcapi.PublicIp, 0)
 	notFound := make([]string, 0)
 	for _, id := range ids {
 		found := false
@@ -201,6 +199,30 @@ func findPublicIpByIds(ids []string, publicIps []orcapi.PublicIp) ([]orcapi.Publ
 		return foundPublicIps, nil
 	}
 	return nil, fmt.Errorf("public ip with id %s wasn't found", notFound)
+}
+
+func findPublicIp(query string) (*orcapi.PublicIp, error) {
+	publicIps, err := retrievePublicIps(make([]string, 0))
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range publicIps {
+		if publicIps[i].Id == query || publicIps[i].Status.IpAddress.GetOrDefault("") == query {
+			return &publicIps[i], nil
+		}
+	}
+	return nil, fmt.Errorf("no public ip found matching %q", query)
+}
+
+func validatePublicIpForJob(publicIp *orcapi.PublicIp) error {
+	if publicIp.Status.State != orcapi.PublicIpStateReady {
+		return fmt.Errorf("public ip %s is not ready (state: %s)", publicIp.Status.IpAddress.GetOrDefault(publicIp.Id), publicIp.Status.State)
+	}
+	if len(publicIp.Status.BoundTo) > 0 {
+		return fmt.Errorf("public ip %s is already in use by job %s", publicIp.Status.IpAddress.GetOrDefault(publicIp.Id), strings.Join(publicIp.Status.BoundTo, ", "))
+	}
+	return nil
 }
 
 func (c PublicIPDeleteCommand) Execute() error {
@@ -316,15 +338,20 @@ func (c *PublicIPCreateCommand) Execute() error {
 		return err
 	}
 
+	products, httpErr := orcapi.PublicIpsRetrieveProducts.Invoke(util.Empty{})
+	if httpErr.AsError() != nil {
+		return fmt.Errorf("failed to retrieve products: %s", httpErr.Why)
+	}
+	supports, ok := products.ProductsByProvider[c.Provider]
+	if !ok || len(supports) == 0 {
+		return fmt.Errorf("provider %s not found", c.Provider)
+	}
+
 	res, httpErr := orcapi.PublicIpsCreate.Invoke(fnd.BulkRequest[orcapi.PublicIPSpecification]{
 		Items: []orcapi.PublicIPSpecification{{
 			ResourceSpecification: orcapi.ResourceSpecification{
-				Product: acc.ProductReference{
-					Id:       "public-ip",
-					Category: "public-ip",
-					Provider: c.Provider,
-				},
-				Labels: map[string]string{},
+				Product: supports[0].Product.ToReference(),
+				Labels:  map[string]string{},
 			},
 			Firewall: util.OptValue(orcapi.Firewall{
 				OpenPorts: ports,

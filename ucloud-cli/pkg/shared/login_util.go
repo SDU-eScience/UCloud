@@ -14,10 +14,12 @@ func LoginDirectlyIntoDev() {
 	if httpErr.AsError() != nil {
 		panic(httpErr.Why)
 	}
-	cfg.TokenRef = login.RefreshToken
+	env := cfg.Environments[cfg.DefaultEnvironment]
+	env.TokenRef = login.RefreshToken
+	cfg.Username = login.Username
+	cfg.Environments[cfg.DefaultEnvironment] = env
 	_, err := SaveConfig(cfg)
 	if err != nil {
 		panic(err)
 	}
-
 }

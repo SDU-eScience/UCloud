@@ -125,6 +125,10 @@ func commandFlagsAndNotes(cmd Command) ([]FlagSpec, []string, error) {
 			flagType = "positional"
 			name = positional
 		}
+		if flagType == "flag" && field.Tag.Get("visibility") == "hidden" {
+			// we skip completion generation
+			continue
+		}
 		flag := FlagSpec{
 			Name:      name,
 			Usage:     field.Tag.Get("usage"),
