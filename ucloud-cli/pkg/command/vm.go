@@ -88,10 +88,6 @@ func (c *VMGetCommand) Execute() error {
 func (c *VMDeleteCommand) Execute() error {
 	shared.InitializeUCloudClient()
 
-	if c.VMId == "" {
-		return fmt.Errorf("this command requires a VM id, use: ucloud vm delete <vm-id>")
-	}
-
 	_, httpErr := orcapi.JobsTerminate.Invoke(fnd.BulkRequestOf(fnd.FindByStringId{
 		Id: c.VMId,
 	}))
@@ -106,19 +102,12 @@ func (c *VMDeleteCommand) Execute() error {
 func (c *VMShellCommand) Execute() error {
 	shared.InitializeUCloudClient()
 
-	if c.VMId == "" {
-		return fmt.Errorf("this command requires a VM id, use: ucloud vm shell <vm-id>")
-	}
-
 	return shared.JobShell(c.VMId, c.Rank, c.Browser)
 }
 
 func (c *VMCreateCommand) Execute() error {
 	cfg := shared.InitializeUCloudClient()
 
-	if c.Image == "" {
-		return fmt.Errorf("this command requires an image, use: ucloud vm create <image>")
-	}
 	if c.PrivateNetwork != "" {
 		return fmt.Errorf("--private-network is not implemented yet")
 	}
@@ -168,10 +157,6 @@ func (c *VMCreateCommand) Execute() error {
 func (c *VMStopCommand) Execute() error {
 	shared.InitializeUCloudClient()
 
-	if c.VMId == "" {
-		return fmt.Errorf("this command requires a VM id, use: ucloud vm stop <vm-id>")
-	}
-
 	_, httpErr := orcapi.JobsSuspend.Invoke(fnd.BulkRequestOf(fnd.FindByStringId{
 		Id: c.VMId,
 	}))
@@ -185,10 +170,6 @@ func (c *VMStopCommand) Execute() error {
 
 func (c *VMStartCommand) Execute() error {
 	shared.InitializeUCloudClient()
-
-	if c.VMId == "" {
-		return fmt.Errorf("this command requires a VM id, use: ucloud vm start <vm-id>")
-	}
 
 	_, httpErr := orcapi.JobsUnsuspend.Invoke(fnd.BulkRequestOf(fnd.FindByStringId{
 		Id: c.VMId,
