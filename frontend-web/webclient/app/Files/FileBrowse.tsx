@@ -1233,9 +1233,14 @@ function FileBrowse({opts, headerControls}: {
                         pIcon.replaceChildren(icon);
                     }
 
-                    const project = collection?.owner.project;
-                    if (collection && project != Client.projectId) {
-                        result.unshift({absolutePath: "", title: project ? projectTitleFromCache(project) : "My workspace"})
+                    if (!opts?.isModal) {
+                        const project = collection?.owner.project;
+                        if (collection && project != Client.projectId) {
+                            result.unshift({
+                                absolutePath: "",
+                                title: project ? projectTitleFromCache(project) : "My workspace"
+                            });
+                        }
                     }
 
                     return result;
