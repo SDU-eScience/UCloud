@@ -951,3 +951,12 @@ func TestFolderShell(t *testing.T) {
 	assert.NoError(t, err)
 	terminateTestJob(t, jobId)
 }
+
+func TestVMList(t *testing.T) {
+	input := []string{"vm", "list"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}

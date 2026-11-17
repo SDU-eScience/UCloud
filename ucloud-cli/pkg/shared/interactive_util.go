@@ -111,7 +111,7 @@ func JobShell(jobId string, rank int, browser bool) error {
 	origin := cfg.Environments[cfg.DefaultEnvironment].URL
 	usernameHint := base64.StdEncoding.EncodeToString([]byte(cfg.Username))
 	if browser {
-		OpenBrowser(fmt.Sprintf("%s/app/applications/shell/%s/%d?hide-frame", origin, rank, jobId))
+		OpenBrowser(fmt.Sprintf("%s/app/applications/shell/%s/%d?hide-frame", origin, jobId, rank))
 		return nil
 	}
 
@@ -130,7 +130,7 @@ func OpenWebsocketShellSession(session *orcapi.OpenSessionWithProvider, username
 	}
 	defer ws.Close()
 
-	callName := fmt.Sprintf("jobs.compute.%s.shell.open")
+	callName := fmt.Sprintf("jobs.compute.%s.shell.open", provider)
 	sendRequest := func(payload WsShellEvent) error {
 		msg, err := json.Marshal(WsShellRequest{
 			Call:     callName,
