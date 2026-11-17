@@ -1681,7 +1681,7 @@ const RunningButtonGroup: React.FunctionComponent<{
     const supportTerminal = !jobAuditLogIsEnabled && isSupported(backendType, support, "terminal");
     const supportVariants = backendType === "DOCKER" &&
         support?.docker.applicationVariants === true && support?.docker.containerSnapshots === true &&
-        job.owner.project != null && job.permissions.myself.includes("EDIT");
+        (job.owner.project != null || job.owner.createdBy === Client.username) && job.permissions.myself.includes("EDIT");
 
     let defaultInterfaceId = interfaceLinks.findIndex(link => !link.target && link.rank === 0);
 
@@ -1723,7 +1723,10 @@ const RunningButtonGroup: React.FunctionComponent<{
     return <div className={"top-buttons"}>
         {!supportVariants ? null : <Button onClick={() => openCreateApplicationVariant(
             job,
-            request => callAPI<BackgroundTask>(JobsApi.createApplicationVariant(request)),
+            request => callAPI<BackgroundTask>({
+                ...JobsApi.createApplicationVariant(request),
+                projectOverride: job.owner.project ?? "",
+            }),
         )}>
             <Icon name="heroSquare3Stack3D" />
             <div style={{minWidth: "130px", maxWidth: "164px"}}><Truncate>Save as flavor</Truncate></div>

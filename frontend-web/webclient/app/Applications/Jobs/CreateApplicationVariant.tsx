@@ -12,7 +12,8 @@ import * as AppStore from "@/Applications/AppStoreApi";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {ApplicationVariant} from "@/Applications/AppStoreApi";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
+import {isAdminOrPI} from "@/Project";
+import {projectCache} from "@/Project/ProjectSwitcher";
 
 interface Props {
     job: Job;
@@ -40,18 +41,24 @@ function CreateApplicationVariant({job, submit}: Props): React.ReactNode {
     const [target, setTarget] = React.useState<ApplicationVariant | null>(null);
     const [confirmTarget, setConfirmTarget] = React.useState<ApplicationVariant | null>(null);
     const resolvedApplication = job.status.resolvedApplication;
-    const [group] = useCloudAPI(
-        resolvedApplication ? AppStore.findGroupByApplication({
-            appName: resolvedApplication.metadata.name,
-            appVersion: resolvedApplication.metadata.version,
-            flags: {includeApplications: true, includeVersions: true},
-        }) : {noop: true},
+    const jobProject = job.owner.project ?
+        projectCache.retrieveFromCacheOnly("")?.items.find(project => project.id === job.owner.project) : undefined;
+    const isProjectAdmin = isAdminOrPI(jobProject?.status.myRole);
+    const [group] = useCloudAPI<AppStore.ApplicationGroup | null>(
+        resolvedApplication ? {
+            ...AppStore.findGroupByApplication({
+                appName: resolvedApplication.metadata.name,
+                appVersion: resolvedApplication.metadata.version,
+                flags: {includeApplications: true, includeVersions: true},
+            }),
+            projectOverride: job.owner.project ?? "",
+        } : {noop: true},
         null,
     );
     const suggestions = (group.data?.status.applications ?? []).flatMap(app => {
         const variant = app.metadata.variant;
         return variant && variant.provider === job.specification.product.provider &&
-        (variant.createdBy === Client.username || (variant.publishedToProject && checkIsWorkspaceAdmin())) ? [variant] : [];
+        (variant.createdBy === Client.username || (variant.publishedToProject && isProjectAdmin)) ? [variant] : [];
     });
     const matchingSuggestions = suggestions.filter(variant =>
         !title.trim() || variant.title.toLowerCase().includes(title.trim().toLowerCase())
@@ -74,7 +81,7 @@ function CreateApplicationVariant({job, submit}: Props): React.ReactNode {
                 jobId: job.id,
                 rank,
                 title: normalizedTitle,
-                publishedToProject,
+                publishedToProject: job.owner.project != null && publishedToProject,
                 targetVariantId: target?.id,
             });
             if (task) {
@@ -97,6 +104,10 @@ function CreateApplicationVariant({job, submit}: Props): React.ReactNode {
             </Text>
             <Text mt="12px">
                 Files and changes in <code>/work</code> are <b>not included</b>.
+            </Text>
+            <Text mt="12px">
+                This flavor will be saved in {job.owner.project ?
+                    (jobProject?.specification.title ?? "the job's project") : "your personal workspace"}.
             </Text>
             <Text mt="12px">
                 UCloud <b>pauses the job</b> while it saves the flavor. You cannot use the job during this
@@ -154,7 +165,7 @@ function CreateApplicationVariant({job, submit}: Props): React.ReactNode {
             </Select>
         </Label>}
 
-        <Flex gap="24px" alignItems="start">
+        {job.owner.project == null ? null : <Flex gap="24px" alignItems="start">
             <Box flexGrow={1} minWidth={0} py="6px">
                 <Label>Available to all project members</Label>
                 <Text color="textSecondary" mt="3px" fontSize="13px">
@@ -168,7 +179,7 @@ function CreateApplicationVariant({job, submit}: Props): React.ReactNode {
                     onChange={checked => setPublishedToProject(!checked)}
                 />
             </Box>
-        </Flex>
+        </Flex>}
 
         {confirmTarget ? <Box p="12px" borderRadius="6px" background="var(--warningMain)" color="warningContrast">
             Push a new version to <b>{confirmTarget.title}</b>? The existing versions will remain available.

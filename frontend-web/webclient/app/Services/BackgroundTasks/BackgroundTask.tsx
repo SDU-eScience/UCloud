@@ -28,6 +28,8 @@ import {
 import {useNavigate} from "react-router-dom";
 import AppRoutes from "@/Routes";
 import {reportBackgroundTaskChange, useBackgroundTaskChanges} from "@/Services/BackgroundTasks/BackgroundTaskChanges";
+import {useDispatch} from "react-redux";
+import {dispatchSetProjectAction} from "@/Project/ReduxState";
 
 const iconNames = Object.keys(icons) as IconName[];
 
@@ -78,6 +80,7 @@ export interface BackgroundTask {
     icon?: IconName;
     meta?: {
         jobId?: string;
+        workspaceProject?: string;
         application?: {
             name?: string;
             version?: string;
@@ -147,6 +150,7 @@ function TaskItem({task}: {task: BackgroundTask;}): React.JSX.Element {
     const isFinished = TaskOperations.isTaskTerminal(task);
     const isPaused = task.status.state === TaskState.SUSPENDED;
     const navigate = useNavigate();
+    const dispatch = useDispatch();
     const application = task.meta?.application;
     const target = task.status.state === TaskState.SUCCESS && application?.name && application.version ?
         AppRoutes.jobs.create(application.name, application.version) :
@@ -221,7 +225,12 @@ function TaskItem({task}: {task: BackgroundTask;}): React.JSX.Element {
         removeOrCancel={resumeOrCancel}
     />;
 
-    return target ? <div style={{cursor: "pointer"}} onClick={() => navigate(target)}>{row}</div> : row;
+    return target ? <div style={{cursor: "pointer"}} onClick={() => {
+        if (task.meta?.workspaceProject !== undefined) {
+            dispatchSetProjectAction(dispatch, task.meta.workspaceProject || undefined);
+        }
+        navigate(target);
+    }}>{row}</div> : row;
 }
 
 function JobTaskItem({task, openJob}: {task: JobBackgroundTask; openJob: (task: JobBackgroundTask) => void;}): React.JSX.Element {
