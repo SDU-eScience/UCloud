@@ -1,6 +1,6 @@
 # UCloud frontend architecture
 
-Some notable architecture choices are describe here.
+Some notable architecture choices are described here.
 
 ## React Router
 
