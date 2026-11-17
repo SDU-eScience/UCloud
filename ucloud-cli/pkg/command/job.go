@@ -234,7 +234,7 @@ func (c JobExtendCommand) Execute() error {
 		return fmt.Errorf("failed to extend job: %s", httpErr.Why)
 	}
 
-	fmt.Printf("Job extended: %s by %d minutes\n", c.JobID, c.Duration)
+	fmt.Printf("Job extended: %s by %s\n", c.JobID, c.Duration)
 	return nil
 }
 
@@ -561,7 +561,7 @@ func parseParameterValue(param orcapi.ApplicationParameter, rawValue string) (or
 	}
 }
 
-func createApp(job *JobCreateCommand, app *orcapi.Application) error {
+func createApp(job *JobCreateCommand, app *orcapi.Application, extraResources ...orcapi.AppParameterValue) error {
 	product, err := findProductForApp(app, job.Product)
 	if err != nil {
 		return err
@@ -584,7 +584,7 @@ func createApp(job *JobCreateCommand, app *orcapi.Application) error {
 		Replicas:   1,
 		Parameters: parameters,
 		SshEnabled: job.SSH,
-		Resources:  []orcapi.AppParameterValue{},
+		Resources:  append([]orcapi.AppParameterValue{}, extraResources...),
 	}
 
 	if job.Duration != "" {
