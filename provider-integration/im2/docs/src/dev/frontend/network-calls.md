@@ -12,14 +12,14 @@ UCloud has three different options for network calls, that components can use:
 flowchart LR
     subgraph frontend["UCloud frontend"]
         A["Frontend component"]:::diagram-external-ucloud
-        A <--> C["HttpClient"]:::diagram-external-ucloud
-        A <--> B["WSFactory"]:::diagram-external-ucloud
-        A <--> D["Fetch"]:::diagram-external-ucloud
+        A --> C["HttpClient"]:::diagram-external-ucloud
+        A --> B["WSFactory"]:::diagram-external-ucloud
+        A --> D["Fetch"]:::diagram-external-ucloud
     end
-    E["Backend service"]:::diagram-external-ucloud
-    C <--> E
-    D <--> E
-    B <--> C
+    E["UCloud/Core"]:::diagram-external-ucloud
+    C --> E
+    D --> E
+    B --> C
     
     class frontend diagram-external-window
 ```
