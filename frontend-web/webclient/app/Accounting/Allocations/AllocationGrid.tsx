@@ -24,7 +24,7 @@ import {formatNumber} from "@/Utilities/NumberFormatting";
 import {allocationCompareProducts} from "./AllocationPresentation";
 import {AllocationFilters} from "./AllocationFilters";
 import type {AllocationFilterState} from "./AllocationFilters";
-import {AllocationAmount} from "./AllocationCells";
+import {AllocationAmount, AllocationLifecycleAmount, allocationLifecycleCells, allocationLifecycleColumns, allocationLifecycleMetrics, allocationLifecycleWidths} from "./AllocationCells";
 import {allocationModelRecipients, allocationSelectProducts, allocationWorkspaceInfo} from "./AllocationModel";
 import type {AllocationDateRange, AllocationModel, AllocationModelGrant, AllocationModelProduct, AllocationModelRecipient, AllocationModelSlice} from "./AllocationModel";
 export {allocationDateRangeBounds, allocationOverlapsRange} from "./AllocationModel";
@@ -38,20 +38,32 @@ const COLUMN_KEYS = {
     product: "allocation.product",
     period: "allocation.period",
     quota: "allocation.quota",
-    usage: "allocation.usage",
-    available: "allocation.available",
     grant: "allocation.grant",
 } as const;
 
 const COLUMN_WIDTHS: Record<string, number> = {
-    [COLUMN_KEYS.workspace]: 220,
-    [COLUMN_KEYS.product]: 300,
-    [COLUMN_KEYS.period]: 170,
-    [COLUMN_KEYS.quota]: 130,
-    [COLUMN_KEYS.usage]: 170,
-    [COLUMN_KEYS.available]: 140,
+    [COLUMN_KEYS.workspace]: 150,
+    [COLUMN_KEYS.product]: 175,
+    [COLUMN_KEYS.period]: 164,
+    ...allocationLifecycleWidths,
+    [COLUMN_KEYS.quota]: 102,
     [COLUMN_KEYS.grant]: 64,
 };
+
+const ALL_COLUMNS: TableColumn[] = [
+    {key: COLUMN_KEYS.workspace, label: "Workspace", jsonPath: "workspace", sortType: TableColumnSortType.Text},
+    {key: COLUMN_KEYS.product, label: "Product", jsonPath: "product", sortType: TableColumnSortType.Text},
+    {key: COLUMN_KEYS.period, label: "Dates", jsonPath: "period", sortType: TableColumnSortType.Text},
+    ...allocationLifecycleColumns,
+    {key: COLUMN_KEYS.quota, label: "Total granted", jsonPath: "quota", sortType: TableColumnSortType.Number},
+    {key: COLUMN_KEYS.grant, label: "Grant", jsonPath: "grant", sortType: TableColumnSortType.Text},
+];
+
+const advancedColumns = new Set(["expiredUnused", "future"]);
+const columnOptions = ALL_COLUMNS.filter(column => column.key !== COLUMN_KEYS.workspace)
+    .map(({key, label}) => ({key, label, advanced: advancedColumns.has(key)}))
+    .sort((a, b) => Number(a.advanced) - Number(b.advanced));
+const defaultColumns = columnOptions.filter(column => !column.advanced).map(column => column.key);
 
 export interface AllocationEditRequest {
     category: ProductCategoryV2;
@@ -99,8 +111,6 @@ interface AllocationGridRow {
     unit: string;
     allocationQuota: number;
     allocationQuotaRaw: number;
-    productUsage: number;
-    productAvailable: number;
     accounting: AllocationModelProduct;
     grant: AllocationModelGrant;
     slices?: AllocationModelSlice[];
@@ -135,7 +145,7 @@ function allocationReleaseSchedule(row: AllocationGridRow): string {
     return `${quota} ${row.unit} / ${months === 1 ? "month" : `${months} months`}`;
 }
 
-function allocationPeriodCell(now: number, start: number, end: number, slices?: AllocationModelSlice[], precise = false): React.ReactNode {
+function allocationPeriodCell(now: number, start: number, end: number, slices?: AllocationModelSlice[], precise = false, summary = false): React.ReactNode {
     const expired = end < now;
     const upcoming = start > now;
     const noEnd = end >= NO_EXPIRATION_FALLBACK - DAY_MS;
@@ -155,7 +165,7 @@ function allocationPeriodCell(now: number, start: number, end: number, slices?: 
             <Icon name="heroArrowRight" size={9} />
             <span>{noEnd ? "No end" : format(end, precise ? "d MMM yyyy" : "MMM yyyy")}</span>
         </div>
-        <div className="allocation-period-bottom">
+        {summary ? <span className="allocation-period-note">All allocation dates</span> : <div className="allocation-period-bottom">
             <div className="allocation-period-track">
                 <span className="allocation-period-elapsed" style={{width: `${percentage}%`}} />
                 {slices?.slice(1).map(slice => <span
@@ -166,7 +176,7 @@ function allocationPeriodCell(now: number, start: number, end: number, slices?: 
                 {!upcoming && !expired ? <span className="allocation-period-now" style={{left: `${percentage}%`}} /> : null}
             </div>
             <span className="allocation-period-note">{note}</span>
-        </div>
+        </div>}
     </div>;
 }
 
@@ -179,9 +189,8 @@ const AllocationGridClass = injectStyle("allocation-grid", k => `
         min-width: 0;
     }
 
-    ${k} [data-density="compact"] .streamed-table-scroll thead th:nth-child(5),
-    ${k} [data-density="compact"] .streamed-table-scroll thead th:nth-child(6),
-    ${k} [data-density="compact"] .streamed-table-scroll thead th:nth-child(7) {
+    ${ALL_COLUMNS.filter(column => column.sortType === TableColumnSortType.Number)
+        .map(column => `${k} .streamed-table-scroll thead th:has([aria-label="Sort by ${column.label}"])`).join(",\n")} {
         text-align: right;
     }
 
@@ -315,13 +324,6 @@ const AllocationGridClass = injectStyle("allocation-grid", k => `
         margin-left: 8px;
     }
 
-    ${k} .allocation-detail-empty {
-        display: block;
-        text-align: right;
-        color: var(--textSecondary);
-        opacity: 0.5;
-    }
-
     ${k} .allocation-period {
         display: flex;
         flex-direction: column;
@@ -405,6 +407,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
     const [query, setQuery] = useState("");
     const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
     const [selectedProviders, setSelectedProviders] = useState<string[]>([]);
+    const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultColumns);
     const [filterState, setFilterState] = useState<AllocationFilterState>("all");
     const localSearchRef = useRef<HTMLInputElement>(null);
     const searchRef = props.searchRef ?? localSearchRef;
@@ -459,8 +462,6 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             unit: product.unit,
             allocationQuota: grant.quota,
             allocationQuotaRaw: grant.rawQuota,
-            productUsage: product.amounts.used,
-            productAvailable: product.amounts.activeBalance,
             accounting: product,
             grant,
             slices: grant.sliced ? grant.slices : undefined,
@@ -548,15 +549,18 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         return result;
     }, [rows]);
 
-    const columns = useMemo((): TableColumn[] => [
-        {key: COLUMN_KEYS.workspace, label: "Workspace", jsonPath: "workspace", sortType: TableColumnSortType.Text},
-        {key: COLUMN_KEYS.product, label: "Product", jsonPath: "product", sortType: TableColumnSortType.Text},
-        {key: COLUMN_KEYS.period, label: "Period", jsonPath: "period", sortType: TableColumnSortType.Text},
-        {key: COLUMN_KEYS.quota, label: "Total granted", jsonPath: "quota", sortType: TableColumnSortType.Number},
-        {key: COLUMN_KEYS.usage, label: "Used", jsonPath: "usage", sortType: TableColumnSortType.Number},
-        {key: COLUMN_KEYS.available, label: "Active balance", jsonPath: "available", sortType: TableColumnSortType.Number},
-        {key: COLUMN_KEYS.grant, label: "Grant", jsonPath: "grant", sortType: TableColumnSortType.Text},
-    ], []);
+    const onColumnsChange = (next: string[]) => {
+        setVisibleColumns(next);
+        const sort = store.sortFor("allocation-grid");
+        if (sort && sort.columnKey !== COLUMN_KEYS.workspace && !next.includes(sort.columnKey)) {
+            store.setSort("allocation-grid", {columnKey: COLUMN_KEYS.workspace, ascending: true});
+        }
+    };
+
+    const visibleColumnIndexes = useMemo(() => ALL_COLUMNS.flatMap((column, index) =>
+        column.key === COLUMN_KEYS.workspace || visibleColumns.includes(column.key) ? [index] : []
+    ), [visibleColumns]);
+    const columns = useMemo(() => visibleColumnIndexes.map(index => ALL_COLUMNS[index]), [visibleColumnIndexes]);
 
     const {tableRows, rowChildren} = useMemo(() => {
         const tableByKey = new Map<string, TableRow>();
@@ -564,18 +568,19 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             const row = entry.kind === "product" ? entry.product : entry.allocation;
             const end = entry.kind === "slice" ? entry.slice.end - 1 : row.end;
             const quota = entry.kind === "slice" ? entry.slice.quota : row.allocationQuota;
+            const cells = [
+                `${row.workspaceTitle} ${row.workspacePi}`,
+                row.productName,
+                `${row.start} ${end}`,
+                ...(entry.kind === "product" ? allocationLifecycleCells(row.accounting.amounts, row.category.accountingModel === "CONSUMPTION") :
+                    allocationLifecycleMetrics.map(() => "")),
+                `${quota}`,
+                row.grantId === undefined ? "" : `${row.grantId}`,
+            ];
             tableByKey.set(key, {
                 key,
                 group: row.group,
-                cells: [
-                    `${row.workspaceTitle} ${row.workspacePi}`,
-                    row.productName,
-                    `${row.start} ${end}`,
-                    `${quota}`,
-                    entry.kind === "product" ? `${row.productUsage}` : "",
-                    entry.kind === "product" ? `${row.productAvailable}` : "",
-                    row.grantId === undefined ? "" : `${row.grantId}`,
-                ],
+                cells: visibleColumnIndexes.map(index => cells[index]),
                 actions: entry.kind === "product" ? [{id: "breakdown", enabled: true}] : [
                     {id: "edit", enabled: end >= props.model.now, disabledReason: "Expired allocations cannot be edited"},
                     ...(entry.kind === "allocation" && row.grantId !== undefined ? [{id: "viewGrant", enabled: true}] : []),
@@ -597,7 +602,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             tableRows: rows.map(row => tableByKey.get(row.key)!),
             rowChildren: children,
         };
-    }, [rows, rowByKey, props.model.now]);
+    }, [rows, rowByKey, props.model.now, visibleColumnIndexes]);
 
     useLayoutEffect(() => {
         store.apply({
@@ -760,6 +765,11 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         const entry = rowByKey.get(context.row.key);
         if (!entry) return context.cell;
         const row = entry.kind === "product" ? entry.product : entry.allocation;
+        const metric = allocationLifecycleMetrics.find(metric => metric.key === context.column.key);
+        const consumption = row.category.accountingModel === "CONSUMPTION";
+        if (metric) return entry.kind === "product" ? <AllocationLifecycleAmount
+            metric={metric} amounts={row.accounting.amounts} consumption={consumption} unit={row.unit}
+        /> : null;
         const expandButton = (label: string, title?: string) => <button
             className="allocation-expand"
             aria-label={`${expanded.has(context.row.key) ? "Collapse" : "Expand"} ${label}`}
@@ -818,40 +828,30 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                 </div>;
             case COLUMN_KEYS.period:
                 if (entry.kind === "slice") return allocationPeriodCell(props.model.now, entry.slice.start, entry.slice.end - 1, undefined, true);
-                return allocationPeriodCell(props.model.now, row.start, row.end, entry.kind === "product" && entry.product.allocations.length > 1 ? undefined : row.slices);
-            case COLUMN_KEYS.quota:
+                if (entry.kind === "product" && entry.product.allocations.length > 1) {
+                    return allocationPeriodCell(props.model.now, row.start, row.end, undefined, false, true);
+                }
+                return allocationPeriodCell(props.model.now, row.start, row.end, row.slices);
+            case COLUMN_KEYS.quota: {
+                let title = entry.kind === "slice" ? "Quota released for this slice." : "Total granted, including the full release schedule.";
+                let expiredUsage: number | null = null;
+                if (entry.kind === "slice" && entry.slice.attribution === "recorded") {
+                    expiredUsage = entry.slice.used;
+                } else if (entry.kind === "allocation" && row.grant.slices.some(slice => slice.attribution === "recorded")) {
+                    expiredUsage = row.grant.recordedUsed;
+                }
+                if (expiredUsage !== null) {
+                    title += ` Usage recorded at expiry: ${formatNumber(expiredUsage, {precision: 2, removeTrailingZeros: true})} ${row.unit}.`;
+                }
+                if (entry.kind === "product" && consumption) {
+                    title += ` Total used across active and expired allocations: ${formatNumber(row.accounting.amounts.used, {precision: 2, removeTrailingZeros: true})} ${row.unit}.`;
+                }
                 return <AllocationAmount
                     value={entry.kind === "slice" ? entry.slice.quota : row.allocationQuota}
                     unit={row.unit}
-                    title={entry.kind === "slice" ? "Quota released for this slice" : "Total granted, including the full release schedule"}
+                    title={title}
                 />;
-            case COLUMN_KEYS.usage: {
-                if (entry.kind === "product") return <AllocationAmount
-                    value={row.productUsage}
-                    unit={row.unit}
-                    title={row.category.accountingModel === "CONSUMPTION" ?
-                        "All charges attributed to this funding relationship, including expired allocations. The period filter selects relationships, not charges." :
-                        "Current capacity charged to this funding relationship. Historical capacity is not added."}
-                />;
-                const attribution = entry.kind === "slice" ? entry.slice : row.grant;
-                if (attribution.used !== null) return <AllocationAmount
-                    value={attribution.used}
-                    unit={row.unit}
-                    title={attribution.attribution === "future" ? "No charges are assigned to this future allocation." :
-                        "Charges assigned to this allocation at retirement, not consumption during its dates."}
-                />;
-                if (attribution.attribution === "not-applicable") return <span className="allocation-detail-empty">—</span>;
-                return <TooltipV2 tooltip={`Active charges are pooled across this funding relationship (${formatNumber(row.accounting.amounts.activeUsed)} ${row.unit}). They are not assigned to individual active allocations.`}>
-                    <span className="allocation-period-note">Pooled{entry.kind === "allocation" && row.grant.recordedUsed > 0 ? ` · ${formatNumber(row.grant.recordedUsed)} recorded` : ""}</span>
-                </TooltipV2>;
             }
-            case COLUMN_KEYS.available:
-                return entry.kind === "product" ? <AllocationAmount
-                    value={row.productAvailable}
-                    unit={row.unit}
-                    negative={row.productAvailable < 0}
-                    title={`Active quota minus active charges on this funding relationship; upstream limits can restrict actual availability. ${formatNumber(row.accounting.amounts.future)} ${row.unit} future; ${formatNumber(row.accounting.amounts.expiredUnused)} ${row.unit} expired unused.`}
-                /> : <span className="allocation-detail-empty">—</span>;
             case COLUMN_KEYS.grant: {
                 if (entry.kind === "slice") return null;
                 const grantIds = entry.kind === "product" ? entry.product.grantIds :
@@ -893,10 +893,13 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             </div>}
             products={products}
             providers={providers}
+            columns={columnOptions}
             selectedProducts={productKeys}
             selectedProviders={selectedProviders}
+            visibleColumns={visibleColumns}
             onProductsChange={setProductKeys}
             onProvidersChange={setSelectedProviders}
+            onColumnsChange={onColumnsChange}
             state={filterState}
             onStateChange={setFilterState}
             counts={counts}
@@ -917,9 +920,9 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             stateKey="allocation-grid"
             viewId="allocation-grid"
             emptyMessage={query || productKeys.length > 0 || selectedProviders.length > 0 || filterState !== "all"
-                ? "No allocations match the current search, filters or period."
+                ? "No allocations match the current search, filters or dates."
                 : props.emptyMessage ?? (props.dateRange?.start || props.dateRange?.end
-                ? "No allocations overlap this period."
+                ? "No allocations overlap these dates."
                 : "No sub-allocations yet.")}
             showGroupHeaders={false}
             inlineGroups

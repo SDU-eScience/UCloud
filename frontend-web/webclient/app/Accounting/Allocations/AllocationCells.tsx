@@ -1,7 +1,9 @@
 import * as React from "react";
+import {TableColumnSortType} from "@/UCX/protocol";
 import {formatNumber} from "@/Utilities/NumberFormatting";
 import {injectStyle} from "@/Unstyled";
 import {TooltipV2} from "@/ui-components/Tooltip";
+import type {AllocationAmounts} from "./AllocationModel";
 
 const AllocationAmountStyle = injectStyle("allocation-amount", k => `
     ${k} { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -22,6 +24,44 @@ export function AllocationAmount(props: {
             <span className="amount-unit">{props.unit}</span>
         </div>
     </TooltipV2>;
+}
+
+export const allocationLifecycleMetrics = [
+    {key: "activeBalance", label: "Active balance", width: 110, title: "Active quota minus active usage. Parent funding limits can reduce what you can use."},
+    {key: "activeUsed", label: "Active usage", width: 102, title: "Usage that counts against active quota."},
+    {key: "activeQuota", label: "Active quota", width: 99, title: "Quota from allocations that are active now."},
+    {key: "retiredUsed", label: "Used at expiry", width: 104, title: "Usage recorded when allocations expired. This is not usage by date."},
+    {key: "expiredUnused", label: "Expired unused", width: 110, title: "Quota that expired without being used."},
+    {key: "future", label: "Upcoming quota", width: 111, title: "Granted quota that has not been released yet."},
+] as const;
+
+type AllocationLifecycleMetric = typeof allocationLifecycleMetrics[number];
+
+export const allocationLifecycleColumns = allocationLifecycleMetrics.map(({key, label}) => ({
+    key, label, jsonPath: key, sortType: TableColumnSortType.Number,
+}));
+
+export const allocationLifecycleWidths = Object.fromEntries(allocationLifecycleMetrics.map(({key, width}) => [key, width]));
+
+export function allocationLifecycleCells(amounts: AllocationAmounts, consumption: boolean): string[] {
+    return allocationLifecycleMetrics.map(metric => allocationLifecycleApplies(metric, consumption) ? `${amounts[metric.key]}` : "");
+}
+
+function allocationLifecycleApplies(metric: AllocationLifecycleMetric, consumption: boolean): boolean {
+    return consumption || (metric.key !== "retiredUsed" && metric.key !== "expiredUnused");
+}
+
+export function AllocationLifecycleAmount(props: {
+    metric: AllocationLifecycleMetric;
+    amounts: AllocationAmounts;
+    consumption: boolean;
+    unit: string;
+}): React.ReactNode {
+    if (!allocationLifecycleApplies(props.metric, props.consumption)) return null;
+    const value = props.amounts[props.metric.key];
+    const balance = props.metric.key === "activeBalance";
+    return <AllocationAmount value={value} unit={props.unit} negative={balance && value < 0}
+        title={props.metric.title} />;
 }
 
 const AllocationUsageStyle = injectStyle("allocation-usage-cell", k => `

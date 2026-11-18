@@ -2,8 +2,11 @@ package accounting
 
 import (
 	"fmt"
+	"math/rand/v2"
+	"net"
 	"net/http"
 	"slices"
+	"strings"
 	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
@@ -24,14 +27,20 @@ type accountingScenarioProject struct {
 }
 
 type accountingScenarioCheckpoint struct {
-	Label            string                       `json:"label"`
-	Now              int64                        `json:"now"`
-	Wallets          []accapi.WalletV2            `json:"wallets"`
-	WalletsByProject map[string][]accapi.WalletV2 `json:"walletsByProject"`
-	Expected         accountingScenarioExpected   `json:"expected"`
-	ChildProjectId   string                       `json:"childProjectId"`
-	Category         accapi.ProductCategoryIdV2   `json:"category"`
-	Actual           accountingScenarioExpected   `json:"actual"`
+	Label            string                             `json:"label"`
+	Now              int64                              `json:"now"`
+	Wallets          []accapi.WalletV2                  `json:"wallets"`
+	WalletsByProject map[string][]accapi.WalletV2       `json:"walletsByProject"`
+	Expected         accountingScenarioExpected         `json:"expected"`
+	ChildProjectId   string                             `json:"childProjectId"`
+	Category         accapi.ProductCategoryIdV2         `json:"category"`
+	Actual           accountingScenarioExpected         `json:"actual"`
+	ChecksByProject  map[string]accountingScenarioCheck `json:"checksByProject,omitempty"`
+}
+
+type accountingScenarioCheck struct {
+	Expected accountingScenarioExpected `json:"expected"`
+	Actual   accountingScenarioExpected `json:"actual"`
 }
 
 type accountingScenarioResult struct {
@@ -53,7 +62,7 @@ var accountingScenarioRunCall = rpc.Call[accountingScenarioRequest, accountingSc
 	BaseContext: "accounting/v2/usage",
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "runScenario",
-	Roles:       rpc.RoleAdmin,
+	Roles:       rpc.RolesPrivileged,
 }
 
 func accountingScenarioInit() {
@@ -61,11 +70,24 @@ func accountingScenarioInit() {
 		return
 	}
 	accountingScenarioRunCall.Handler(func(info rpc.RequestInfo, request accountingScenarioRequest) (accountingScenarioResult, *util.HttpError) {
-		return accountingScenarioRun(info.Actor, request.Scenario)
+		piUsername := info.Actor.Username
+		launcherRun := info.Actor.Role == rpc.RoleService
+		if launcherRun {
+			host, _, _ := net.SplitHostPort(info.HttpRequest.RemoteAddr)
+			if info.Actor.Username != rpc.ActorSystem.Username || !net.ParseIP(host).IsLoopback() || !accountingScenarioLauncherCore() {
+				return accountingScenarioResult{}, util.HttpErr(http.StatusForbidden, "Forbidden")
+			}
+			piUsername = "user"
+		}
+		if request.Scenario == accountingScenarioPortfolioName {
+			controller := http.NewResponseController(info.HttpWriter)
+			_ = controller.SetWriteDeadline(time.Now().Add(accountingScenarioPortfolioTimeout))
+		}
+		return accountingScenarioRun(piUsername, request.Scenario, launcherRun)
 	})
 }
 
-func accountingScenarioRun(actor rpc.Actor, name string) (accountingScenarioResult, *util.HttpError) {
+func accountingScenarioRun(piUsername string, name string, launcherRun bool) (accountingScenarioResult, *util.HttpError) {
 	if !util.DevelopmentModeEnabled() {
 		return accountingScenarioResult{}, util.HttpErr(http.StatusForbidden, "accounting scenarios are only available in development")
 	}
@@ -79,6 +101,10 @@ func accountingScenarioRun(actor rpc.Actor, name string) (accountingScenarioResu
 	definition := definitions[index]
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	runId := name + "-" + util.RandomTokenNoTs(6)
+	var shortId [4]byte
+	for i := range shortId {
+		shortId[i] = byte('A' + rand.IntN(26))
+	}
 	result := accountingScenarioResult{
 		FormatVersion: 1,
 		RunId:         runId,
@@ -87,20 +113,37 @@ func accountingScenarioRun(actor rpc.Actor, name string) (accountingScenarioResu
 		Projects:      map[string]string{},
 		ProjectInfo:   map[string]accountingScenarioProject{},
 	}
-	roles := []string{"root", "workspace"}
+	roles := []string{"root"}
+	firstDay := -365
 	for _, step := range definition.Steps {
-		for _, role := range []string{step.Parent, step.Owner} {
+		firstDay = min(firstDay, step.At)
+		owner := step.Owner
+		if owner == "" {
+			owner = "workspace"
+		}
+		for _, role := range []string{step.Parent, owner} {
 			if role != "" && !slices.Contains(roles, role) {
 				roles = append(roles, role)
 			}
 		}
 	}
 	for _, role := range roles {
-		title := fmt.Sprintf("Accounting scenario %s / %s", runId, role)
+		subCode := strings.ToUpper(role)
+		switch role {
+		case "workspace":
+			subCode = "WORK"
+		case "downstream":
+			subCode = "DOWN"
+		}
+		title := fmt.Sprintf("AS-%s-%s-%s", definition.Code, shortId, subCode)
+		projectPi := piUsername
+		if launcherRun && name == accountingScenarioPortfolioName && role != "root" {
+			projectPi = rpc.ActorSystem.Username
+		}
 		project, err := fndapi.ProjectInternalCreate.Invoke(fndapi.ProjectInternalCreateRequest{
 			Title:      title,
 			BackendId:  "accounting-scenario-" + runId + "-" + role,
-			PiUsername: actor.Username,
+			PiUsername: projectPi,
 		})
 		if err != nil {
 			result.Failure = err.Error()
@@ -110,7 +153,7 @@ func accountingScenarioRun(actor rpc.Actor, name string) (accountingScenarioResu
 		result.ProjectInfo[project.Id] = accountingScenarioProject{
 			Id:         project.Id,
 			Title:      title,
-			PiUsername: actor.Username,
+			PiUsername: projectPi,
 		}
 	}
 	result.ProjectId = result.Projects["root"]
@@ -146,16 +189,16 @@ func accountingScenarioRun(actor rpc.Actor, name string) (accountingScenarioResu
 		wallets := map[string]AccWalletId{}
 		for _, role := range roles {
 			owner := internalOwnerByReference(result.Projects[role])
-			wallets[role] = internalWalletByOwner(bucket, at(-365), owner.Id)
+			wallets[role] = internalWalletByOwner(bucket, at(firstDay), owner.Id)
 		}
 		rootQuota := definition.RootQuota
 		if rootQuota == 0 {
 			rootQuota = 1000000
 		}
 		rootAllocation, allocErr := internalAllocateNoCommit(
-			at(-365),
+			at(firstDay),
 			bucket,
-			at(-365),
+			at(firstDay),
 			at(365),
 			rootQuota,
 			wallets["root"],
@@ -165,7 +208,7 @@ func accountingScenarioRun(actor rpc.Actor, name string) (accountingScenarioResu
 		if allocErr != nil {
 			return allocErr
 		}
-		internalCommitAllocation(bucket, at(-365), rootAllocation)
+		internalCommitAllocation(bucket, at(firstDay), rootAllocation)
 		result.AllocationIds = append(result.AllocationIds, int64(rootAllocation))
 
 		grantByStep := map[int]accGrantId{}
@@ -219,7 +262,8 @@ func accountingScenarioRun(actor rpc.Actor, name string) (accountingScenarioResu
 				})
 			}
 			grantId := accountingScenarioGrant(
-				actor.Username,
+				piUsername,
+				result.ProjectInfo[result.Projects[owner]].PiUsername,
 				result.Projects[owner],
 				result.Projects[parent],
 				at(step.At),
@@ -285,7 +329,7 @@ func accountingScenarioRun(actor rpc.Actor, name string) (accountingScenarioResu
 					Now:              when.UnixMilli(),
 					WalletsByProject: map[string][]accapi.WalletV2{},
 					Expected:         *step.Expected,
-					ChildProjectId:   result.Projects["workspace"],
+					ChildProjectId:   result.Projects[owner],
 					Category:         category.ToId(),
 				}
 				for _, role := range roles {
@@ -298,7 +342,26 @@ func accountingScenarioRun(actor rpc.Actor, name string) (accountingScenarioResu
 				checkpoint.Wallets = checkpoint.WalletsByProject[result.ProjectId]
 				actual := accountingScenarioReadAmounts(checkpoint.Wallets[0], checkpoint.ChildProjectId, definition.Capacity, when)
 				checkpoint.Actual = actual
+				var mismatch *util.HttpError
+				if len(step.ExpectedByOwner) > 0 {
+					checkpoint.ChecksByProject = make(map[string]accountingScenarioCheck, len(step.ExpectedByOwner))
+					for _, role := range roles {
+						expected, ok := step.ExpectedByOwner[role]
+						if !ok {
+							continue
+						}
+						projectId := result.Projects[role]
+						amounts := accountingScenarioReadAmounts(checkpoint.Wallets[0], projectId, definition.Capacity, when)
+						checkpoint.ChecksByProject[projectId] = accountingScenarioCheck{Expected: expected, Actual: amounts}
+						if amounts != expected && mismatch == nil {
+							mismatch = util.HttpErr(http.StatusInternalServerError, "%s (%s): expected %+v; got %+v", step.Label, role, expected, amounts)
+						}
+					}
+				}
 				result.Checkpoints = append(result.Checkpoints, checkpoint)
+				if mismatch != nil {
+					return mismatch
+				}
 				if actual != *step.Expected {
 					return util.HttpErr(http.StatusInternalServerError, "%s: expected %+v; got %+v", step.Label, *step.Expected, actual)
 				}
@@ -354,6 +417,7 @@ func accountingScenarioReadAmounts(wallet accapi.WalletV2, childId string, capac
 
 func accountingScenarioGrant(
 	username string,
+	projectPi string,
 	recipient string,
 	parent string,
 	now time.Time,
@@ -393,7 +457,7 @@ func accountingScenarioGrant(
 			CurrentRevision: revision,
 			Status: accapi.GrantStatus{
 				OverallState: accapi.GrantApplicationStateApproved,
-				ProjectPI:    username,
+				ProjectPI:    projectPi,
 				Revisions:    []accapi.GrantRevision{revision},
 				StateBreakdown: []accapi.GrantGiverApprovalState{{
 					ProjectId:     parent,

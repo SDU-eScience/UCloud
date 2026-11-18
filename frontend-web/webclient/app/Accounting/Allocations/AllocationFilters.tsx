@@ -14,6 +14,7 @@ export interface AllocationFilterOption {
     key: string;
     label: string;
     icon?: React.ReactNode;
+    advanced?: boolean;
 }
 
 const AllocationFilterOptionsStyle = injectStyle("allocation-filter-options", k => `
@@ -23,6 +24,7 @@ const AllocationFilterOptionsStyle = injectStyle("allocation-filter-options", k 
     ${k} .allocation-filter-label { flex: 1; min-width: 0; }
     ${k} .allocation-filter-icon { display: flex; align-items: center; justify-content: center; flex: 0 0 18px; }
     ${k} .allocation-filter-option > [role="switch"] { flex-shrink: 0; }
+    ${k} .allocation-filter-section { margin: 4px 0; padding: 8px 8px 0; border-top: 1px solid var(--borderColor); color: var(--textSecondary); font-size: 12px; }
 `);
 
 function AllocationFilterSelect(props: {
@@ -31,10 +33,11 @@ function AllocationFilterSelect(props: {
     options: AllocationFilterOption[];
     selected: string[];
     onChange: (selected: string[]) => void;
+    visibility?: boolean;
 }): React.ReactNode {
     return <ClickableDropdown
-        trigger={<span className="allocation-filter-trigger"><Icon name={props.icon} size={15} />{props.label}{props.selected.length > 0 ? ` (${formatNumber(props.selected.length)})` : ""}<Icon name="heroChevronDown" size={12} /></span>}
-        triggerAriaLabel={`Filter by ${props.label.toLowerCase()}`}
+        trigger={<span className="allocation-filter-trigger"><Icon name={props.icon} size={15} />{props.label}{!props.visibility && props.selected.length > 0 ? ` (${formatNumber(props.selected.length)})` : ""}<Icon name="heroChevronDown" size={12} /></span>}
+        triggerAriaLabel={props.visibility ? "Choose visible columns" : `Filter by ${props.label.toLowerCase()}`}
         width={300}
         focusable
         keepOpenOnClick
@@ -42,24 +45,27 @@ function AllocationFilterSelect(props: {
         paddingControlledByContent
     >
         <div className={AllocationFilterOptionsStyle}>
-            {props.options.map(option => {
+            {props.options.map((option, index) => {
                 const toggle = () => {
                     const next = props.selected.includes(option.key)
                         ? props.selected.filter(key => key !== option.key)
                         : [...props.selected, option.key];
                     props.onChange(next);
                 };
-                return <div key={option.key} className="allocation-filter-option" onClick={toggle}>
-                    {option.icon ? <span className="allocation-filter-icon">{option.icon}</span> : null}
-                    <span className="allocation-filter-label">{option.label}</span>
-                    <Toggle
-                        height={18}
-                        activeColor="primaryMain"
-                        checked={props.selected.includes(option.key)}
-                        onChange={toggle}
-                        ariaLabel={option.label}
-                    />
-                </div>;
+                return <React.Fragment key={option.key}>
+                    {option.advanced && !props.options[index - 1]?.advanced ? <div className="allocation-filter-section">Advanced</div> : null}
+                    <div className="allocation-filter-option" onClick={toggle}>
+                        {option.icon ? <span className="allocation-filter-icon">{option.icon}</span> : null}
+                        <span className="allocation-filter-label">{option.label}</span>
+                        <Toggle
+                            height={18}
+                            activeColor="primaryMain"
+                            checked={props.selected.includes(option.key)}
+                            onChange={toggle}
+                            ariaLabel={option.label}
+                        />
+                    </div>
+                </React.Fragment>;
             })}
         </div>
     </ClickableDropdown>;
@@ -93,10 +99,13 @@ export function AllocationFilters(props: {
     actions?: React.ReactNode;
     products: AllocationFilterOption[];
     providers: AllocationFilterOption[];
+    columns: AllocationFilterOption[];
     selectedProducts: string[];
     selectedProviders: string[];
+    visibleColumns: string[];
     onProductsChange: (selected: string[]) => void;
     onProvidersChange: (selected: string[]) => void;
+    onColumnsChange: (selected: string[]) => void;
     state: AllocationFilterState;
     onStateChange: (state: AllocationFilterState) => void;
     counts: Record<AllocationFilterState, number>;
@@ -107,7 +116,7 @@ export function AllocationFilters(props: {
 }): React.ReactNode {
     const states: [AllocationFilterState, string][] = [
         ["all", "All"], ["active", "Active"], ["expiring", "Expiring"],
-        ["upcoming", "Upcoming"], ["exhausted", "Exhausted"], ["expired", "Expired"],
+        ["upcoming", "Upcoming grants"], ["exhausted", "Exhausted"], ["expired", "Expired grants"],
     ];
     const hasFilters = props.query.trim() !== ""
         || props.selectedProducts.length > 0
@@ -143,6 +152,7 @@ export function AllocationFilters(props: {
         <div className="allocation-filter-row">
             <AllocationFilterSelect label="Products" icon="heroCpuChip" options={props.products} selected={props.selectedProducts} onChange={props.onProductsChange} />
             <AllocationFilterSelect label="Provider" icon="heroCloud" options={props.providers} selected={props.selectedProviders} onChange={props.onProvidersChange} />
+            <AllocationFilterSelect label="Columns" icon="heroViewColumns" options={props.columns} selected={props.visibleColumns} onChange={props.onColumnsChange} visibility />
             <div className="allocation-state-row" aria-label="Allocation state filters">
                 {states.map(([state, label]) => <button
                     key={state}

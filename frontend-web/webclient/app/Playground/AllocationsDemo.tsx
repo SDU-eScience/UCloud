@@ -80,6 +80,7 @@ export default function AllocationsDemo(): React.ReactNode {
     const [error, setError] = useState("");
     const checkpoint = data?.checkpoints[index];
     const failures = checkpoint ? allocationScenarioFailures(checkpoint) : [];
+    const checkedRelationships = checkpoint?.checksByProject ? Object.keys(checkpoint.checksByProject).length : 1;
     return <>
         <section style={{padding: "20px 32px", display: "flex", flexDirection: "column", gap: 12}}>
             <h3>Accounting scenarios</h3>
@@ -108,8 +109,10 @@ export default function AllocationsDemo(): React.ReactNode {
                 <label>Funding parent <select value={projectId} onChange={event => setProjectId(event.target.value)}>
                     {Object.entries(data.projects).map(([role, id]) => <option key={id} value={id}>{role}</option>)}
                 </select></label>
-                <p role="status">{failures.length === 0 ? "Root funding relationship: normalization matches all expected checkpoint amounts." : failures.join("; ")}</p>
-                <p>Expected raw accounting units: {Object.entries(checkpoint.expected).map(([key, value]) => `${key}=${value}`).join(", ")}</p>
+                <p role="status">{failures.length === 0
+                    ? `Checkpoint amounts match for ${checkedRelationships} funding ${checkedRelationships === 1 ? "relationship" : "relationships"}.`
+                    : `${failures.length} mismatches: ${failures.slice(0, 5).join("; ")}`}</p>
+                {!checkpoint.checksByProject && <p>Expected raw accounting units: {Object.entries(checkpoint.expected).map(([key, value]) => `${key}=${value}`).join(", ")}</p>}
             </> : null}
         </section>
         {data && checkpoint ? <AllocationScenarioView

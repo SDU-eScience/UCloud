@@ -9,6 +9,7 @@ export interface AllocationScenarioCheckpoint {
     wallets: WalletV2[];
     walletsByProject: Record<string, WalletV2[]>;
     expected: Pick<AllocationAmounts, "granted" | "used" | "activeQuota" | "activeUsed" | "activeBalance" | "retiredUsed" | "expiredUnused" | "future">;
+    checksByProject?: Record<string, {expected: AllocationScenarioCheckpoint["expected"]}>;
     childProjectId: string;
     category: {name: string; provider: string};
 }
@@ -40,13 +41,16 @@ export function allocationScenarioRead(text: string): AllocationScenarioData {
 
 export function allocationScenarioFailures(checkpoint: AllocationScenarioCheckpoint): string[] {
     const model = allocationNormalize(checkpoint.wallets, checkpoint.now);
-    const product = model.products.find(product =>
-        product.workspaceKey === `project:${checkpoint.childProjectId}`
-        && product.category.name === checkpoint.category.name
-        && product.category.provider === checkpoint.category.provider
-    );
-    if (!product) return ["Expected funding relationship is missing."];
-    const fields = Object.keys(checkpoint.expected) as (keyof AllocationScenarioCheckpoint["expected"])[];
-    return fields.flatMap(field => product.raw[field] === checkpoint.expected[field] ? [] :
-        [`${field}: expected ${checkpoint.expected[field]}, got ${product.raw[field]}`]);
+    const productsByWorkspace = new Map(model.products.filter(product =>
+        product.category.name === checkpoint.category.name && product.category.provider === checkpoint.category.provider
+    ).map(product => [product.workspaceKey, product] as const));
+    const checks = checkpoint.checksByProject ?? {[checkpoint.childProjectId]: {expected: checkpoint.expected}};
+    return Object.entries(checks).flatMap(([projectId, {expected}]) => {
+        const product = productsByWorkspace.get(`project:${projectId}`);
+        const prefix = checkpoint.checksByProject ? `${projectId}: ` : "";
+        if (!product) return [`${prefix}Expected funding relationship is missing.`];
+        const fields = Object.keys(expected) as (keyof AllocationScenarioCheckpoint["expected"])[];
+        return fields.flatMap(field => product.raw[field] === expected[field] ? [] :
+            [`${prefix}${field}: expected ${expected[field]}, got ${product.raw[field]}`]);
+    });
 }

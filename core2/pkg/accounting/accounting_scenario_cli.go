@@ -6,14 +6,19 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"ucloud.dk/shared/pkg/cfgutil"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
+
+const accountingScenarioLocalURL = "http://localhost:8080"
 
 func AccountingScenariosMain(args []string) {
 	if len(args) == 0 || args[0] == "list" {
@@ -31,12 +36,24 @@ func AccountingScenariosMain(args []string) {
 		os.Exit(2)
 	}
 	flags := flag.NewFlagSet("accounting-scenarios", flag.ExitOnError)
-	baseUrl := flags.String("url", "http://localhost:8080", "URL of the running development core")
+	baseUrl := flags.String("url", accountingScenarioLocalURL, "URL of the running development core")
 	token := flags.String("token", os.Getenv("UCLOUD_ACCESS_TOKEN"), "administrator access token (defaults to UCLOUD_ACCESS_TOKEN)")
 	output := flags.String("out", "accounting-scenarios", "directory for checkpoint JSON and resource manifests")
 	parseErr := flags.Parse(args[2:])
 	if parseErr != nil {
 		os.Exit(2)
+	}
+	base := strings.TrimRight(*baseUrl, "/")
+	client := &http.Client{Timeout: 2 * time.Minute}
+	useLauncherCredentials := *token == "" && base == accountingScenarioLocalURL && accountingScenarioLauncherCore()
+	if useLauncherCredentials {
+		client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+		*token = accountingScenarioLauncherAccessToken(client)
+		if *token == "" {
+			fmt.Fprintln(os.Stderr, "Could not get an access token from the launcher core configuration.")
+		}
 	}
 	if *token == "" {
 		fmt.Fprintln(os.Stderr, "Set UCLOUD_ACCESS_TOKEN to a development administrator access token, or pass --token.")
@@ -46,22 +63,26 @@ func AccountingScenariosMain(args []string) {
 	if names[0] == "all" {
 		names = nil
 		for _, definition := range accountingScenarioDefinitions() {
-			names = append(names, definition.Name)
+			if !definition.ExplicitRun {
+				names = append(names, definition.Name)
+			}
 		}
+	}
+	if args[1] == accountingScenarioPortfolioName {
+		client.Timeout = accountingScenarioPortfolioTimeout + 10*time.Second
 	}
 	for _, name := range names {
 		payload, marshalErr := json.Marshal(accountingScenarioRequest{Scenario: name})
 		if marshalErr != nil {
 			panic(marshalErr)
 		}
-		request, requestErr := http.NewRequest(http.MethodPost, strings.TrimRight(*baseUrl, "/")+"/api/accounting/v2/usage/runScenario", bytes.NewReader(payload))
+		request, requestErr := http.NewRequest(http.MethodPost, base+"/api/accounting/v2/usage/runScenario", bytes.NewReader(payload))
 		if requestErr != nil {
 			fmt.Fprintln(os.Stderr, requestErr)
 			os.Exit(1)
 		}
 		request.Header.Set("Authorization", "Bearer "+*token)
 		request.Header.Set("Content-Type", "application/json")
-		client := http.Client{Timeout: 2 * time.Minute}
 		response, responseErr := client.Do(request)
 		if responseErr != nil {
 			fmt.Fprintln(os.Stderr, responseErr)
@@ -103,10 +124,49 @@ func AccountingScenariosMain(args []string) {
 			fmt.Fprintf(os.Stderr, "%s failed: %s\nPartial resource manifest: %s\n", name, result.Failure, path)
 			os.Exit(1)
 		}
-		fmt.Printf("%s: %d checkpoints passed\nProject: %s\nSnapshots and resource manifest: %s\nOpen /app/allocations in this project, or load the JSON on /app/playground/allocations.\n",
-			name, len(result.Checkpoints), result.ProjectId, path)
+		fmt.Printf("%s: %d checkpoints passed\nProject: %s (%s)\nSnapshots and resource manifest: %s\n",
+			name, len(result.Checkpoints), result.ProjectInfo[result.ProjectId].Title, result.ProjectId, path)
+		fmt.Println("Open /app/allocations in this project.")
+		fmt.Println("Load the JSON on /app/playground/allocations to inspect the checkpoints.")
 		for _, checkpoint := range result.Checkpoints {
-			fmt.Printf("  %s: %+v\n", checkpoint.Label, checkpoint.Expected)
+			if len(checkpoint.ChecksByProject) > 0 {
+				fmt.Printf("  %s: %d funding relationships matched\n", checkpoint.Label, len(checkpoint.ChecksByProject))
+			} else {
+				fmt.Printf("  %s: %+v\n", checkpoint.Label, checkpoint.Expected)
+			}
 		}
 	}
+}
+
+func accountingScenarioLauncherCore() bool {
+	hostname, _ := os.Hostname()
+	if hostname != "core2" {
+		return false
+	}
+	addresses, _ := net.InterfaceAddrs()
+	for _, address := range addresses {
+		ip, _, err := net.ParseCIDR(address.String())
+		if err == nil && ip.Equal(net.IPv4(172, 18, 0, 4)) {
+			return true
+		}
+	}
+	return false
+}
+
+func accountingScenarioLauncherAccessToken(client *http.Client) string {
+	path, document := cfgutil.ReadAndParse("/etc/ucloud", "config")
+	if document == nil {
+		return ""
+	}
+	success := true
+	refreshToken := cfgutil.RequireChildText(path, document, "refreshToken", &success)
+	if !success || refreshToken == "" {
+		return ""
+	}
+	core := rpc.Client{
+		BasePath:     accountingScenarioLocalURL,
+		RefreshToken: refreshToken,
+		Client:       client,
+	}
+	return core.RetrieveAccessTokenOrRefresh()
 }

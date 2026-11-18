@@ -19,7 +19,6 @@ import {AllocationAmount} from "./AllocationCells";
 
 interface AllocationOverviewRow {
     category: ProductCategoryV2;
-    quota: number;
     granted: number;
     used: number;
     future: number;
@@ -34,7 +33,7 @@ export function allocationCategoryKey(category: ProductCategoryV2): string {
 
 const allocationOverviewColumns: TableColumn[] = [
     {key: "overview.product", label: "Product", jsonPath: "product", sortType: TableColumnSortType.Text},
-    {key: "overview.usage", label: "Used", jsonPath: "usage", sortType: TableColumnSortType.Number},
+    {key: "overview.usage", label: "Total used", jsonPath: "usage", sortType: TableColumnSortType.Number},
     {key: "overview.granted", label: "Total granted", jsonPath: "granted", sortType: TableColumnSortType.Number},
     {key: "overview.future", label: "Starting soon", jsonPath: "future", sortType: TableColumnSortType.Number},
     {key: "overview.expiring", label: "Expiring soon", jsonPath: "expiring", sortType: TableColumnSortType.Number},
@@ -86,7 +85,6 @@ export function AllocationOverview(props: {
             if (!row) {
                 row = {
                     category,
-                    quota: 0,
                     granted: 0,
                     used: 0,
                     future: 0,
@@ -100,8 +98,7 @@ export function AllocationOverview(props: {
         };
 
         for (const wallet of props.model.received) {
-            const row = ensureProduct(wallet.category);
-            row.quota += wallet.amounts.activeQuota;
+            ensureProduct(wallet.category);
         }
         for (const product of allocationSelectProducts(props.model, {
             dateRange: props.dateRange,
@@ -185,13 +182,13 @@ export function AllocationOverview(props: {
         if (context.column.key === "overview.usage") {
             const unit = allocationDisplayUnit(row.category);
             return <AllocationAmount value={row.used} unit={unit} title={row.category.accountingModel === "CONSUMPTION" ?
-                "All charges attributed to the displayed funding relationships, including retired allocations." :
-                "Current capacity charged to the displayed funding relationships."} />;
+                "Total usage on active and expired allocations granted to workspaces." :
+                "Current capacity used by workspaces. Past usage is not included."} />;
         }
         if (context.column.key === "overview.granted") {
             const unit = allocationDisplayUnit(row.category);
             return <AllocationAmount value={row.granted} unit={unit}
-                title={`Original grants including expired allocations and future releases. ${number(row.quota)} ${unit} currently received.`} />;
+                title="Quota granted to workspaces, including active, expired and upcoming allocations." />;
         }
         const value = Number(context.cell);
         const count = context.column.key === "overview.exhausted" || context.column.key === "overview.workspaces";
