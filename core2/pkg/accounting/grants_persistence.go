@@ -260,6 +260,11 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 					log.Warn("Failed to parse structured form: %s", err)
 				}
 				currentRevision.Document.Form.AnswerForms = util.NonNilSlice(answerForms)
+			} else if currentRevision.Document.Form.Type == accapi.FormTypeGrantGiverInitiated {
+				var answerForms []accapi.AnswerForm
+				if err := json.Unmarshal([]byte(currentRevision.Document.Form.Text), &answerForms); err == nil {
+					currentRevision.Document.Form.AnswerForms = util.NonNilSlice(answerForms)
+				}
 			}
 			app.Status.Revisions = append(app.Status.Revisions, currentRevision)
 
@@ -854,6 +859,15 @@ func grantsLoadIndex(b *grantIndexBucket, recipient string) {
 	b.Mu.Unlock()
 }
 
+func lGrantsMarshalAnswerForms(answerForms []accapi.AnswerForm, app *grantApplication) string {
+	b, err := json.Marshal(answerForms)
+	if err != nil {
+		log.Error("Failed to marshal form fields for application %d", app.lId())
+		return "Failed to marshal"
+	}
+	return string(b)
+}
+
 func lGrantsPersist(app *grantApplication) {
 	if grantGlobals.Testing.Enabled {
 		return
@@ -1069,12 +1083,13 @@ func lGrantsPersist(app *grantApplication) {
 
 				switch rev.Document.Form.Type {
 				case accapi.FormTypeStructured:
-					b, err := json.Marshal(rev.Document.Form.AnswerForms)
-					if err == nil {
-						form = append(form, string(b))
+					form = append(form, lGrantsMarshalAnswerForms(rev.Document.Form.AnswerForms, app))
+
+				case accapi.FormTypeGrantGiverInitiated:
+					if len(rev.Document.Form.AnswerForms) > 0 {
+						form = append(form, lGrantsMarshalAnswerForms(rev.Document.Form.AnswerForms, app))
 					} else {
-						form = append(form, "Failed to marshal")
-						log.Error("Failed to marshal form fields for application %d", app.lId())
+						form = append(form, rev.Document.Form.Text)
 					}
 
 				case accapi.FormTypePlainText:

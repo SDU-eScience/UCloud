@@ -47,6 +47,7 @@ export function AllocationPeriodFilter(props: {
     value: AllocationDateRange;
     onChange: (value: AllocationDateRange) => void;
     navigationField?: boolean;
+    presetButtonColor?: "secondaryMain";
     now?: number;
 }): React.ReactNode {
     const currentDate = new Date(props.now ?? Date.now());
@@ -188,14 +189,14 @@ export function AllocationPeriodFilter(props: {
             <div ref={setPanelNode} className={AllocationPeriodPanelClass} role="dialog" aria-label="Choose allocation period" onKeyDown={onPanelKeyDown}>
                 <h4>Allocation period</h4>
                 <div className="period-presets">
-                    <Button color="ghost" height={25} onClick={() => choosePreset(calendarYearRange(currentDate.getFullYear()))}>Current year<SubmitShortcut shortcut="C" compact /></Button>
-                    <Button color="ghost" height={25} onClick={() => {
+                    <Button color={props.presetButtonColor ?? "ghost"} height={25} onClick={() => choosePreset(calendarYearRange(currentDate.getFullYear()))}>Current year<SubmitShortcut shortcut="C" compact /></Button>
+                    <Button color={props.presetButtonColor ?? "ghost"} height={25} onClick={() => {
                         choosePreset(calendarYearRange(currentDate.getFullYear() - 1));
                     }}>Last year<SubmitShortcut shortcut="L" compact /></Button>
-                    <Button color="ghost" height={25} onClick={() => {
+                    <Button color={props.presetButtonColor ?? "ghost"} height={25} onClick={() => {
                         choosePreset(calendarYearRange(currentDate.getFullYear() + 1));
                     }}>Next year<SubmitShortcut shortcut="N" compact /></Button>
-                    <Button color="ghost" height={25} onClick={() => {
+                    <Button color={props.presetButtonColor ?? "ghost"} height={25} onClick={() => {
                         choosePreset(nextTwelveMonths());
                     }}>Next 12 months<SubmitShortcut shortcut="R" compact /></Button>
                 </div>

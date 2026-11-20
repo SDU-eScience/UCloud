@@ -1,14 +1,13 @@
 import * as React from "react";
 import ReactModal from "react-modal";
 import {format} from "date-fns";
-import {allocationInputValue} from "@/Accounting";
+import {allocationInputUnit, allocationInputValue} from "@/Accounting";
 import type {ProductCategoryV2} from "@/Accounting";
 import {Button} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {injectStyle} from "@/Unstyled";
 import {AllocationAmount} from "./AllocationCells";
-import {allocationDisplayUnit} from "./AllocationPresentation";
 import type {AllocationSlice} from "./AllocationSlices";
 
 const AllocationBreakdownStyle = injectStyle("allocation-breakdown", k => `
@@ -36,7 +35,7 @@ export function AllocationBreakdownDialog(props: {
     onEdit?: (slice: AllocationSlice) => void;
 }): React.ReactNode {
     const now = Date.now();
-    const unit = allocationDisplayUnit(props.category);
+    const unit = allocationInputUnit(props.category).name;
     const total = props.slices.reduce((sum, slice) => sum + slice.quota, 0);
     const date = (timestamp: number) => <span className="allocation-breakdown-date">
         {format(timestamp, "d MMM yyyy")}<span className="allocation-breakdown-time">{format(timestamp, "HH:mm")}</span>

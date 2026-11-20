@@ -667,6 +667,7 @@ func internalUpdateAllocation(
 	newStart util.Option[fndapi.Timestamp],
 	newEnd util.Option[fndapi.Timestamp],
 	reason string,
+	retire bool,
 ) (accGrantId, string, *util.HttpError) {
 	var iAlloc *internalAllocation
 	var iWallet *internalWallet
@@ -690,16 +691,25 @@ func internalUpdateAllocation(
 		return grantedIn, changelog, util.HttpErr(http.StatusForbidden, "You are not allowed to modify this allocation")
 	}
 	lInternalTransitionWallets(b, now, false, iWallet.Id, iParent.Id)
+	if retire && iAlloc.Retired {
+		b.Mu.Unlock()
+		return grantedIn, changelog, nil
+	}
 
 	proposedNewStart := iAlloc.Start
 	if newStart.Present {
 		proposedNewStart = newStart.Value.Time()
 	}
 	proposedNewEnd := iAlloc.End
-	if newEnd.Present {
+	if retire {
+		proposedNewEnd = now
+		if iAlloc.Start.After(now) {
+			proposedNewEnd = iAlloc.Start
+		}
+	} else if newEnd.Present {
 		proposedNewEnd = newEnd.Value.Time()
 	}
-	if iAlloc.AllocationPackage {
+	if iAlloc.AllocationPackage && !retire {
 		if !proposedNewStart.Before(proposedNewEnd) {
 			b.Mu.Unlock()
 			return grantedIn, changelog, util.HttpErr(http.StatusBadRequest, "allocation slices must have a positive duration")
@@ -707,7 +717,7 @@ func internalUpdateAllocation(
 		group := iWallet.AllocationsByParent[iAlloc.Parent]
 		for siblingId := range group.Allocations {
 			sibling := b.AllocationsById[siblingId]
-			if siblingId == allocationId || !sibling.AllocationPackage || sibling.GrantedIn != iAlloc.GrantedIn {
+			if siblingId == allocationId || !sibling.AllocationPackage || sibling.GrantedIn != iAlloc.GrantedIn || !sibling.Start.Before(sibling.End) {
 				continue
 			}
 			if proposedNewStart.Before(sibling.End) && proposedNewEnd.After(sibling.Start) {
@@ -747,7 +757,11 @@ func internalUpdateAllocation(
 	iAlloc.End = proposedNewEnd
 	iAlloc.Quota = proposedNewQuota
 
-	lInternalTransitionAllocationSet(b, now, true, []*internalAllocation{iAlloc})
+	if retire && iAlloc.Start.Equal(iAlloc.End) {
+		lInternalRecordRetirement(b, iAlloc, 0)
+	} else {
+		lInternalTransitionAllocationSet(b, now, true, []*internalAllocation{iAlloc})
+	}
 	lInternalReevaluate(b, now, iWallet, true)
 	lInternalMarkSignificantUpdate(b, now, iWallet)
 	lCheckAccountingOperation("update allocation", b, now, map[AccWalletId]bool{iWallet.Id: true, iParent.Id: true}, nil)
@@ -787,7 +801,7 @@ func internalUpdateAllocation(
 				proposedNewStart.String(),
 			)
 		}
-		if newEnd.Present {
+		if newEnd.Present || retire {
 			changelog += fmt.Sprintf(
 				"The end date for the granted %s (%s) allocation has manually been updated to %s.\n",
 				category.Name,
@@ -1785,20 +1799,7 @@ func lInternalAttemptRetirement(
 			toRetire = max(0, min(alloc.Quota, group.TreeUsage-groupRetired))
 		}
 
-		alloc.Dirty = true
-		alloc.RetiredUsage = toRetire
-		alloc.RetiredQuota = alloc.Quota
-		alloc.Retired = true
-		alloc.Active = true // retired allocations are always active (even if it was never activated)
-
-		if !b.IsCapacityBased() {
-			// Non-capacity based (i.e. time-based) allocations will have their quota set to retired usage immediately
-			// to prevent further use. The quota continues to count in the wallet.
-			alloc.Quota = alloc.RetiredUsage
-		} else {
-			// In capacity based wallets, the quota immediately stops counting from the wallet once the allocation
-			// retires. Thus, there is no further action required.
-		}
+		lInternalRecordRetirement(b, alloc, toRetire)
 
 		lInternalReevaluate(b, now, wallet, true)
 		lInternalMarkSignificantUpdate(b, now, wallet)
@@ -1806,6 +1807,17 @@ func lInternalAttemptRetirement(
 		if logRetirement {
 			log.Info("Retiring allocation: %v", alloc.Id)
 		}
+	}
+}
+
+func lInternalRecordRetirement(b *internalBucket, alloc *internalAllocation, usage int64) {
+	alloc.Dirty = true
+	alloc.RetiredUsage = usage
+	alloc.RetiredQuota = alloc.Quota
+	alloc.Retired = true
+	alloc.Active = true
+	if !b.IsCapacityBased() {
+		alloc.Quota = usage
 	}
 }
 
@@ -2159,6 +2171,25 @@ func lInternalWalletToApi(
 	includeChildren bool,
 	filterChildrenByIdleTimeInDays util.Option[int],
 ) accapi.WalletV2 {
+	var childIds []AccWalletId
+	if includeChildren {
+		activeChildren := map[AccWalletId]util.Empty{}
+		if filterChildrenByIdleTimeInDays.Present && filterChildrenByIdleTimeInDays.Value > 0 {
+			from := now.AddDate(0, 0, -filterChildrenByIdleTimeInDays.Value)
+			activeChildren = lUsageActiveChildrenInWindow(from, now, w.Id)
+		}
+		for childId := range w.ChildrenUsage {
+			if _, isActive := activeChildren[childId]; isActive {
+				continue
+			}
+			childWallet := b.WalletsById[childId]
+			if lInternalGroupHasCommittedAllocation(b, childWallet.AllocationsByParent[w.Id]) {
+				childIds = append(childIds, childId)
+			}
+		}
+		lInternalTransitionWallets(b, now, false, childIds...)
+	}
+
 	groups := w.AllocationsByParent
 	apiWallet := accapi.WalletV2{
 		Owner:                   owner,
@@ -2276,38 +2307,21 @@ func lInternalWalletToApi(
 		})
 	}
 
-	if includeChildren {
-		activeChildren := map[AccWalletId]util.Empty{}
-		if filterChildrenByIdleTimeInDays.Present && filterChildrenByIdleTimeInDays.Value > 0 {
-			from := now.AddDate(0, 0, -filterChildrenByIdleTimeInDays.Value)
-			activeChildren = lUsageActiveChildrenInWindow(from, now, w.Id)
+	for _, childId := range childIds {
+		childWallet := b.WalletsById[childId]
+		childOwner := accGlobals.OwnersById[childWallet.OwnedBy]
+		g := childWallet.AllocationsByParent[w.Id]
+		wo := childOwner.WalletOwner()
+		child := accapi.ParentOrChildWallet{
+			ProjectId:    wo.ProjectId,
+			ProjectTitle: wo.Username, // NOTE(Dan): Stupid backwards compatible design
 		}
 
-		for childId := range w.ChildrenUsage {
-			if len(activeChildren) > 0 {
-				if _, isActive := activeChildren[childId]; isActive {
-					continue
-				}
-			}
-
-			childWallet := b.WalletsById[childId]
-			childOwner := accGlobals.OwnersById[childWallet.OwnedBy]
-			g := childWallet.AllocationsByParent[w.Id]
-			if !lInternalGroupHasCommittedAllocation(b, g) {
-				continue
-			}
-
-			wo := childOwner.WalletOwner()
-			child := accapi.ParentOrChildWallet{
-				ProjectId:    wo.ProjectId,
-				ProjectTitle: wo.Username, // NOTE(Dan): Stupid backwards compatible design
-			}
-
-			apiWallet.Children = append(apiWallet.Children, accapi.AllocationGroupWithChild{
-				Child: util.OptValue(child),
-				Group: allocGroupApi(g),
-			})
-		}
+		apiWallet.Children = append(apiWallet.Children, accapi.AllocationGroupWithChild{
+			Child:     util.OptValue(child),
+			Group:     allocGroupApi(g),
+			MaxUsable: lInternalMaxUsable(b, now, childWallet),
+		})
 	}
 
 	return apiWallet

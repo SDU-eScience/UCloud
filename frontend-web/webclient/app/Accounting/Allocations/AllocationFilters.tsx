@@ -116,7 +116,7 @@ export function AllocationFilters(props: {
 }): React.ReactNode {
     const states: [AllocationFilterState, string][] = [
         ["all", "All"], ["active", "Active"], ["expiring", "Expiring"],
-        ["upcoming", "Upcoming grants"], ["exhausted", "Exhausted"], ["expired", "Expired grants"],
+        ["upcoming", "Upcoming allocations"], ["exhausted", "Exhausted"], ["expired", "Expired allocations"],
     ];
     const hasFilters = props.query.trim() !== ""
         || props.selectedProducts.length > 0

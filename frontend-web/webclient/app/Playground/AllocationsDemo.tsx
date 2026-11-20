@@ -32,7 +32,15 @@ function AllocationScenarioView(props: {
         undefined,
         () => stateReducer(initialState(), {
             type: "WalletsLoaded",
-            wallets: props.checkpoint.walletsByProject[props.projectId],
+            wallets: (props.checkpoint.walletsByProject[props.projectId] ?? []).map(wallet => ({
+                ...wallet,
+                children: wallet.children?.map(child => {
+                    const childWallet = props.checkpoint.walletsByProject[child.child.projectId ?? ""]?.find(candidate =>
+                        candidate.paysFor.name === wallet.paysFor.name && candidate.paysFor.provider === wallet.paysFor.provider
+                    );
+                    return {...child, maxUsable: child.maxUsable ?? childWallet?.maxUsable};
+                }),
+            })),
         }),
     );
     const dispatchEvent = useCallback((event: UIEvent) => {
@@ -41,7 +49,6 @@ function AllocationScenarioView(props: {
     const readOnly = useCallback(() => {
         sendInformationNotification("Scenario checkpoints are read-only. Open the generated project to edit live data.");
     }, []);
-    const onNewSubProject = useCallback(async () => readOnly(), [readOnly]);
     const onEditAllocation = useCallback((_request: AllocationEditRequest) => readOnly(), [readOnly]);
     const onOpenGrant = useCallback((_grantId: number) => readOnly(), [readOnly]);
     return <AllocationPage
@@ -51,7 +58,7 @@ function AllocationScenarioView(props: {
         onDateRangeChange={setDateRange}
         subProjects={{
             projectId: props.projectId,
-            onNewSubProject,
+            canCreateSubAllocator: false,
             projectRole: OldProjectRole.USER,
             state,
             onSearchInput: event => dispatch({type: "UpdateSearchQuery", newQuery: (event.target as HTMLInputElement).value}),

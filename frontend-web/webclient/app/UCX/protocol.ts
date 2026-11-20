@@ -117,6 +117,7 @@ export interface TableColumn {
     label: string;
     jsonPath: string;
     sortType?: TableColumnSortType;
+    alignment?: "left" | "center" | "right";
     copy?: boolean;
 }
 

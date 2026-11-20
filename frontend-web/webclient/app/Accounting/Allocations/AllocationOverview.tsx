@@ -1,10 +1,10 @@
 import * as React from "react";
 import {useCallback, useLayoutEffect, useMemo} from "react";
-import {productTypeToIcon} from "@/Accounting";
+import {explainUnit, productTypeToIcon} from "@/Accounting";
 import type {ProductCategoryV2} from "@/Accounting";
 import {allocationSelectProducts} from "./AllocationModel";
 import type {AllocationDateRange, AllocationModel} from "./AllocationModel";
-import {allocationCompareProducts, allocationDisplayUnit} from "./AllocationPresentation";
+import {allocationCompareProducts} from "./AllocationPresentation";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 import {formatNumber} from "@/Utilities/NumberFormatting";
@@ -19,11 +19,11 @@ import {AllocationAmount} from "./AllocationCells";
 
 interface AllocationOverviewRow {
     category: ProductCategoryV2;
+    activeGranted: number;
+    activeUsage: number;
+    activeReceived: number;
     granted: number;
     used: number;
-    future: number;
-    expiring: number;
-    exhausted: number;
     workspaces: number;
 }
 
@@ -32,40 +32,74 @@ export function allocationCategoryKey(category: ProductCategoryV2): string {
 }
 
 const allocationOverviewColumns: TableColumn[] = [
-    {key: "overview.product", label: "Product", jsonPath: "product", sortType: TableColumnSortType.Text},
-    {key: "overview.usage", label: "Total used", jsonPath: "usage", sortType: TableColumnSortType.Number},
-    {key: "overview.granted", label: "Total granted", jsonPath: "granted", sortType: TableColumnSortType.Number},
-    {key: "overview.future", label: "Starting soon", jsonPath: "future", sortType: TableColumnSortType.Number},
-    {key: "overview.expiring", label: "Expiring soon", jsonPath: "expiring", sortType: TableColumnSortType.Number},
-    {key: "overview.exhausted", label: "Exhausted workspaces", jsonPath: "exhausted", sortType: TableColumnSortType.Number},
-    {key: "overview.workspaces", label: "Workspaces", jsonPath: "workspaces", sortType: TableColumnSortType.Number},
+    {key: "overview.product", label: "Product", jsonPath: "product", sortType: TableColumnSortType.Text, alignment: "left"},
+    {key: "overview.activeUsage", label: "Active usage", jsonPath: "activeUsage", sortType: TableColumnSortType.Number, alignment: "right"},
+    {key: "overview.activeGranted", label: "Active granted", jsonPath: "activeGranted", sortType: TableColumnSortType.Number, alignment: "right"},
+    {key: "overview.activeReceived", label: "Active received", jsonPath: "activeReceived", sortType: TableColumnSortType.Number, alignment: "right"},
+    {key: "overview.usage", label: "Total used", jsonPath: "usage", sortType: TableColumnSortType.Number, alignment: "right"},
+    {key: "overview.granted", label: "Total granted", jsonPath: "granted", sortType: TableColumnSortType.Number, alignment: "right"},
+    {key: "overview.workspaces", label: "Workspaces", jsonPath: "workspaces", sortType: TableColumnSortType.Number, alignment: "right"},
 ];
 
 const allocationOverviewWidths: Record<string, number> = {
-    "overview.product": 300,
-    "overview.usage": 220,
-    "overview.granted": 130,
-    "overview.future": 120,
-    "overview.expiring": 120,
-    "overview.exhausted": 160,
+    "overview.product": 230,
+    "overview.activeGranted": 110,
+    "overview.activeUsage": 104,
+    "overview.activeReceived": 115,
+    "overview.usage": 100,
+    "overview.granted": 108,
     "overview.workspaces": 100,
 };
 
 const AllocationOverviewStyle = injectStyle("allocation-overview", k => `
-    ${k} {
-        padding-bottom: 16px;
-        margin-bottom: 20px;
-        border-bottom: 1px solid var(--borderColor);
-    }
-    ${k} .overview-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; }
-    ${k} h4 { margin: 0 0 4px; }
-    ${k} p { margin: 0; color: var(--textSecondary); font-size: 12px; }
-    ${k} .overview-table { display: flex; flex-direction: column; margin-top: 10px; min-height: 200px; }
-    ${k} [data-density="compact"] .streamed-table-scroll thead th:not(:first-child):not(:nth-child(2)):not(:nth-child(3)) { text-align: right; }
-    ${k} .overview-number { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; font-variant-numeric: tabular-nums; }
-    ${k} .overview-product { display: flex; align-items: center; gap: 7px; min-height: 24px; max-width: 100%; }
-    ${k} .overview-product-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-    ${k} .overview-provider { display: flex; align-items: center; gap: 8px; }
+\${k} {
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--borderColor);
+}
+
+\${k} p {
+    margin: 0;
+    color: var(--textSecondary);
+    font-size: 12px;
+}
+
+\${k} .overview-table {
+    display: flex;
+    flex-direction: column;
+    margin-top: 10px;
+    min-height: 200px;
+}
+
+\${k} .overview-number {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+\${k} .overview-product {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 24px;
+    max-width: 100%;
+}
+
+\${k} .overview-product-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+\${k} .overview-provider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 `);
 
 export function AllocationOverview(props: {
@@ -85,11 +119,11 @@ export function AllocationOverview(props: {
             if (!row) {
                 row = {
                     category,
+                    activeGranted: 0,
+                    activeUsage: 0,
+                    activeReceived: 0,
                     granted: 0,
                     used: 0,
-                    future: 0,
-                    expiring: 0,
-                    exhausted: 0,
                     workspaces: 0,
                 };
                 products.set(key, row);
@@ -98,7 +132,12 @@ export function AllocationOverview(props: {
         };
 
         for (const wallet of props.model.received) {
-            ensureProduct(wallet.category);
+            const row = ensureProduct(wallet.category);
+            row.activeUsage += wallet.amounts.activeUsed;
+            row.activeReceived += wallet.amounts.activeQuota;
+        }
+        for (const product of props.model.products) {
+            ensureProduct(product.category).activeGranted += product.amounts.activeQuota;
         }
         for (const product of allocationSelectProducts(props.model, {
             dateRange: props.dateRange,
@@ -107,10 +146,7 @@ export function AllocationOverview(props: {
             const row = ensureProduct(product.category);
             row.granted += product.amounts.granted;
             row.used += product.amounts.used;
-            row.future += product.amounts.startingSoon;
-            row.expiring += product.amounts.expiringSoon;
             row.workspaces++;
-            if (product.states.has("exhausted")) row.exhausted++;
         }
         return [...products.values()].sort((a, b) => allocationCompareProducts(a.category, b.category));
     }, [props.model, props.dateRange, props.personalWorkspaces]);
@@ -123,11 +159,11 @@ export function AllocationOverview(props: {
         group: row.category.provider,
         cells: [
             row.category.name,
+            `${row.activeUsage}`,
+            `${row.activeGranted}`,
+            `${row.activeReceived}`,
             `${row.used}`,
             `${row.granted}`,
-            `${row.future}`,
-            `${row.expiring}`,
-            `${row.exhausted}`,
             `${row.workspaces}`,
         ],
     })), [rows]);
@@ -180,30 +216,29 @@ export function AllocationOverview(props: {
             </div>;
         }
         if (context.column.key === "overview.usage") {
-            const unit = allocationDisplayUnit(row.category);
+            const unit = explainUnit(row.category).name;
             return <AllocationAmount value={row.used} unit={unit} title={row.category.accountingModel === "CONSUMPTION" ?
                 "Total usage on active and expired allocations granted to workspaces." :
                 "Current capacity used by workspaces. Past usage is not included."} />;
         }
         if (context.column.key === "overview.granted") {
-            const unit = allocationDisplayUnit(row.category);
+            const unit = explainUnit(row.category).name;
             return <AllocationAmount value={row.granted} unit={unit}
                 title="Quota granted to workspaces, including active, expired and upcoming allocations." />;
         }
         const value = Number(context.cell);
-        const count = context.column.key === "overview.exhausted" || context.column.key === "overview.workspaces";
-        const unit = count ? "workspaces" : allocationDisplayUnit(row.category);
+        const count = context.column.key === "overview.workspaces";
+        const unit = count ? "workspaces" : explainUnit(row.category).name;
         let title = `${number(value)} ${unit}`;
-        if (context.column.key === "overview.expiring") title += " of quota ending within 30 days";
-        if (context.column.key === "overview.future") title += " of quota starting within 30 days";
+        if (context.column.key === "overview.activeGranted") title = "Active quota granted to all child workspaces.";
+        if (context.column.key === "overview.activeUsage") title = "Usage charged against active quota, including this workspace and its children.";
+        if (context.column.key === "overview.activeReceived") title = "Active quota received by this workspace from its funding parents.";
         if (count) return <TooltipV2 tooltip={title}><span className="overview-number">{number(value)}</span></TooltipV2>;
         return <AllocationAmount value={value} unit={unit} title={title} />;
     };
 
     return <section className={AllocationOverviewStyle} aria-label="Allocation overview">
-        <div className="overview-heading">
-            <h4>Allocation overview</h4>
-        </div>
+        <h3 style={{margin: 0}}>Allocation overview</h3>
         <div className="overview-table" style={{height: Math.min(560, Math.max(200, (rows.length + providerCount) * 45 + 42))}}>
             <UcxStreamedTable
                 tableId="allocation-overview"
@@ -215,7 +250,6 @@ export function AllocationOverview(props: {
                 activateOnSpace
                 renderGroupHeader={provider => <span className="overview-provider"><ProviderLogo providerId={provider} size={18} />{getProviderTitle(provider)}</span>}
                 columnWidths={allocationOverviewWidths}
-                fitToWidth
                 renderCell={renderCell}
                 onRowActivated={onRowActivated}
                 emptyMessage={props.loading ? "Loading allocations…" : "No allocations yet."}

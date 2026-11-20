@@ -3,7 +3,7 @@ import type {Allocation, AllocationDisplayTreeRecipient, AllocationGroup, Produc
 import type {ProjectInfo} from "@/Project/InfoCache";
 import {projectInfoPi, projectInfoTitle} from "@/Project/InfoCache";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
-import {allocationCompareProducts, allocationDisplayUnit} from "./AllocationPresentation";
+import {allocationCompareProducts} from "./AllocationPresentation";
 
 export interface AllocationDateRange {
     start: Date;
@@ -34,6 +34,7 @@ export interface AllocationModelSlice {
     quota: number;
     rawQuota: number;
     used: number | null;
+    estimatedUsed?: number;
     attribution: AllocationAttribution;
     retired: boolean;
 }
@@ -59,6 +60,7 @@ export interface AllocationModelProduct {
     owner: AllocationDisplayTreeRecipient["owner"];
     category: ProductCategoryV2;
     unit: string;
+    maxUsable?: number;
     groupIds: number[];
     start: number;
     end: number;
@@ -203,18 +205,59 @@ function allocationNormalizeSlice(allocation: Allocation, category: ProductCateg
     };
 }
 
+function allocationSliceMatchesState(slice: AllocationModelSlice, state: AllocationStatus, product: AllocationModelProduct, now: number): boolean {
+    if (state === "expired") return slice.retired;
+    if (slice.retired) return false;
+    if (state === "upcoming") return slice.start > now;
+    if (slice.start > now || slice.end <= now) return false;
+    if (state === "expiring") return slice.end <= now + allocationMonthMs;
+    if (state === "exhausted") return product.maxUsable !== undefined && product.maxUsable <= 0;
+    return true;
+}
+
 function allocationProductStates(product: AllocationModelProduct, now: number): Set<AllocationStatus> {
-    const states = new Set<AllocationStatus>();
-    const slices = product.grants.flatMap(grant => grant.slices);
-    if (product.grants.some(grant => grant.slices.every(slice => slice.retired))) states.add("expired");
-    if (product.grants.some(grant => grant.start > now)) states.add("upcoming");
-    const active = slices.filter(slice => !slice.retired && slice.start <= now && slice.end > now);
-    if (active.length > 0) {
-        states.add("active");
-        if (active.some(slice => slice.end <= now + allocationMonthMs)) states.add("expiring");
-        if (product.raw.activeBalance <= 0) states.add("exhausted");
-    }
-    return states;
+    const states: AllocationStatus[] = ["active", "expiring", "upcoming", "exhausted", "expired"];
+    return new Set(states.filter(state => product.grants.some(grant =>
+        grant.slices.some(slice => allocationSliceMatchesState(slice, state, product, now)))));
+}
+
+function allocationSummarizeGrant(
+    grant: Pick<AllocationModelGrant, "key" | "grantId" | "sliced">,
+    slices: AllocationModelSlice[],
+): AllocationModelGrant {
+    const pooled = slices.some(slice => slice.attribution === "pooled");
+    const notApplicable = slices.some(slice => slice.attribution === "not-applicable");
+    return {
+        ...grant,
+        allocationId: slices[0].allocationId,
+        start: Math.min(...slices.map(slice => slice.start)),
+        end: Math.max(...slices.map(slice => slice.end)),
+        quota: slices.reduce((sum, slice) => sum + slice.quota, 0),
+        rawQuota: slices.reduce((sum, slice) => sum + slice.rawQuota, 0),
+        used: pooled || notApplicable ? null : slices.reduce((sum, slice) => sum + (slice.used ?? 0), 0),
+        recordedUsed: slices.reduce((sum, slice) => sum + (slice.attribution === "recorded" ? slice.used ?? 0 : 0), 0),
+        attribution: pooled ? "pooled" : notApplicable ? "not-applicable" : slices.every(slice => slice.attribution === "future") ? "future" : "recorded",
+        slices,
+    };
+}
+
+export function allocationFilterProductsByState(products: AllocationModelProduct[], state: AllocationStatus | "all", now: number): AllocationModelProduct[] {
+    if (state === "all") return products;
+    return products.flatMap(product => {
+        if (!product.states.has(state)) return [];
+        const grants = product.grants.flatMap(grant => {
+            const slices = grant.slices.filter(slice => allocationSliceMatchesState(slice, state, product, now));
+            if (slices.length === 0) return [];
+            return [slices.length === grant.slices.length ? grant : allocationSummarizeGrant(grant, slices)];
+        });
+        if (grants.length === 0) return [];
+        return [{
+            ...product,
+            grants,
+            start: Math.min(...grants.map(grant => grant.start)),
+            end: Math.max(...grants.map(grant => grant.end)),
+        }];
+    });
 }
 
 export function allocationNormalize(wallets: WalletV2[], now: number): AllocationModel {
@@ -228,6 +271,8 @@ export function allocationNormalize(wallets: WalletV2[], now: number): Allocatio
         for (const parent of wallet.allocationGroups) {
             allocationAddAmounts(incoming, allocationGroupAmounts(parent.group, category, now));
         }
+        incoming.activeUsed = wallet.activeUsage ?? incoming.activeUsed;
+        incoming.activeBalance = incoming.activeQuota - incoming.activeUsed;
         received.push({category, amounts: allocationDisplayAmounts(incoming, category)});
         for (const child of wallet.children ?? []) {
             const owner: AllocationDisplayTreeRecipient["owner"] = child.child.projectId ? {
@@ -252,7 +297,7 @@ export function allocationNormalize(wallets: WalletV2[], now: number): Allocatio
                     workspaceKey,
                     owner,
                     category,
-                    unit: allocationDisplayUnit(category),
+                    unit: explainUnit(category).name,
                     groupIds: [],
                     start: Number.POSITIVE_INFINITY,
                     end: Number.NEGATIVE_INFINITY,
@@ -264,7 +309,14 @@ export function allocationNormalize(wallets: WalletV2[], now: number): Allocatio
                 products.set(key, product);
             }
             if (child.group.id !== undefined) product.groupIds.push(child.group.id);
-            allocationAddAmounts(product.raw, allocationGroupAmounts(child.group, category, now));
+            if (child.maxUsable !== undefined) product.maxUsable = child.maxUsable * explainUnit(category).balanceFactor;
+            const groupAmounts = allocationGroupAmounts(child.group, category, now);
+            allocationAddAmounts(product.raw, groupAmounts);
+            const activeCount = child.group.allocations.filter(allocation =>
+                !allocation.retired && allocation.startDate <= now && allocation.endDate > now
+            ).length;
+            const estimate = category.accountingModel === "CONSUMPTION" && activeCount > 0 ?
+                groupAmounts.activeUsed * explainUnit(category).balanceFactor / activeCount : undefined;
             const packages = new Map<string, Allocation[]>();
             for (const allocation of child.group.allocations) {
                 const grantKey = allocation.allocationPackage && allocation.grantedIn != null ?
@@ -276,24 +328,15 @@ export function allocationNormalize(wallets: WalletV2[], now: number): Allocatio
             for (const [grantKey, allocations] of packages) {
                 const slices = allocations.map(allocation => allocationNormalizeSlice(allocation, category, now))
                     .sort((a, b) => a.start - b.start || a.allocationId - b.allocationId);
+                for (const slice of slices) {
+                    if (slice.attribution === "pooled" && slice.end > now) slice.estimatedUsed = estimate;
+                }
                 const first = allocations[0];
-                const pooled = slices.some(slice => slice.attribution === "pooled");
-                const notApplicable = slices.some(slice => slice.attribution === "not-applicable");
-                const used = pooled || notApplicable ? null : slices.reduce((sum, slice) => sum + (slice.used ?? 0), 0);
-                const grant: AllocationModelGrant = {
+                const grant = allocationSummarizeGrant({
                     key: grantKey,
-                    allocationId: slices[0].allocationId,
                     grantId: first.grantedIn ?? undefined,
-                    start: Math.min(...slices.map(slice => slice.start)),
-                    end: Math.max(...slices.map(slice => slice.end)),
-                    quota: slices.reduce((sum, slice) => sum + slice.quota, 0),
-                    rawQuota: slices.reduce((sum, slice) => sum + slice.rawQuota, 0),
-                    used,
-                    recordedUsed: slices.reduce((sum, slice) => sum + (slice.attribution === "recorded" ? slice.used ?? 0 : 0), 0),
-                    attribution: pooled ? "pooled" : notApplicable ? "not-applicable" : slices.every(slice => slice.attribution === "future") ? "future" : "recorded",
-                    slices,
                     sliced: first.allocationPackage === true,
-                };
+                }, slices);
                 product.grants.push(grant);
                 product.start = Math.min(product.start, grant.start);
                 product.end = Math.max(product.end, grant.end);

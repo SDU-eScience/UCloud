@@ -11,6 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode"
 
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	"github.com/prometheus/client_golang/prometheus"
@@ -61,6 +62,9 @@ func initAccounting() {
 
 	accapi.WalletsBrowse.Handler(func(info rpc.RequestInfo, request accapi.WalletsBrowseRequest) (fndapi.PageV2[accapi.WalletV2], *util.HttpError) {
 		return WalletsBrowse(info.Actor, request), nil
+	})
+	accapi.AllocationRecipientsRetrieve.Handler(func(info rpc.RequestInfo, request accapi.AllocationRecipientsRequest) (accapi.AllocationRecipientsResponse, *util.HttpError) {
+		return accountingAllocationRecipients(info.Actor, request.Query)
 	})
 
 	accapi.WalletsBrowseInternal.Handler(
@@ -265,9 +269,14 @@ func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, 
 }
 
 func UpdateAllocation(actor rpc.Actor, requests []accapi.UpdateAllocationRequest) (util.Empty, *util.HttpError) {
+	now := time.Now()
 	for _, request := range requests {
 		if !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
 			return util.Empty{}, util.HttpErr(http.StatusForbidden, "You need admin privileges in your project to perform this action")
+		}
+
+		if request.Retire && (request.NewQuota.Present || request.NewStart.Present || request.NewEnd.Present) {
+			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Retirement cannot be combined with other allocation changes")
 		}
 
 		bucket, _, ok := internalWalletByAllocationId(accAllocId(request.AllocationId))
@@ -284,13 +293,14 @@ func UpdateAllocation(actor rpc.Actor, requests []accapi.UpdateAllocationRequest
 
 		grantedIn, comment, err := internalUpdateAllocation(
 			iOwner,
-			time.Now(),
+			now,
 			bucket,
 			accAllocId(request.AllocationId),
 			request.NewQuota,
 			request.NewStart,
 			request.NewEnd,
 			request.Reason,
+			request.Retire,
 		)
 
 		// If update failed will break the update
@@ -391,6 +401,129 @@ func WalletV2ByAllocationID(actor rpc.Actor, allocationId int) (AccWalletId, acc
 		}
 	}
 	return AccWalletId(-1), accapi.WalletV2{}, false
+}
+
+func accountingAllocationRecipients(actor rpc.Actor, query string) (accapi.AllocationRecipientsResponse, *util.HttpError) {
+	admin := actor.Role == rpc.RoleAdmin
+	if !admin && (!actor.Project.Present || !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin)) {
+		return accapi.AllocationRecipientsResponse{}, util.HttpErr(http.StatusForbidden, "You need admin privileges in your project to list allocation recipients")
+	}
+	query = strings.TrimSpace(query)
+	if len(query) > 256 {
+		return accapi.AllocationRecipientsResponse{}, util.HttpErr(http.StatusBadRequest, "Recipient search is too long")
+	}
+	chars := []string{}
+	for _, char := range strings.ToLower(query) {
+		if unicode.IsLetter(char) || unicode.IsNumber(char) {
+			chars = append(chars, string(char))
+		}
+	}
+	needle := strings.Join(chars, "")
+	fuzzy := ""
+	if len(chars) >= 4 {
+		fuzzy = strings.Join(chars, ".{0,2}")
+	}
+	const limit = 50
+	result := db.NewTx(func(tx *db.Transaction) accapi.AllocationRecipientsResponse {
+		canSearchCatalog := admin
+		if !canSearchCatalog {
+			_, canSearchCatalog = db.Get[fndapi.FindByStringId](
+				tx,
+				`select project_id as id from "grant".is_enabled where project_id = :parent`,
+				db.Params{
+					"parent": actor.Project.Value,
+				},
+			)
+		}
+		rows := db.Select[accapi.AllocationRecipient](
+			tx,
+			`
+				with funded as (
+					select distinct recipient.project_id
+					from
+						accounting.wallet_owner owner
+						join accounting.wallets_v2 parent_wallet on parent_wallet.wallet_owner = owner.id
+						join accounting.allocation_groups g on g.parent_wallet = parent_wallet.id
+						join accounting.wallets_v2 child_wallet on child_wallet.id = g.associated_wallet
+						join accounting.wallet_owner recipient on recipient.id = child_wallet.wallet_owner
+					where
+						owner.project_id = :parent
+						and recipient.project_id is not null
+						and exists (
+							select 1 from accounting.wallet_allocations_v2 a where a.associated_allocation_group = g.id
+						)
+				), candidates as (
+					select
+						p.id, 'project' as type, p.title,
+						(p.parent = :parent or f.project_id is not null) is true as is_local,
+						p.title as search_title
+					from
+						project.projects p
+						left join funded f on f.project_id = p.id
+					where
+						p.id <> :parent
+						and not p.archived
+						and p.provider_project_for is null
+						and (:catalog or p.parent = :parent or f.project_id is not null)
+					union all
+					select
+						u.id, 'user', coalesce(nullif(trim(concat_ws(' ', u.first_names, u.last_name)), ''), u.id),
+						false, concat_ws(' ', u.first_names, u.last_name)
+					from auth.principals u
+					where :catalog and u.dtype = 'PERSON'
+				), normalized as (
+					select
+						c.*,
+						regexp_replace(lower(c.id), E'\\W|_', '', 'g') as search_id,
+						regexp_replace(lower(c.search_title), E'\\W|_', '', 'g') as search_name
+					from candidates c
+				), ranked as (
+					select
+						n.*,
+						case
+							when :empty_search then 0
+							when search_id = :needle or search_name = :needle then 0
+							when starts_with(search_id, :needle) or starts_with(search_name, :needle) then 1
+							when strpos(search_id, :needle) > 0 or strpos(search_name, :needle) > 0 then 2
+							when :fuzzy <> '' and (search_id ~ :fuzzy or search_name ~ :fuzzy) then 3
+						end as rank
+					from normalized n
+					where :empty_search or :needle <> ''
+				), results as (
+					select *
+					from ranked
+					where rank is not null
+					order by rank, is_local desc, lower(title), id, type
+					limit :limit
+				)
+				select
+					r.id, r.type, r.title,
+					case when r.type = 'user' then r.id else coalesce(pi.username, '') end as pi_username
+				from
+					results r
+					left join lateral (
+						select min(m.username) as username
+						from project.project_members m
+						where r.type = 'project' and m.project_id = r.id and m.role = 'PI'
+					) pi on true
+				order by r.rank, r.is_local desc, lower(r.title), r.id, r.type
+			`,
+			db.Params{
+				"parent":       actor.Project.Value,
+				"catalog":      canSearchCatalog && len(chars) >= 2,
+				"empty_search": query == "",
+				"needle":       needle,
+				"fuzzy":        fuzzy,
+				"limit":        limit + 1,
+			},
+		)
+		return accapi.AllocationRecipientsResponse{
+			Items:            util.NonNilSlice(rows[:min(len(rows), limit)]),
+			CanSearchCatalog: canSearchCatalog,
+			HasMore:          len(rows) > limit,
+		}
+	})
+	return result, nil
 }
 
 func WalletsBrowse(actor rpc.Actor, request accapi.WalletsBrowseRequest) fndapi.PageV2[accapi.WalletV2] {

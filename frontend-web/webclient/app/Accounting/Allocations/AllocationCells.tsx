@@ -5,10 +5,30 @@ import {injectStyle} from "@/Unstyled";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import type {AllocationAmounts} from "./AllocationModel";
 
+const AllocationWorkspaceLabelStyle = injectStyle("allocation-workspace-label", k => `
+    ${k} { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; text-align: left; }
+    ${k} .workspace-tooltip { display: flex; flex-direction: column; min-width: 0; max-width: 100%; }
+    ${k} .workspace-title, ${k} .workspace-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    ${k} .workspace-title { color: var(--textPrimary); font-size: 12.5px; font-weight: 600; }
+    ${k} .workspace-meta { color: var(--textSecondary); font-size: 9.5px; }
+`);
+
+export function AllocationWorkspaceLabel(props: {title: string; meta?: string; metaTooltip?: string}): React.ReactNode {
+    return <div className={AllocationWorkspaceLabelStyle}>
+        <TooltipV2 tooltip={props.title} triggerClassName="workspace-tooltip">
+            <span className="workspace-title">{props.title}</span>
+        </TooltipV2>
+        {props.meta ? <TooltipV2 tooltip={props.metaTooltip ?? props.meta} triggerClassName="workspace-tooltip">
+            <span className="workspace-meta">{props.meta}</span>
+        </TooltipV2> : null}
+    </div>;
+}
+
 const AllocationAmountStyle = injectStyle("allocation-amount", k => `
     ${k} { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-variant-numeric: tabular-nums; white-space: nowrap; }
     ${k} .amount-value { color: var(--textPrimary); font-size: 12px; line-height: 14px; font-weight: 400; }
     ${k} .amount-unit { color: var(--textSecondary); font-size: 10.5px; line-height: 12px; }
+    ${k}[data-approximate="true"] { font-style: italic; }
     ${k}[data-negative="true"] .amount-value { color: var(--errorMain); }
 `);
 
@@ -17,20 +37,21 @@ export function AllocationAmount(props: {
     unit: string;
     title?: string;
     negative?: boolean;
+    approximate?: boolean;
 }): React.ReactNode {
     return <TooltipV2 tooltip={props.title}>
-        <div className={AllocationAmountStyle} data-negative={props.negative}>
-            <span className="amount-value">{formatNumber(props.value, {precision: 2, removeTrailingZeros: true})}</span>
+        <div className={AllocationAmountStyle} data-negative={props.negative} data-approximate={props.approximate}>
+            <span className="amount-value">{props.approximate ? "~" : ""}{formatNumber(props.value, {precision: 2, removeTrailingZeros: true})}</span>
             <span className="amount-unit">{props.unit}</span>
         </div>
     </TooltipV2>;
 }
 
 export const allocationLifecycleMetrics = [
-    {key: "activeBalance", label: "Active balance", width: 110, title: "Active quota minus active usage. Parent funding limits can reduce what you can use."},
     {key: "activeUsed", label: "Active usage", width: 102, title: "Usage that counts against active quota."},
+    {key: "activeBalance", label: "Active balance", width: 110, title: "Maximum additional usage this wallet can charge, including limits from parent wallets."},
     {key: "activeQuota", label: "Active quota", width: 99, title: "Quota from allocations that are active now."},
-    {key: "retiredUsed", label: "Used at expiry", width: 104, title: "Usage recorded when allocations expired. This is not usage by date."},
+    {key: "used", label: "Total used", width: 104, title: "Total usage across active and expired allocations."},
     {key: "expiredUnused", label: "Expired unused", width: 110, title: "Quota that expired without being used."},
     {key: "future", label: "Upcoming quota", width: 111, title: "Granted quota that has not been released yet."},
 ] as const;
@@ -38,17 +59,21 @@ export const allocationLifecycleMetrics = [
 type AllocationLifecycleMetric = typeof allocationLifecycleMetrics[number];
 
 export const allocationLifecycleColumns = allocationLifecycleMetrics.map(({key, label}) => ({
-    key, label, jsonPath: key, sortType: TableColumnSortType.Number,
+    key, label, jsonPath: key, sortType: TableColumnSortType.Number, alignment: "right" as const,
 }));
 
 export const allocationLifecycleWidths = Object.fromEntries(allocationLifecycleMetrics.map(({key, width}) => [key, width]));
 
-export function allocationLifecycleCells(amounts: AllocationAmounts, consumption: boolean): string[] {
-    return allocationLifecycleMetrics.map(metric => allocationLifecycleApplies(metric, consumption) ? `${amounts[metric.key]}` : "");
+export function allocationLifecycleCells(amounts: AllocationAmounts, consumption: boolean, maxUsable: number | undefined): Record<string, string> {
+    return Object.fromEntries(allocationLifecycleMetrics.map(metric => {
+        if (!allocationLifecycleApplies(metric, consumption)) return [metric.key, ""];
+        const value = metric.key === "activeBalance" ? maxUsable : amounts[metric.key];
+        return [metric.key, value === undefined ? "" : `${value}`];
+    }));
 }
 
 function allocationLifecycleApplies(metric: AllocationLifecycleMetric, consumption: boolean): boolean {
-    return consumption || (metric.key !== "retiredUsed" && metric.key !== "expiredUnused");
+    return consumption || metric.key !== "expiredUnused";
 }
 
 export function AllocationLifecycleAmount(props: {
@@ -56,12 +81,13 @@ export function AllocationLifecycleAmount(props: {
     amounts: AllocationAmounts;
     consumption: boolean;
     unit: string;
+    maxUsable?: number;
 }): React.ReactNode {
     if (!allocationLifecycleApplies(props.metric, props.consumption)) return null;
-    const value = props.amounts[props.metric.key];
-    const balance = props.metric.key === "activeBalance";
-    return <AllocationAmount value={value} unit={props.unit} negative={balance && value < 0}
-        title={props.metric.title} />;
+    const value = props.metric.key === "activeBalance" ? props.maxUsable : props.amounts[props.metric.key];
+    if (value === undefined) return null;
+    return <AllocationAmount value={value} unit={props.unit}
+        title={props.metric.key === "used" && !props.consumption ? "Current capacity in use." : props.metric.title} />;
 }
 
 const AllocationUsageStyle = injectStyle("allocation-usage-cell", k => `

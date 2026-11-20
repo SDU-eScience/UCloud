@@ -233,7 +233,7 @@ func (e *env) UpdateAllocation(
 	newStart util.Option[fndapi.Timestamp],
 	newEnd util.Option[fndapi.Timestamp],
 ) *util.HttpError {
-	_, _, err := internalUpdateAllocation(owner, e.Tm(now), e.Bucket, allocationId, newQuota, newStart, newEnd, "testing")
+	_, _, err := internalUpdateAllocation(owner, e.Tm(now), e.Bucket, allocationId, newQuota, newStart, newEnd, "testing", false)
 	return err
 }
 

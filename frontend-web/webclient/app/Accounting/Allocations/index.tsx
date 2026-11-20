@@ -1,31 +1,11 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useReducer, useRef, useState} from "react";
-import {
-    Button,
-    Checkbox,
-    Divider,
-    Flex,
-    Input,
-    Label,
-    MainContainer,
-} from "@/ui-components";
-import {
-    NO_EXPIRATION_FALLBACK,
-} from "@/Accounting";
+import {MainContainer} from "@/ui-components";
 import {useProjectId} from "@/Project/Api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import AppRoutes from "@/Routes";
-import {
-    doNothing,
-    timestampUnixMs
-} from "@/UtilityFunctions";
-import {useNavigate} from "react-router-dom";
-import {Client} from "@/Authentication/HttpClientInstance";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {TreeApi} from "@/ui-components/Tree";
-import {dialogStore} from "@/Dialog/DialogStore";
 import * as Heading from "@/ui-components/Heading";
-import {checkCanConsumeResources} from "@/ui-components/ResourceBrowser";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";
 import {useProject} from "@/Project/cache";
@@ -34,7 +14,6 @@ import {VariableSizeList} from "react-window";
 import {initialState, stateReducer, useEventReducer} from "./State"
 import {GiftSection, RootAllocationSections} from "./ProviderOnlySections";
 import {projectInfoPi, useProjectInfos} from "@/Project/InfoCache";
-import {sendFailureNotification} from "@/Notifications";
 import {AllocationPage} from "./AllocationPage";
 import {useProjectHasProviderTools} from "./ProviderTools";
 import {allocationCurrentCalendarYear} from "./AllocationPeriodFilter";
@@ -45,14 +24,14 @@ import type {AllocationDateRange} from "@/Accounting/Allocations/AllocationGrid"
 const Allocations: React.FunctionComponent = () => {
     const didCancel = useDidUnmount();
     const projectId = useProjectId();
-    const navigate = useNavigate();
     const [state, rawDispatch] = useReducer(stateReducer, initialState());
     const dispatchEvent = useEventReducer(didCancel, rawDispatch);
     const avatars = useAvatars();
     const suballocationTree = useRef<TreeApi>(null);
     const searchBox = useRef<HTMLInputElement>(null);
     const projectState = useProject();
-    const projectRole = projectState.fetch().status.myRole ?? OldProjectRole.USER;
+    const project = projectState.fetch();
+    const projectRole = project.status.myRole ?? OldProjectRole.USER;
     const listRef = useRef<VariableSizeList<number[]>>(null);
 
     usePage("Allocations", SidebarTabId.PROJECT);
@@ -111,71 +90,6 @@ const Allocations: React.FunctionComponent = () => {
         return () => document.body.removeEventListener("keydown", handler);
     }, []);
 
-    const currentPeriodEnd = useMemo(() => {
-        let currentMinimum = NO_EXPIRATION_FALLBACK;
-        for (const v of Object.values(state.yourAllocations)) {
-            for (const wallet of v.wallets) {
-                for (const alloc of wallet.allocations) {
-                    if (alloc.end < currentMinimum) {
-                        currentMinimum = alloc.end;
-                    }
-                }
-            }
-        }
-        return currentMinimum;
-    }, [state.yourAllocations]);
-
-    const onNewSubProject = useCallback(async () => {
-        dialogStore.addDialog(
-            <form onSubmit={ev => {
-                ev.preventDefault();
-
-                const name = document.querySelector<HTMLInputElement>("#subproject-name");
-                if (!name) return;
-                if (!name.value) {
-                    sendFailureNotification("Missing name");
-                    return;
-                }
-
-                const subAllocatorCheckbox = document.querySelector<HTMLInputElement>("#subproject-suballocator");
-                const subAllocator = subAllocatorCheckbox?.checked === true;
-
-                dialogStore.success();
-                navigate(AppRoutes.grants.grantGiverInitiatedEditor({
-                    title: name.value,
-                    start: timestampUnixMs(),
-                    end: currentPeriodEnd,
-                    piUsernameHint: Client.username ?? "?",
-                    subAllocator,
-                }));
-            }}>
-                <div>
-                    <Heading.h3>New sub-project</Heading.h3>
-                    <Divider />
-                    <Label>
-                        Project title
-                        <Input onKeyDown={e => {
-                            if (e.code !== "Escape") {
-                                e.stopPropagation();
-                            }
-                        }} id={"subproject-name"} autoFocus />
-                    </Label>
-                    {(state.remoteData.managedProviders ?? []).length > 0 || !checkCanConsumeResources(Client.projectId ?? null, {api: {isCoreResource: false}}) ?
-                        <Label>
-                            <Checkbox id={"subproject-suballocator"} />
-                            This sub-project is a sub-allocator
-                        </Label> : null
-                    }
-                </div>
-                <Flex mt="20px">
-                    <Button type={"button"} onClick={dialogStore.failure.bind(dialogStore)} color={"errorMain"} mr="5px">Cancel</Button>
-                    <Button type={"submit"} color={"successMain"}>Create sub-project</Button>
-                </Flex>
-            </form>,
-            doNothing
-        );
-    }, [currentPeriodEnd, (state.remoteData.managedProviders ?? []).length]);
-
     const onEdit = useCallback((elem: HTMLElement) => {
         const idx = parseInt(elem.getAttribute("data-idx") ?? "");
         const gidx = parseInt(elem.getAttribute("data-gidx") ?? "");
@@ -208,7 +122,7 @@ const Allocations: React.FunctionComponent = () => {
     }, [onEdit]);
     // Actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
-    if (projectState.fetch().status.personalProviderProjectFor != null) {
+    if (project.status.personalProviderProjectFor != null) {
         return <MainContainer
             main={
                 <>
@@ -224,6 +138,7 @@ const Allocations: React.FunctionComponent = () => {
 
     const hasManagedProviders = (state.remoteData.managedProviders ?? []).length > 0;
     const hasProviderTools = useProjectHasProviderTools();
+    const canCreateSubAllocator = hasManagedProviders || project.specification.canConsumeResources === false;
 
     return <AllocationPage
         dateRange={dateRange}
@@ -234,7 +149,7 @@ const Allocations: React.FunctionComponent = () => {
         </> : undefined}
         subProjects={{
             projectId,
-            onNewSubProject,
+            canCreateSubAllocator,
             projectRole,
             state,
             onSearchInput,

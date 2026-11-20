@@ -11,6 +11,8 @@ import {KeyboardNavigation, SubmitShortcut, useSubmitShortcut} from "@/Applicati
 import * as Grants from "@/Grants";
 import {sendInformationNotification, sendSuccessNotification} from "@/Notifications";
 import {allocationWorkspaceInfo} from "./AllocationModel";
+import {BulkAllocationRecipients} from "./BulkAllocationRecipients";
+import type {BulkAllocationRecipient} from "./BulkAllocationRecipients";
 import type {ProjectInfo} from "@/Project/InfoCache";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
@@ -18,7 +20,7 @@ import {UcxStreamedTable, UcxTableStore} from "@/UCX/UcxBrowser";
 import type {UcxTableCellRenderContext} from "@/UCX/UcxBrowser";
 import {TableColumnSortType} from "@/UCX/protocol";
 import type {TableColumn, TableRow} from "@/UCX/protocol";
-import {Button, Icon, Input} from "@/ui-components";
+import {Button, Icon, Input, Select} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
 import {MarkdownDocument} from "@/ui-components/Markdown";
 import {Toggle} from "@/ui-components/Toggle";
@@ -29,7 +31,7 @@ import {formatNumber} from "@/Utilities/NumberFormatting";
 import {doNothing, extractErrorMessage, isLikelyMac} from "@/UtilityFunctions";
 import {injectStyle} from "@/Unstyled";
 import {AllocationAmount} from "./AllocationCells";
-import {allocationDateRangeBounds, allocationOverlapsRange} from "./AllocationGrid";
+import {allocationDateRangeBounds} from "./AllocationGrid";
 import type {AllocationDateRange} from "./AllocationGrid";
 import {allocationCategoryKey} from "./AllocationOverview";
 import {allocationCompareProducts} from "./AllocationPresentation";
@@ -105,7 +107,7 @@ const BulkAllocationWizardStyle = injectStyle("bulk-allocation-wizard", k => `
         margin: 0;
     }
 
-    ${k} .bulk-content[data-step="1"], ${k} .bulk-content[data-step="2"] {
+    ${k} .bulk-content[data-step="-1"], ${k} .bulk-content[data-step="1"], ${k} .bulk-content[data-step="2"] {
         overflow: hidden;
     }
 
@@ -409,30 +411,21 @@ const BulkAllocationWizardStyle = injectStyle("bulk-allocation-wizard", k => `
     }
 
     ${k} .bulk-adjust-control input {
-        width: 92px;
+        flex: 1 1 82px;
+        min-width: 54px;
         height: 30px;
     }
 
-    ${k} .bulk-adjust-mode {
+    ${k} .bulk-adjust-control select {
         height: 30px;
-        padding: 0 4px;
-        border: 1px solid var(--borderColor);
-        border-radius: 5px;
-        background: var(--backgroundDefault);
-        color: var(--textPrimary);
-        font: inherit;
-        font-size: 11px;
+        padding-top: 0;
+        padding-bottom: 0;
+        font-size: 12px;
     }
 
-    ${k} .bulk-adjust-suffix, ${k} .bulk-adjust-hint {
+    ${k} .bulk-adjust-suffix {
         color: var(--textSecondary);
         font-size: 11px;
-        white-space: nowrap;
-    }
-
-    ${k} .bulk-adjust-result {
-        color: var(--textSecondary);
-        font-size: 10.5px;
         white-space: nowrap;
     }
 
@@ -493,10 +486,6 @@ const BulkAllocationWizardStyle = injectStyle("bulk-allocation-wizard", k => `
         }
     }
 `);
-
-function bulkAllocationUnit(category: ProductCategoryV2): string {
-    return allocationInputUnit(category).name.replace(/(?:Core|CPU)-h\b/g, "CPU-hours").replace(/GPU-h\b/g, "GPU-hours");
-}
 
 function bulkAllocationWorkspaceTitle(recipient: AllocationModelRecipient, projectInfo: Record<string, ProjectInfo | null>): string {
     return allocationWorkspaceInfo(recipient.owner, projectInfo).title;
@@ -583,15 +572,20 @@ function BulkAllocationTable(props: {
 export function BulkAllocationWizard(props: {
     projectId: string;
     recipients: AllocationModelRecipient[];
+    availableRecipients: AllocationModelRecipient[];
+    canCreateSubAllocator: boolean;
     categories: ProductCategoryV2[];
     projectInfo: Record<string, ProjectInfo | null>;
     dateRange: AllocationDateRange;
     demo?: boolean;
     onClose: (changed: boolean) => void;
 }): React.ReactNode {
-    const showAdjust = props.recipients.length > 1;
-    const stepOrder = showAdjust ? [0, 1, 2, 3, 4] : [0, 1, 3, 4];
-    const [step, setStep] = useState(0);
+    const showRecipientStep = props.recipients.length !== 1;
+    const [recipients, setRecipients] = useState<BulkAllocationRecipient[]>(props.recipients);
+    const [draftPending, setDraftPending] = useState(false);
+    const showAdjust = recipients.length > 1;
+    const stepOrder = [...(showRecipientStep ? [-1] : []), 0, 1, ...(showAdjust ? [2] : []), 3, 4];
+    const [step, setStep] = useState(showRecipientStep ? -1 : 0);
     const [period, setPeriod] = useState(props.dateRange);
     const [splitEnabled, setSplitEnabled] = useState(false);
     const [splitMonths, setSplitMonths] = useState("1");
@@ -607,7 +601,8 @@ export function BulkAllocationWizard(props: {
     const contentRef = useRef<HTMLDivElement>(null);
     const focusCurrentStep = () => {
         const content = contentRef.current;
-        const target = content?.querySelector<HTMLElement>("input, textarea, [data-navigation-field]") ?? content;
+        const target = content?.querySelector<HTMLElement>("[data-recipient-search]") ??
+            content?.querySelector<HTMLElement>("input, textarea, [data-navigation-field]") ?? content;
         target?.focus({preventScroll: true});
     };
     useLayoutEffect(() => {
@@ -653,20 +648,14 @@ export function BulkAllocationWizard(props: {
     );
     const sliceCadence = Number(splitMonths) === 1 ? "one every month" : `one every ${splitMonths} months`;
     const workspaceRows: BulkAllocationWorkspaceRow[] = [];
-    props.recipients.forEach((recipient, recipientIndex) => {
+    recipients.forEach((recipient, recipientIndex) => {
         for (const category of chosen) {
             const categoryKey = allocationCategoryKey(category);
             const key = `${recipientIndex}/${categoryKey}`;
             const base = allocationInputValue(category, rawQuota(category));
             const currentRaw = recipient.products
-                .filter(group => allocationCategoryKey(group.category) === categoryKey)
-                .flatMap(product => product.grants.flatMap(grant => grant.slices))
-                .filter(allocation => allocationOverlapsRange(
-                    allocation.start,
-                    allocation.end - 1,
-                    bounds,
-                ))
-                .reduce((sum, allocation) => sum + allocation.rawQuota, 0);
+                .filter(product => allocationCategoryKey(product.category) === categoryKey)
+                .reduce((sum, product) => sum + product.raw.activeQuota, 0);
             const current = allocationInputValue(category, currentRaw);
             const override: {mode: "percent" | "absolute"; value: string} | undefined = rowOverrides[key];
             const mode: BulkAllocationAdjustMode = override ? override.mode : "inherit";
@@ -712,7 +701,7 @@ export function BulkAllocationWizard(props: {
             batchRawQuota.set(key, (batchRawQuota.get(key) ?? 0) + row.rawAdjusted);
         }
     }
-    const allocationWorkspaces = props.recipients
+    const allocationWorkspaces = recipients
         .map((recipient, recipientIndex) => ({
             recipient,
             rows: workspaceRows.filter(row => row.recipientIndex === recipientIndex && row.rawAdjusted > 0),
@@ -728,7 +717,7 @@ export function BulkAllocationWizard(props: {
         && !adjustmentInvalid && allocationWorkspaces.length > 0 && !!reason.trim();
     const canGoNext = !busy && (step === lastStep
         ? canConfirm
-        : !locked && (step === 0
+        : !locked && (step === -1 ? recipients.length > 0 && !draftPending : step === 0
             ? periodValid && scheduleValid
             : step === 1
                 ? !invalidQuota && chosen.length > 0
@@ -737,6 +726,7 @@ export function BulkAllocationWizard(props: {
                     : !!reason.trim()));
     const nextDisabledReason = canGoNext ? undefined : (() => {
         if (busy) return "Allocation is in progress.";
+        if (step === -1) return draftPending ? "Add the draft sub-project or clear the row." : "Choose at least one recipient.";
         if (!scheduleValid) return "Enter a positive whole number of months per slice.";
         if (step === 0) return "Choose a valid allocation period.";
         if (invalidQuota) return "Enter a valid quota, or clear the invalid value.";
@@ -746,16 +736,14 @@ export function BulkAllocationWizard(props: {
         if (!reason.trim()) return "Enter a reason for the allocation.";
         return "Complete the required fields to continue.";
     })();
-    const names = showAdjust
-        ? ["Period", "Products", "Adjust", "Reason", "Review"]
-        : ["Period", "Products", "Reason", "Review"];
+    const names = [...(showRecipientStep ? ["Recipients"] : []), "Period", "Products", ...(showAdjust ? ["Adjust"] : []), "Reason", "Review"];
     const number = (value: number) => formatNumber(value, {precision: 2, removeTrailingZeros: true});
     const productRows: TableRow[] = (step === 4 ? chosen : categories).map(category => {
         const key = allocationCategoryKey(category);
         const quota = allocationInputValue(category, rawQuota(category));
         const total = step === 4
             ? allocationInputValue(category, batchRawQuota.get(key) ?? 0)
-            : quota * props.recipients.length;
+            : quota * recipients.length;
         return {key, group: category.provider, cells: [category.name, `${quota}`, `${total}`]};
     });
     const perSliceAmount = (row: BulkAllocationWorkspaceRow): number | null => {
@@ -764,7 +752,7 @@ export function BulkAllocationWizard(props: {
     };
     const perSliceCellText = (row: BulkAllocationWorkspaceRow): string => {
         const amount = perSliceAmount(row);
-        return amount === null ? "" : `${number(amount)} ${bulkAllocationUnit(row.category)}`;
+        return amount === null ? "" : `${number(amount)} ${allocationInputUnit(row.category).name}`;
     };
     const sliceCells = (row: BulkAllocationWorkspaceRow): string[] => hasSplitSchedule ? [perSliceCellText(row)] : [];
     const adjustTableRows: TableRow[] = workspaceRows.map(row => ({
@@ -839,6 +827,7 @@ export function BulkAllocationWizard(props: {
             for (let index = completedRef.current; index < allocationWorkspaces.length; index++) {
                 const workspace = allocationWorkspaces[index];
                 const owner = workspace.recipient.owner.reference;
+                const draft = workspace.recipient.newProject;
                 const allocationPeriod = {start: bounds.start!, end: bounds.end!};
                 const answerField: Grants.AnswerFieldForm = {
                     answer: reason.trim(),
@@ -855,7 +844,7 @@ export function BulkAllocationWizard(props: {
                     ...Grants.submitRevision({
                         comment: "Submitted the application",
                         revision: {
-                            recipient: owner.type === "project"
+                            recipient: draft ? {type: "newProject", title: draft.title} : owner.type === "project"
                                 ? {type: "existingProject", id: owner.projectId}
                                 : {type: "personalWorkspace", username: owner.username},
                             parentProjectId: props.projectId,
@@ -874,7 +863,7 @@ export function BulkAllocationWizard(props: {
                             }),
                             form: {
                                 type: "grant_giver_initiated",
-                                subAllocator: false,
+                                subAllocator: draft?.subAllocator ?? false,
                                 text: "",
                                 answerForms: [{
                                     allocatorId: props.projectId,
@@ -932,16 +921,16 @@ export function BulkAllocationWizard(props: {
                     setQuotas(previousQuotas => ({...previousQuotas, [key]: value}));
                 }}
             />
-            <span>{bulkAllocationUnit(category)}</span>
+            <span>{allocationInputUnit(category).name}</span>
         </div>;
-        return <AllocationAmount value={Number(context.cell)} unit={bulkAllocationUnit(category)} />;
+        return <AllocationAmount value={Number(context.cell)} unit={allocationInputUnit(category).name} />;
     };
 
-    const workspaceGroupTitle = (index: number) => bulkAllocationWorkspaceTitle(props.recipients[index], props.projectInfo);
+    const workspaceGroupTitle = (index: number) => bulkAllocationWorkspaceTitle(recipients[index], props.projectInfo);
     const renderAdjustGroupHeader = (group: string): React.ReactNode => {
         const index = Number(group);
         const title = workspaceGroupTitle(index);
-        const pi = bulkAllocationWorkspacePi(props.recipients[index], props.projectInfo);
+        const pi = bulkAllocationWorkspacePi(recipients[index], props.projectInfo);
         return <div className="bulk-adjust-group">
             <div className="bulk-adjust-workspace">
                 <span className="bulk-adjust-workspace-title">{title}</span>
@@ -971,13 +960,13 @@ export function BulkAllocationWizard(props: {
             <span className="bulk-slice-empty">—</span>
         </div>;
         return <div className="bulk-slice-values">
-            <span>{number(amount)} <span className="bulk-slice-unit">{bulkAllocationUnit(row.category)}</span></span>
+            <span>{number(amount)} <span className="bulk-slice-unit">{allocationInputUnit(row.category).name}</span></span>
         </div>;
     };
     const renderAdjust = (context: UcxTableCellRenderContext): React.ReactNode => {
         const row = workspaceRowByKey.get(context.row.key);
         if (!row) return context.cell;
-        const unit = bulkAllocationUnit(row.category);
+        const unit = allocationInputUnit(row.category).name;
         const title = workspaceGroupTitle(row.recipientIndex);
         if (context.column.key === "product") return <div className="bulk-product">
             <ProviderLogo providerId={row.category.provider} size={16} />
@@ -986,8 +975,9 @@ export function BulkAllocationWizard(props: {
         if (context.column.key === "slices") return renderSliceValues(row);
         if (context.column.key === "adjusted") return <div className="bulk-adjust-value">
             <div className="bulk-adjust-control">
-                <select
-                    className="bulk-adjust-mode"
+                <Select
+                    width="88px"
+                    flexShrink={0}
                     value={row.mode}
                     aria-label={`Amount mode for ${row.category.name} in ${title}`}
                     onChange={event => changeRowMode(row, event.target.value as BulkAllocationAdjustMode)}
@@ -995,7 +985,7 @@ export function BulkAllocationWizard(props: {
                     <option value="inherit">Inherit</option>
                     <option value="percent">%</option>
                     <option value="absolute">Value</option>
-                </select>
+                </Select>
                 {row.mode === "inherit" ? <>
                     <Input
                         type="number"
@@ -1006,7 +996,6 @@ export function BulkAllocationWizard(props: {
                         onChange={event => setRowOverride(row.key, "absolute", event.target.value)}
                     />
                     <span className="bulk-adjust-suffix">{unit}</span>
-                    <span className="bulk-adjust-hint">inherit</span>
                 </> : <>
                     <Input
                         type="number"
@@ -1019,7 +1008,6 @@ export function BulkAllocationWizard(props: {
                     <span className="bulk-adjust-suffix">{row.mode === "percent" ? "%" : unit}</span>
                 </>}
             </div>
-            {row.mode === "percent" ? <span className="bulk-adjust-result">= {number(row.adjusted)} {unit}</span> : null}
         </div>;
         return <AllocationAmount value={Number(context.cell)} unit={unit} />;
     };
@@ -1033,7 +1021,7 @@ export function BulkAllocationWizard(props: {
     const renderReview = (context: UcxTableCellRenderContext): React.ReactNode => {
         const row = workspaceRowByKey.get(context.row.key);
         if (!row) return context.cell;
-        const unit = bulkAllocationUnit(row.category);
+        const unit = allocationInputUnit(row.category).name;
         if (context.column.key === "product") return <div className="bulk-product">
             <ProviderLogo providerId={row.category.provider} size={16} />
             <span>{row.category.name} ({getProviderTitle(row.category.provider)})</span>
@@ -1072,13 +1060,27 @@ export function BulkAllocationWizard(props: {
                 </nav>
             </header>
             <div className="bulk-content" data-step={step} ref={contentRef} tabIndex={-1}>
+                {step === -1 ? <BulkAllocationRecipients
+                    projectId={props.projectId}
+                    recipients={recipients}
+                    existing={props.availableRecipients}
+                    projectInfo={props.projectInfo}
+                    canCreateSubAllocator={props.canCreateSubAllocator}
+                    demo={props.demo}
+                    onDraftPendingChange={setDraftPending}
+                    onChange={next => {
+                        setRecipients(next);
+                        setWorkspacePercents({});
+                        setRowOverrides({});
+                    }}
+                /> : null}
                 {step === 0 ? <>
                     <FieldGroup>
                         <FieldRow
                             title="Period"
                             description="All selected workspaces share this period."
                             required
-                            control={<AllocationPeriodFilter value={period} onChange={setPeriod} navigationField />}
+                            control={<AllocationPeriodFilter value={period} onChange={setPeriod} navigationField presetButtonColor="secondaryMain" />}
                         />
                         <FieldRow
                             title="Slices"
@@ -1118,7 +1120,6 @@ export function BulkAllocationWizard(props: {
                     {!periodValid ? <p className="bulk-error">Choose a valid allocation period.</p> : null}
                 </> : null}
                 {step === 1 ? <>
-                    <p>Enter a base quota for the full period.</p>
                     <BulkAllocationTable
                         id="bulk-allocation-products"
                         variant="products"
@@ -1196,7 +1197,6 @@ export function BulkAllocationWizard(props: {
                     </section>
                     <section className="bulk-review-section bulk-review-totals">
                         <span className="bulk-review-label">Workspace totals</span>
-                        <p className="bulk-note">Current quota includes existing allocations overlapping the period.</p>
                         <BulkAllocationTable
                             id="bulk-allocation-review"
                             variant="review"

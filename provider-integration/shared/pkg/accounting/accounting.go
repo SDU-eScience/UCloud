@@ -66,8 +66,9 @@ type AllocationGroupWithParent struct {
 }
 
 type AllocationGroupWithChild struct {
-	Child util.Option[ParentOrChildWallet] `json:"child"`
-	Group AllocationGroup                  `json:"group"`
+	Child     util.Option[ParentOrChildWallet] `json:"child"`
+	Group     AllocationGroup                  `json:"group"`
+	MaxUsable int64                            `json:"maxUsable"`
 }
 
 type ParentOrChildWallet struct {
@@ -154,6 +155,7 @@ type UpdateAllocationRequest struct {
 	NewQuota     util.Option[int64]         `json:"newQuota"`
 	NewStart     util.Option[fnd.Timestamp] `json:"newStart"`
 	NewEnd       util.Option[fnd.Timestamp] `json:"newEnd"`
+	Retire       bool                       `json:"retire,omitempty"`
 	Reason       string                     `json:"reason"`
 }
 
@@ -176,6 +178,30 @@ var WalletsBrowse = rpc.Call[WalletsBrowseRequest, fnd.PageV2[WalletV2]]{
 	BaseContext: AccountingNamespace,
 	Convention:  rpc.ConventionBrowse,
 	Operation:   "wallets",
+	Roles:       rpc.RolesEndUser,
+}
+
+type AllocationRecipientsRequest struct {
+	Query string `json:"query"`
+}
+
+type AllocationRecipient struct {
+	Id         string `json:"id"`
+	Type       string `json:"type"`
+	Title      string `json:"title"`
+	PiUsername string `json:"piUsername"`
+}
+
+type AllocationRecipientsResponse struct {
+	Items            []AllocationRecipient `json:"items"`
+	CanSearchCatalog bool                  `json:"canSearchCatalog"`
+	HasMore          bool                  `json:"hasMore"`
+}
+
+var AllocationRecipientsRetrieve = rpc.Call[AllocationRecipientsRequest, AllocationRecipientsResponse]{
+	BaseContext: AccountingNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Operation:   "allocationRecipients",
 	Roles:       rpc.RolesEndUser,
 }
 

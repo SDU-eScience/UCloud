@@ -1011,7 +1011,8 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     }, []);
     const selectedKeyRef = useRef<string | null>(null);
     const scrollTopRef = useRef(0);
-    const [dragColumn, setDragColumn] = useState<string | null>(null);
+    const [resizeGuide, setResizeGuide] = useState<number | null>(null);
+    const [manualLayout, setManualLayout] = useState<{view: string; widths: Record<string, number>; leading: number; trailing: number}>();
     const [widthRevision, setWidthRevision] = useState(0);
     const [viewportWidth, setViewportWidth] = useState(0);
     const actionDefs = props.actions ?? [];
@@ -1047,15 +1048,25 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     const naturalWidth = hasActionDefs && dataWidth > 0
         ? Math.max(dataWidth + leadingColumnWidth + UCX_ACTION_COLUMN_WIDTH, viewportWidth)
         : dataWidth + leadingColumnWidth + (hasActionDefs ? UCX_ACTION_COLUMN_WIDTH : 0);
-    const totalWidth = props.fitToWidth && viewportWidth > 0 ? viewportWidth : naturalWidth;
+    const widthView = `${tableId}\u0000${stateKey}`;
+    const fixedLayout = manualLayout?.view === widthView ? manualLayout : undefined;
+    const fixedWidths = fixedLayout?.widths;
+    const fittedWidth = props.fitToWidth && viewportWidth > 0 ? viewportWidth : naturalWidth;
     const renderedWidths = useMemo(() => {
+        if (fixedWidths) {
+            return Object.fromEntries(columns.map(column => [column.key, fixedWidths[column.key] ?? widths[column.key]]));
+        }
         if ((!hasActionDefs && !props.fitToWidth) || dataWidth === 0) return widths;
         const actionWidth = hasActionDefs ? UCX_ACTION_COLUMN_WIDTH : 0;
-        const scale = (totalWidth - leadingColumnWidth - actionWidth) / dataWidth;
+        const scale = (fittedWidth - leadingColumnWidth - actionWidth) / dataWidth;
         const result: Record<string, number> = {};
         for (const column of columns) result[column.key] = widths[column.key] * scale;
         return result;
-    }, [columns, widths, dataWidth, totalWidth, hasActionDefs, leadingColumnWidth, props.fitToWidth]);
+    }, [columns, widths, dataWidth, fittedWidth, fixedWidths, hasActionDefs, leadingColumnWidth, props.fitToWidth]);
+    const selectWidth = selectionEnabled ? fixedLayout?.leading || UCX_SELECT_COLUMN_WIDTH : 0;
+    const actionsWidth = hasActionDefs ? fixedLayout?.trailing || UCX_ACTION_COLUMN_WIDTH : 0;
+    const totalWidth = fixedLayout ? Object.values(renderedWidths).reduce((sum, width) => sum + width, 0)
+        + selectWidth + actionsWidth : fittedWidth;
 
     useLayoutEffect(() => {
         if (!hasActionDefs && !props.fitToWidth) return;
@@ -1331,61 +1342,83 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     }, [actionDefs, filteredRows, groupAction, props, tableId, trailingAction]);
 
     const startColumnResize = useCallback((columnKey: string, event: React.PointerEvent<HTMLDivElement>) => {
+        if (!event.isPrimary || event.button !== 0) return;
         event.preventDefault();
         event.stopPropagation();
         const handle = event.currentTarget;
         const cell = handle.parentElement;
         const table = handle.closest("table");
-        if (!(cell instanceof HTMLElement) || !(table instanceof HTMLTableElement)) return;
-        const colElement = table.querySelector<HTMLTableColElement>(`col[data-col-key="${CSS.escape(columnKey)}"]`);
-        if (!colElement) return;
-        handle.setPointerCapture(event.pointerId);
+        const scroll = scrollRef.current;
+        if (!cell || !table || !scroll) return;
+        const pointerId = event.pointerId;
+        handle.setPointerCapture(pointerId);
+        const startWidths = {...fixedWidths};
+        for (const col of table.querySelectorAll<HTMLTableColElement>("col[data-col-key]")) {
+            const key = col.dataset.colKey;
+            if (key !== undefined) startWidths[key] = col.getBoundingClientRect().width;
+        }
+        const start = cell.getBoundingClientRect();
+        startWidths[columnKey] = start.width;
+        const leading = table.querySelector("col.streamed-table-select-col")?.getBoundingClientRect().width ?? 0;
+        const trailing = table.querySelector("col.streamed-table-actions-col")?.getBoundingClientRect().width ?? 0;
+        const scrollStart = scroll.scrollLeft;
         const startX = event.clientX;
-        const startConfigured = widths[columnKey];
-        const startRendered = cell.getBoundingClientRect().width;
-        const gain = Math.max(0.25, startRendered / startConfigured);
-        let applied = startConfigured;
-        setDragColumn(columnKey);
-        const onMove = (moveEvent: PointerEvent) => {
-            const target = Math.max(UCX_MIN_COLUMN_WIDTH, startRendered + (moveEvent.clientX - startX));
-            if (hasActionDefs) {
-                const otherWidth = dataWidth - startConfigured;
-                const availableWidth = (scrollRef.current?.clientWidth ?? 0) - UCX_ACTION_COLUMN_WIDTH;
-                const fitsWithoutStretching = target + otherWidth >= availableWidth;
+        const columnLeft = start.left - scroll.getBoundingClientRect().left + scrollStart;
+        let pointerX = startX;
+        let applied = start.width;
+        let moved = false;
+        const update = () => {
+            const target = Math.max(UCX_MIN_COLUMN_WIDTH, Math.round(start.width + pointerX - startX + scroll.scrollLeft - scrollStart));
+            if (Math.abs(target - applied) >= 0.5) {
                 applied = target;
-                if (!fitsWithoutStretching && otherWidth > 0) {
-                    applied = Math.max(UCX_MIN_COLUMN_WIDTH, target * otherWidth / (availableWidth - target));
-                }
-            } else {
-                for (let i = 0; i < 4; i++) {
-                    const rendered = cell.getBoundingClientRect().width;
-                    const error = target - rendered;
-                    if (Math.abs(error) < 0.5) break;
-                    applied = Math.max(UCX_MIN_COLUMN_WIDTH, applied + error / gain);
-                    colElement.style.width = `${applied}px`;
-                }
+                moved = true;
+                setManualLayout({view: widthView, widths: {...startWidths, [columnKey]: applied}, leading, trailing});
             }
-            setUserColumnWidth(columnKey, applied);
-            setWidthRevision(value => value + 1);
+            setResizeGuide(columnLeft + applied - scroll.scrollLeft);
         };
-        const onUp = () => {
-            if (handle.hasPointerCapture(event.pointerId)) {
-                handle.releasePointerCapture(event.pointerId);
+        const finish = () => {
+            window.removeEventListener("pointermove", onMove, true);
+            window.removeEventListener("pointerup", onEnd, true);
+            window.removeEventListener("pointercancel", onEnd, true);
+            window.removeEventListener("blur", finish);
+            scroll.removeEventListener("scroll", update);
+            if (handle.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId);
+            if (moved) {
+                setUserColumnWidth(columnKey, applied);
+                setWidthRevision(value => value + 1);
             }
-            handle.removeEventListener("pointermove", onMove);
-            handle.removeEventListener("pointerup", onUp);
-            handle.removeEventListener("pointercancel", onUp);
-            setDragColumn(null);
+            setResizeGuide(null);
         };
-        handle.addEventListener("pointermove", onMove);
-        handle.addEventListener("pointerup", onUp);
-        handle.addEventListener("pointercancel", onUp);
-    }, [widths, dataWidth, hasActionDefs]);
+        const onMove = (moveEvent: PointerEvent) => {
+            if (moveEvent.pointerId !== pointerId) return;
+            if ((moveEvent.buttons & 1) === 0) {
+                finish();
+                return;
+            }
+            pointerX = moveEvent.clientX;
+            update();
+        };
+        const onEnd = (endEvent: PointerEvent) => {
+            if (endEvent.pointerId === pointerId) finish();
+        };
+        setResizeGuide(columnLeft + applied - scrollStart);
+        window.addEventListener("pointermove", onMove, true);
+        window.addEventListener("pointerup", onEnd, true);
+        window.addEventListener("pointercancel", onEnd, true);
+        window.addEventListener("blur", finish);
+        scroll.addEventListener("scroll", update);
+    }, [fixedWidths, widthView]);
 
     const resetColumnWidth = useCallback((columnKey: string) => {
         resetUserColumnWidth(columnKey);
+        setManualLayout(previous => {
+            if (previous?.view !== widthView) return previous;
+            const next = {...previous.widths};
+            delete next[columnKey];
+            return {...previous, widths: next};
+        });
         setWidthRevision(value => value + 1);
-    }, []);
+    }, [widthView]);
 
     const closeRowMenu = useCallback(() => {
         setMenuRowKey(null);
@@ -1621,12 +1654,15 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         data-has-selection={selectionEnabled ? "true" : undefined}
         data-inline-groups={inlineGroups ? "true" : undefined}
         data-density={props.density}
+        data-manual-widths={fixedWidths ? "true" : undefined}
+        data-resizing={resizeGuide !== null ? "true" : undefined}
         style={{
             "--ucx-table-width": dataWidth === 0 ? "100%" : `${totalWidth}px`,
             "--ucx-table-header-height": `${virtualization.headerHeight}px`,
         } as React.CSSProperties}
     >
         <div className="streamed-table-frame">
+            {resizeGuide !== null ? <div className="streamed-table-resize-guide" style={{left: resizeGuide}} aria-hidden="true" /> : null}
             <div
                 className="streamed-table-scroll"
                 ref={scrollRef}
@@ -1638,9 +1674,9 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
             >
             <Table tableType="presentation" aria-role="grid">
                 <colgroup>
-                    {selectionEnabled ? <col className="streamed-table-select-col" style={{width: `${UCX_SELECT_COLUMN_WIDTH}px`}} /> : null}
+                    {selectionEnabled ? <col className="streamed-table-select-col" style={{width: `${selectWidth}px`}} /> : null}
                     {columns.map(col => <col key={col.key} data-col-key={col.key} style={{width: `${renderedWidths[col.key]}px`}} />)}
-                    {hasActionDefs ? <col className="streamed-table-actions-col" style={{width: `${UCX_ACTION_COLUMN_WIDTH}px`}} /> : null}
+                    {hasActionDefs ? <col className="streamed-table-actions-col" style={{width: `${actionsWidth}px`}} /> : null}
                 </colgroup>
                 <TableHeader>
                     <UiTableRow>
@@ -1659,7 +1695,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                         {columns.map(col => {
                             const sort = store.sortFor(stateKey);
                             const isSortColumn = sort !== null && sort.columnKey === col.key;
-                            return <TableHeaderCell key={col.key}>
+                            return <TableHeaderCell key={col.key} textAlign={col.alignment}>
                                 <span
                                     className="streamed-table-header-label"
                                     data-sort-active={isSortColumn ? "true" : undefined}
@@ -1691,7 +1727,6 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                 </span>
                                 <div
                                     className="streamed-table-resize-handle"
-                                    data-dragging={dragColumn === col.key}
                                     onPointerDown={event => startColumnResize(col.key, event)}
                                     onDoubleClick={event => {
                                         event.stopPropagation();
@@ -1808,7 +1843,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                             })
                                             : cell;
                                         return col.copy === true ?
-                                            <TableCell key={col.key} role="gridcell" style={{position: "relative"}}>
+                                            <TableCell key={col.key} role="gridcell" textAlign={col.alignment} style={{position: "relative"}}>
                                                 {content}
                                                 {cellIdx === 0 && row.busy ? <UcxSpinner size={12} margin="0 0 0 6px" /> : null}
                                                 <button
@@ -1824,7 +1859,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                                     <Icon name="heroDocumentDuplicate" size={14} />
                                                 </button>
                                             </TableCell> :
-                                            <TableCell key={col.key} role="gridcell">
+                                            <TableCell key={col.key} role="gridcell" textAlign={col.alignment}>
                                                 {content}
                                                 {cellIdx === 0 && row.busy ? <UcxSpinner size={12} margin="0 0 0 6px" /> : null}
                                             </TableCell>;
@@ -2286,6 +2321,7 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
     }
 
     ${k} .streamed-table-frame {
+        position: relative;
         display: flex;
         flex-direction: column;
         flex: 1;
@@ -2449,7 +2485,8 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
         min-width: 100%;
     }
 
-    ${k}[data-has-actions="true"] .streamed-table-scroll table {
+    ${k}[data-has-actions="true"] .streamed-table-scroll table,
+    ${k}[data-manual-widths="true"] .streamed-table-scroll table {
         min-width: 0;
     }
 
@@ -2482,7 +2519,7 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
         position: absolute;
         top: 0;
         right: 0;
-        width: 5px;
+        width: 12px;
         height: 100%;
         cursor: col-resize;
         touch-action: none;
@@ -2493,13 +2530,29 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
         content: "";
         position: absolute;
         top: 0;
-        left: -3px;
-        width: 3px;
+        right: 0;
+        width: 2px;
         height: 100%;
+        pointer-events: none;
     }
 
-    ${k} .streamed-table-resize-handle[data-dragging="true"] {
+    ${k}:not([data-resizing]) .streamed-table-resize-handle:hover::after {
         background: var(--primaryMain);
+    }
+
+    ${k}[data-resizing] .streamed-table-frame {
+        cursor: col-resize;
+        user-select: none;
+    }
+
+    ${k} .streamed-table-resize-guide {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        z-index: 4;
+        background: var(--primaryMain);
+        pointer-events: none;
     }
 
     ${k} .streamed-table-select-col {
@@ -2560,12 +2613,6 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
     ${k}[data-density="compact"] .streamed-table-scroll td {
         padding: 3px 8px;
         vertical-align: middle;
-    }
-
-    ${k}[data-density="compact"] .streamed-table-scroll th,
-    ${k}[data-density="compact"] .streamed-table-scroll td {
-        border-left: 0;
-        border-right: 0;
     }
 
     ${k} .streamed-table-actions-col {

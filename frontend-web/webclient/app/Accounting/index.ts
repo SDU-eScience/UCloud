@@ -1465,6 +1465,7 @@ export interface AllocationGroupWithParent {
 export interface AllocationGroupWithChild {
     child: ParentOrChildWallet;
     group: AllocationGroup;
+    maxUsable?: number;
 }
 
 export interface ParentOrChildWallet {
@@ -1516,6 +1517,10 @@ export interface RootAllocateRequestItem {
     end: number;
 }
 
+export function retrieveAllocationRecipients(query: string): APICallParameters {
+    return apiRetrieve({query}, baseContextV2, "allocationRecipients");
+}
+
 export function rootAllocate(request: BulkRequest<RootAllocateRequestItem>): APICallParameters {
     return apiUpdate(request, baseContextV2, "rootAllocate");
 }
@@ -1525,6 +1530,7 @@ export function updateAllocationV2(request: BulkRequest<{
     newQuota?: number | null,
     newStart?: number | null,
     newEnd?: number | null,
+    retire?: boolean,
     reason: string
 }>): APICallParameters {
     return apiUpdate(request, baseContextV2, "updateAllocation");

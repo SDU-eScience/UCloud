@@ -71,7 +71,7 @@ import {AllocationGrid} from "@/Accounting/Allocations/AllocationGrid";
 import type {AllocationDateRange, AllocationEditRequest} from "@/Accounting/Allocations/AllocationGrid";
 import {BulkAllocationWizard} from "./BulkAllocationWizard";
 import {allocationCurrentCalendarYear} from "./AllocationPeriodFilter";
-import {allocationWorkspaceInfo} from "./AllocationModel";
+import {allocationModelRecipients, allocationWorkspaceInfo} from "./AllocationModel";
 import type {AllocationModel, AllocationModelProduct, AllocationModelRecipient} from "./AllocationModel";
 
 const allocationFiltersModalStyle: ReactModal.Styles = {
@@ -950,6 +950,34 @@ function DurationSelector(props: {periodRef: {start: Date | null; end: Date | nu
     </Label>
 }
 
+function AllocationRetireConfirmation(props: {
+    allocationIds: number[];
+    workspaceTitle: string;
+    grantId?: number;
+    onRetire: () => Promise<void>;
+}): React.ReactNode {
+    const [submitting, setSubmitting] = useState(false);
+    const count = props.allocationIds.length;
+    const title = props.grantId !== undefined ? `Retire grant #${props.grantId} for this wallet?` :
+        `Retire allocation ${props.allocationIds[0]}?`;
+    return <div onKeyDown={event => event.stopPropagation()}>
+        <Heading.h3>{title}</Heading.h3>
+        <p>{count === 1 ? "This allocation" : `These ${count} allocations`} for {props.workspaceTitle} will stop providing quota immediately.</p>
+        <p>Upcoming allocations will be canceled without changing their start dates.</p>
+        <Flex justifyContent="flex-end" gap="8px">
+            <Button color="ghost" disabled={submitting} onClick={() => dialogStore.failure()}>Cancel</Button>
+            <Button color="errorMain" disabled={submitting} onClick={async () => {
+                setSubmitting(true);
+                try {
+                    await props.onRetire();
+                } finally {
+                    setSubmitting(false);
+                }
+            }}>Retire</Button>
+        </Flex>
+    </div>;
+}
+
 function openUpdater(
     category: ProductCategoryV2,
     allocationId: number,
@@ -1197,7 +1225,7 @@ const SubProjectListRow: React.FunctionComponent<{
 
 export function SubProjectList({
     projectId,
-    onNewSubProject,
+    canCreateSubAllocator,
     projectRole,
     state,
     onSearchInput,
@@ -1220,7 +1248,7 @@ export function SubProjectList({
     model
 }: {
     projectId: string | undefined,
-    onNewSubProject: () => Promise<void>,
+    canCreateSubAllocator: boolean,
     projectRole: OldProjectRole,
     state: State,
     onSearchInput: (ev: React.SyntheticEvent) => void,
@@ -1244,6 +1272,8 @@ export function SubProjectList({
 }): React.ReactNode {
     const [exportProducts, setExportProducts] = useState<AllocationModelProduct[]>([]);
     const [allocationRecipients, setAllocationRecipients] = useState<AllocationModelRecipient[] | null>(null);
+    const existingAllocationRecipients = useMemo(() =>
+        allocationModelRecipients(model, new Set(model.products.map(product => product.workspaceKey))), [model]);
     React.useEffect(() => {
         setAllocationRecipients(null);
     }, [projectId]);
@@ -1299,7 +1329,7 @@ export function SubProjectList({
             usage: number;
             quota: number;
             unit: string;
-            activeBalance: number;
+            activeBalance: number | null;
             expiredUnused: number;
             future: number;
             allocations: Allocation[];
@@ -1361,7 +1391,7 @@ export function SubProjectList({
                 usage: product.amounts.used,
                 quota: product.amounts.granted,
                 unit: product.unit,
-                activeBalance: product.amounts.activeBalance,
+                activeBalance: product.maxUsable ?? null,
                 expiredUnused: product.amounts.expiredUnused,
                 future: product.amounts.future,
                 allocations,
@@ -1438,12 +1468,34 @@ export function SubProjectList({
             0,
         );
     }, [dispatchEvent]);
+    const retireAllocationsWithDialog = useCallback((allocationIds: number[], workspaceTitle: string, grantId?: number) => {
+        dialogStore.addDialog(<AllocationRetireConfirmation
+            allocationIds={allocationIds}
+            workspaceTitle={workspaceTitle}
+            grantId={grantId}
+            onRetire={async () => {
+                const response = await callAPIWithErrorHandler(Accounting.updateAllocationV2(
+                    bulkRequestOf(...allocationIds.map(allocationId => ({
+                        allocationId, retire: true, reason: "Retired from the allocations table.",
+                    }))),
+                ));
+                const wallets = await loadWallets();
+                if (wallets) dispatchEvent({type: "WalletsLoaded", wallets});
+                dialogStore.success();
+                if (response !== null) {
+                    sendSuccessNotification(allocationIds.length === 1 ? "Allocation retired" : "Allocations retired");
+                }
+            }}
+        />, doNothing, true);
+    }, [dispatchEvent]);
 
     return <>
         {allocationRecipients && projectId ? <BulkAllocationWizard
             key={projectId}
             projectId={projectId}
             recipients={allocationRecipients}
+            availableRecipients={existingAllocationRecipients}
+            canCreateSubAllocator={canCreateSubAllocator}
             categories={allocationCategories}
             projectInfo={resolvedProjectInfo}
             dateRange={dateRange ?? allocationCurrentCalendarYear()}
@@ -1478,9 +1530,6 @@ export function SubProjectList({
                         onClearFilters={clearFilters}
                         onAllocate={projectRole !== OldProjectRole.USER ? setAllocationRecipients : undefined}
                         toolbar={<Flex gap="8px">
-                            <Button height={35} onClick={onNewSubProject} disabled={projectRole === OldProjectRole.USER}>
-                                <Icon name="heroPlus" mr={8} />New sub-project
-                            </Button>
                             <Button height={35} onClick={onExportData}>
                                 <Icon name="heroArrowDownTray" mr={8} />Export
                             </Button>
@@ -1488,7 +1537,8 @@ export function SubProjectList({
                         emptyMessage={selectedCategories && selectedCategories.length > 0
                             ? "No allocations match the current search, filters or period."
                             : undefined}
-                        onEdit={onEditAllocation ?? editAllocationWithDialog}
+                        onEdit={onEditAllocation ?? (projectRole !== OldProjectRole.USER ? editAllocationWithDialog : undefined)}
+                        onRetire={!demo && projectRole !== OldProjectRole.USER ? retireAllocationsWithDialog : undefined}
                         onOpenGrant={onOpenGrant}
                         renderGrantLink={renderGrantLink}
                     />}
