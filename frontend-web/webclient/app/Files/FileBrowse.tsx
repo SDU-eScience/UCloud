@@ -90,7 +90,8 @@ import {injectStyle} from "@/Unstyled";
 import {ActionEntry, ResourceBrowserActions} from "@/ui-components/Actions";
 import {VirtualizedTreeApi} from "@/ui-components/VirtualizedTree";
 import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
-import { FileSelectorSidebar, SelectorSidebarClass } from "./FileSelectorSidebar";
+import {SelectorSidebarClass } from "./FileSelectorSidebar";
+import {projectTitleFromCache } from "@/Project/ProjectSwitcher";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -1165,6 +1166,16 @@ function FileBrowse({opts, headerControls}: {
                         });
                         icon.style.marginRight = "8px";
                         pIcon.replaceChildren(icon);
+                    }
+
+                    if (!opts?.isModal) {
+                        const project = collection?.owner.project;
+                        if (collection && project != Client.projectId) {
+                            result.unshift({
+                                absolutePath: "",
+                                title: project ? projectTitleFromCache(project) : "My workspace"
+                            });
+                        }
                     }
 
                     return result;

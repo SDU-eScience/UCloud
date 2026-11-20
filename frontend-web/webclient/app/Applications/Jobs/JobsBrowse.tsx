@@ -101,7 +101,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
         if (!opts?.isModal) activeProject.current = getStoredProject();
         return baseCallAPI({
             ...parameters,
-            projectOverride: activeProject.current ?? ""
+            projectOverride: parameters.projectOverride ?? activeProject.current ?? ""
         });
     }
 

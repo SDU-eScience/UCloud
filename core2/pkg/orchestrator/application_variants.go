@@ -115,7 +115,7 @@ func applicationVariantBase(actor rpc.Actor, requested orcapi.NameAndVersion) (o
 	if !ok || !base.Invocation.Tool.Tool.Present {
 		return orcapi.Application{}, orcapi.NameAndVersion{}, 0, util.HttpErr(http.StatusBadRequest, "unknown base application")
 	}
-	if base.Metadata.Origin != orcapi.CatalogOriginUCloud {
+	if base.Metadata.Origin != orcapi.CatalogOriginUCloud && !base.Metadata.Variant.Present {
 		return orcapi.Application{}, orcapi.NameAndVersion{}, 0, util.HttpErr(http.StatusBadRequest, "the base application must be UCloud managed")
 	}
 	if base.Invocation.Tool.Tool.Value.Description.Backend != orcapi.ToolBackendDocker {
@@ -863,6 +863,19 @@ func initApplicationVariantRpc() {
 		if err != nil {
 			return fndapi.Task{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found")
 		}
+		if job.Owner.Project.Present {
+			_, isMember := info.Actor.Membership[rpc.ProjectId(job.Owner.Project.Value)]
+			if !isMember {
+				return fndapi.Task{}, util.HttpErr(http.StatusForbidden, "you must be a member of the job's project")
+			}
+		}
+		if !job.Owner.Project.Present && job.Owner.CreatedBy != info.Actor.Username {
+			return fndapi.Task{}, util.HttpErr(http.StatusForbidden, "only the owner of a personal job can save it as a flavor")
+		}
+		jobActor := info.Actor
+		jobActor.Project = util.OptMap(job.Owner.Project, func(project string) rpc.ProjectId {
+			return rpc.ProjectId(project)
+		})
 		if job.Status.State != orcapi.JobStateRunning {
 			return fndapi.Task{}, util.HttpErr(http.StatusBadRequest, "the job must be running")
 		}
@@ -881,7 +894,7 @@ func initApplicationVariantRpc() {
 		var variant *internalApplicationVariant
 		var imageName string
 		var revision int64
-		_, managedBase, _, baseErr := applicationVariantBase(info.Actor, job.Specification.Application)
+		_, managedBase, jobGroup, baseErr := applicationVariantBase(jobActor, job.Specification.Application)
 		if baseErr != nil {
 			return fndapi.Task{}, baseErr
 		}
@@ -892,8 +905,7 @@ func initApplicationVariantRpc() {
 				return fndapi.Task{}, util.HttpErr(http.StatusNotFound, "flavor not found")
 			}
 			current, targetGroup := applicationVariantSnapshot(variant)
-			_, _, jobGroup, _ := applicationVariantBase(info.Actor, job.Specification.Application)
-			if !applicationVariantCanManage(info.Actor, current) || current.State != orcapi.ApplicationVariantStateActive {
+			if !applicationVariantCanManage(jobActor, current) || current.State != orcapi.ApplicationVariantStateActive {
 				return fndapi.Task{}, util.HttpErr(http.StatusNotFound, "flavor not found")
 			}
 			if targetGroup != jobGroup || current.Provider != provider {
@@ -901,7 +913,7 @@ func initApplicationVariantRpc() {
 			}
 			var pushStarted bool
 			var pushErr *util.HttpError
-			imageName, revision, pushStarted, pushErr = applicationVariantBeginPush(info.Actor, variant)
+			imageName, revision, pushStarted, pushErr = applicationVariantBeginPush(jobActor, variant)
 			if pushErr != nil {
 				return fndapi.Task{}, pushErr
 			}
@@ -910,7 +922,7 @@ func initApplicationVariantRpc() {
 			}
 		} else {
 			var reserveErr *util.HttpError
-			variant, imageName, reserveErr = applicationVariantReserve(info.Actor, job.Specification.Application, provider, request.Title, request.PublishedToProject)
+			variant, imageName, reserveErr = applicationVariantReserve(jobActor, job.Specification.Application, provider, request.Title, request.PublishedToProject)
 			if reserveErr != nil {
 				return fndapi.Task{}, reserveErr
 			}

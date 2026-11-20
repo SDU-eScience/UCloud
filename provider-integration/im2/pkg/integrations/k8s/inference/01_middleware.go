@@ -1074,6 +1074,7 @@ func inferenceValidateChatRequest(request InferenceChatRequest, model InferenceM
 const (
 	inferenceMaxUpstreamJSONBytes  = 1024 * 1024 * 8
 	inferenceMaxSSEEventBytes      = 1024 * 1024 * 8
+	inferenceMaxUpstreamErrorBytes = 2048
 	inferenceResponseHeaderTimeout = 4 * time.Minute
 	inferenceStreamIdleTimeout     = 2 * time.Minute
 )
@@ -1215,6 +1216,14 @@ func inferenceResolveBackendAuth(auth inferenceBackendAuth) (string, *util.HttpE
 	return "", nil
 }
 
+func inferenceUpstreamErrorDetail(body io.Reader) string {
+	raw, err := io.ReadAll(io.LimitReader(body, inferenceMaxUpstreamErrorBytes))
+	if err != nil {
+		return ""
+	}
+	return strings.Join(strings.Fields(string(raw)), " ")
+}
+
 func inferenceBackendRequest(ctx context.Context, basePath string, method string, path string, body []byte, contentType string) (*http.Response, *util.HttpError) {
 	return inferenceBackendRequestWithHeaders(ctx, basePath, method, path, body, contentType, nil)
 }
@@ -1268,8 +1277,9 @@ func inferenceBackendRequestWithHeaders(
 		return nil, util.HttpErr(http.StatusBadGateway, "invalid request")
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		log.Info("Inference upstream rejected request: method=%s path=%s status=%d requestBytes=%d", method, path, resp.StatusCode, len(body))
+		detail := inferenceUpstreamErrorDetail(resp.Body)
 		util.SilentClose(resp.Body)
+		log.Info("Inference upstream rejected request: method=%s path=%s status=%d requestBytes=%d detail=%q", method, path, resp.StatusCode, len(body), detail)
 		return nil, util.HttpErr(resp.StatusCode, "invalid request")
 	}
 

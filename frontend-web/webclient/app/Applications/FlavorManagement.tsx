@@ -354,7 +354,8 @@ function retrieveOperations(
             return !variant || isVariantVersion(variant) || variant.publishedToProject ? "Unpublish from project" : "Publish to project";
         },
         icon: "heroGlobeAlt",
-        enabled: selected => selected.length === 1 && !isVariantVersion(selected[0]) && !loadingRef.current,
+        enabled: selected => selected.length === 1 && !isVariantVersion(selected[0]) &&
+            selected[0].project != null && !loadingRef.current,
         onClick: ([variant]) => {
             if (!variant || isVariantVersion(variant)) return;
             void update(variant, {publishedToProject: !variant.publishedToProject});

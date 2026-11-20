@@ -124,16 +124,16 @@ const EstimatesContainerClass = injectStyle("estimates-container", k => `
     ${k} {
         margin-top: 0;
     }
-    
+
     ${k} table {
         width: 100%;
     }
-    
+
     ${k} th {
         text-align: left;
         padding-right: 10px;
     }
-    
+
     ${k} td {
         font-variant-numeric: tabular-nums;
         text-align: right;
@@ -663,6 +663,9 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
         ev.stopPropagation();
         const elem = ev.target as HTMLSelectElement;
         const value = elem.value;
+
+        const oldSettings = {...emailNotifications};
+
         switch (value) {
             case "never": {
                 emailNotifications.settings.jobStarted = false;
@@ -686,13 +689,14 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
             }
         }
 
-        setEmailNotifications(emailNotifications);
+        setEmailNotifications({...emailNotifications});
 
         const wasSuccessful = await invokeCommand(toggleEmailSettings(bulkRequestOf({
             settings: emailNotifications.settings
         }))) !== null;
 
         if (!wasSuccessful) {
+            setEmailNotifications(oldSettings);
             sendFailureNotification("Failed to update user email settings");
         } else {
             sendSuccessNotification("User email settings updated");

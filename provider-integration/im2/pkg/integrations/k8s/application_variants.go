@@ -19,10 +19,12 @@ func initApplicationVariants() {
 
 	orc.JobsProviderCreateApplicationVariant.Handler(func(info rpc.RequestInfo, request orc.JobsProviderCreateApplicationVariantRequest) (fnd.Task, *util.HttpError) {
 		meta, _ := json.Marshal(struct {
-			JobId       string             `json:"jobId"`
-			Application orc.NameAndVersion `json:"application"`
+			JobId            string             `json:"jobId"`
+			WorkspaceProject string             `json:"workspaceProject"`
+			Application      orc.NameAndVersion `json:"application"`
 		}{
-			JobId: request.Job.Id,
+			JobId:            request.Job.Id,
+			WorkspaceProject: request.Job.Owner.Project.GetOrDefault(""),
 			Application: orc.NameAndVersion{
 				Name:    fmt.Sprintf("variant-%d", request.VariantId),
 				Version: fmt.Sprintf("v%d", request.Revision),
