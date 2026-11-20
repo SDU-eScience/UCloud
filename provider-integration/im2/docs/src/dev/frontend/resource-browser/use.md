@@ -1,12 +1,10 @@
 ### Use 
 
-If a list view of a single resource type with integrated context menu and keyboard actions, the Resource Browser-component is a possible solution. 
+If a list view of a single resource type with integrated context menu and keyboard actions, the Resource Browser-component is an option. This is the default list rendering approach, and should be used, unless using the built-in features provided by the component increase complexity, rather than lowering them. An example where it would have increased complexity was the resource allocations, that have a nested approach to showing allocation info.
 
-To use the ResourceBrowser-component, a parent component written in React is required.
+To make use of the ResourceBrowser-component, a parent component written in React is required. Below is a simple use, with comments, of the component, with a generic resource type that exists for the purpose of the example, along with a defined ResourceApi-class. 
 
-Below is a simple use, with comments, of the component, with a generic resource type that exists for the purpose of the example, along with a defined ResourceApi-class.
-
-In the event that the resource-type contains another resource type that is tightly coupled, this can be done as seen with [SharesOutgoing.tsx](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/app/Files/SharesOutgoing.tsx)
+Note: if the resource-type contains another resource type that is tightly coupled, this can be done as seen with [SharesOutgoing.tsx](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/app/Files/SharesOutgoing.tsx)
 
 
 ```typescript

@@ -81,14 +81,12 @@
 
 # UCloud frontend
 
-- [Frontend](./dev/frontend/frontend-development.md)
-- [Layout](./dev/frontend/frontend-layout.md)
+- [Frontend](./dev/frontend/frontend.md)
+- [Design system](./dev/frontend/ucloud-design-system.md)
 - [Architecture](./dev/frontend/frontend-architecture.md)
 - [Network calls](./dev/frontend/network-calls.md)
 - [Styling](./dev/frontend/inject-style.md)
 - [Testing](./dev/frontend/testing.md)
-- [UI Components](./dev/frontend/ui-components.md)
-- [ResourceAPI](./dev/frontend/resource-api.md)
 
 - [Resource Browser](./dev/frontend/resource-browser/about.md)
     - [Features and operations](./dev/frontend/resource-browser/features-and-operations.md)

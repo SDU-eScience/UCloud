@@ -2,6 +2,40 @@
 
 Some notable architecture choices are described here.
 
+### React Redux and External Stores
+
+The frontend is wrapped inside a Redux Provider-component, so that the contents of the store can be accessed from child components.
+
+The frontend uses both the Redux store and custom external stores. The Redux store is not used with the content expected to be serializable and exists between sessions. The Redux store is populated on page load with calls to the backend.
+
+The external stores keep more state about the contents and can be used in a non-React context. These stores can make calls directly from the stores themselves, and do not rely on dispatching the actions with the contents to be stored, nor do they exist at a certain level of the DOM managed by React, and be accessed without the Provider-component.
+
+<figure>
+
+```mermaid
+flowchart LR
+    subgraph frontend["UCloud/Frontend"]
+        A["Frontend component"]:::diagram-external-cog-6-tooth
+        B["Redux store"]:::diagram-external-cog-6-tooth
+        C["External store"]:::diagram-external-cog-6-tooth
+        A -->|Dispatches actions to| B
+        B -->|Reads from Redux store| A
+        A -->|Can trigger calls| C
+        C -->|Subscribes to changes| A
+    end
+    
+    class frontend diagram-external-ucloud
+```
+
+<figcaption>
+    How a React component can communicate with either store.
+</figcaption>
+</figure>
+
+Where the Redux store depends on actions to update its content, the external stores can manage the data on its own, and update its store after a timeout, for instance.
+
+Moving further down in the DOM, the `Core` the compontents that make up the [layout of the frontend](./frontend-layout.md). The sidebars exist outside the content displayed in the main container, and the content of the main container is based on the current URL, which `React Routers` listens to.
+
 ## React Router
 
 The library `React Router` is used for routing. What the [main container](./frontend-layout.md) shows is decided by the URL, and will mount the relevant component in most cases. While using `React Router` is not notable, some cases where it does not behave as intended are. 
@@ -42,34 +76,3 @@ Relevant code can be found in:
 
 - `Core.tsx` found in [`/app/Core.tsx`](https://github.com/sdu-eScience/UCloud/tree/master/frontend-web/webclient/app/Core.tsx)
 - `AppRoutes` found in [`/app/Routes.ts`](https://github.com/sdu-eScience/UCloud/tree/master/frontend-web/webclient/app/Routes.ts)
-
-### React Redux and External Stores
-
-The frontend uses both the Redux store and custom external stores. The Redux store is not used with the content expected to be serializable and exists between sessions. The Redux store is populated on page load with calls to the backend.
-
-The external stores keep more state about the contents and can be used in a non-React context. These stores can make calls directly from the stores themselves, and do not rely on dispatching the actions with the contents to be stored.
-
-
-<figure>
-
-```mermaid
-flowchart LR
-    subgraph frontend["UCloud/Frontend"]
-        A["Frontend component"]:::diagram-external-cog-6-tooth
-        B["Redux store"]:::diagram-external-cog-6-tooth
-        C["External store"]:::diagram-external-cog-6-tooth
-        A -->|Dispatches actions to| B
-        B -->|Reads from Redux store| A
-        A -->|Can trigger calls| C
-        C -->|Subscribes to changes| A
-    end
-    
-    class frontend diagram-external-ucloud
-```
-
-<figcaption>
-    How a React component can communicate with either store.
-</figcaption>
-</figure>
-
-Where the Redux store depends on actions to update its content, the external stores can manage the data on its own, and update its store after a timeout, for instance.

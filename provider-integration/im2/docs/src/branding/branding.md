@@ -26,32 +26,6 @@ The nodes are white, unless a contrast is needed, in which case the outer nodes 
 
 <!-- We also have favicon_color.png, but I don't think it's in use -->
 
-## Colors
-
-The main accent color for the UCloud platform is a blue color, with a different level of darkness for light and dark themes.
-
-The color variable names and their associated hex-values can be seen in [Colors.css](https://github.com/SDU-eScience/UCloud/tree/master/frontend-web/webclient/app/Assets/Colors.css).
-
-<!-- We are not following the rules in the following table. See MembersUI.tsx -->
-
-| Notable color variable name (without prefix)                        | Uses                                                                      |
-|---------------------------------------------------------------------|---------------------------------------------------------------------------|
-| primaryMain                                                         | The accent color used for default buttons, checkboxes                     |
-| successMain                                                         | Used for creation, approving, accepting, etc.                             |
-| errorMain                                                           | Used for cancelling, dismissing, deleting, removing, etc.                 |
-
-<!-- Could add more, not sure which would make sense. -->
-
-## Typography
-
-The UCloud platform uses multiple fonts for different purposes:
-
-| Font                                                                | Uses                                                                      |
-|---------------------------------------------------------------------|---------------------------------------------------------------------------|
-| [Inter](https://fonts.google.com/specimen/Inter)                    | The default font for UCloud, used for non-monospaced text.                |
-| [JetBrains Mono](https://fonts.google.com/specimen/JetBrains+Mono)  | The font used for monospaced text, e.g. code samples, editor, etc.        |
-
-
 ## Merchandise
 
 A teddy bear plushies are available to lend for employees at the eScience Center for work-related events. <!-- Maybe just events in general, I shouldn't decide, I don't own them. Need them for a birthday party? Why not.-->

@@ -1,26 +1,6 @@
-# UCloud frontend development
+# Development procedure
 
-## UCloud description
-
-For a description of where UCloud frontend exists in the context of the UCloud platform, see [introduction](../../overview/introduction.md#introduction).
-
-## Technologies
-
-The UCloud frontend is written in Typescript, with the frontend library [React](https://en.wikipedia.org/wiki/React_(software)). Some shared application state is managed using a custom solution `ExternalStore`, that components can connect to, using the `useSyncExternalStore`-hook provided by React. TypeScript was chosen to reduce the friction that comes from Vanilla JavaScript's dynamic nature, and TypeScript letting developers use upcoming TC-39 features, by compiling to an older target, making UCloud available for people running older versions of JavaScript. 
-
-`npm` is used as the package manager, and contains the various scripts for [running the UCloud frontend](#running-the-ui), [generating icons](#color-references-and-icons), etc. Drop-in replacements can be used if preferred.
-
-React was chosen because of its ubiquity and being battle-tested and the library authors use of "dogfooding". [`React Router`](https://en.wikipedia.org/wiki/React_Router), used for navigation, also has a large userbase and is under a large organisation that uses it, like with React.
-
-Where the performance of React has not been adequate, Vanilla TypeScript/ECMAScript has been used instead. An example of this is the [ResourceBrowser](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/app/ui-components/ResourceBrowser.tsx) component, where very little use of React is present.
-
-## Project structure
-
-The UCloud frontend is found in the [`frontend-web/webclient`](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/). Configuration files, tests and node modules reside at the base, along with the `app` folder containing the code for the web interface. The contents of the `app` folder is subdivided into folders containing different contexts, i.e. resource types and component groupings.
-
-## Installation
-
-### Running the UI
+## Setup and running the UI locally
 
 For a local dev environment, the `launcher`-tool, available in the root folder of the repository, can be run, which will prompt the user to initialize and start the environment.
 The UI will be available at `ucloud.localhost.direct` and will use the local environment as the backend. An admin user will be generated with the following login info:
@@ -49,7 +29,7 @@ Every added NPM-package is a potential security or licensing risk. With this in 
 
 This means no `~`, `^`, `>=`, `>`, `<=`, `<`, `x`, `*` or `latest`, as this provides less control over which version of the package will be installed.
 
-## Color references and icons
+## The Playground-component 
 
 The `Playground` component can be accessed at `/app/playground` and has a list of colors used on the site.
 Additionally, every icon currently available can be viewed here, showing the name of it by hovering with the mouse.
@@ -131,7 +111,8 @@ const foo = { thing: "a" };
 
 ```typescript
 import {
-    thing
+    thing,
+    additionalThing
 } from "thing";
 ```
 
@@ -141,9 +122,6 @@ import {
 </table>
 </div>
 
-
-But newlines in imports should usually only happen with multiple imports from the same source.
-
 ### Production backend with a Wayf-user
 
 Note: production should not be used as a backend unless required. 
@@ -151,4 +129,4 @@ Note: production should not be used as a backend unless required.
 - Go to cloud.sdu.dk and log in. Open developer tools and access a console within. Enter `localStorage.setItem("ALLOW_JWT_COPY", "true")` and reload the page. This allows for copying login tokens with a keyboard shortcut.
 - Open a second tab and go to `localhost:9000/app` and open developer tools.
 - In the `cloud.sdu.dk`-tab, press `alt + k` (`option + k` on MacOS) to copy the tokens into your clipholder.
-- Go back to the second tab and paste the tokens into the console and press enter. Reloading the page should navigate you to the dashboard with your user logged in.
+- Go back to the second tab and paste the tokens into the console and press enter. Reloading the page should navigate you to the dashboard with your user logged in.d

@@ -1,10 +1,6 @@
 # Resource Browser
 
-The Resource Browser is a generic component bringing a user interface for generic resources, with features a user would expect from a native file explorer. The component is written in Vanilla TypeScript, but is mounted within the React-mounted root, as to be compatible with the rest of the frontend.
-
-## Motivation
-
-The component was written to accommodate rendering of directories containing thousands of files, without any significant slowdowns. The component supports keyboard inputs, like navigation and shortcuts. The component replaced the previous custom 'List'-component, that was written in React, which had major slowdowns for larger directories. While packages like `react-window` could be used, this would only fix the performance aspect, and not the wanted interactions like keyboard shortcuts or drag to select. Initially, the component was written with file-browsing in mind, which is why some of the operations relate heavily to functionality to files, but were applicable to a lot of other resources on UCloud.
+The Resource Browser is a generic component bringing a user interface for generic resources, with features a user would expect from a native file explorer. The component is written in Vanilla TypeScript, but is mounted within the React-mounted root, as to be compatible with the rest of the frontend. It is a component that is very important to the platform, and in use for a lot of resources that the UCloud eco-system provides.
 
 ## Implementation
 
@@ -37,7 +33,7 @@ flowchart LR
 
 ## `renderRows`
 
-Instead of rendering every item in the viewed page, the Resource Browser uses a similar approach to `react-window`, that is, based on the available space, initializes as many entries that can be visible at any time, plus an additional buffer, in the container. When rendering rows, the rows are reset, and placed relative to their sorting. Each page (See [Page](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/app/UCloud/index.ts#L41)) entry is checked if it is in view, and if so, rendered using the prepared row checked.
+`renderRows` is the loop that renders the rows in the resource browser. Based on the `columnTitles` set in the header, it will render the corresponding stats in the row display the contents of the resource. This means that if the first and third columnTitle-entries are defined, `renderRows` will for each row render `title`, `stat1` and `stat3`, skipping the other undefined stats.
 
 Each row is divided into multiple parts: `star`, `title`, `stat1`, `stat2`, `stat3`, and `stat4`.
 
@@ -62,6 +58,8 @@ With the container width provided, the implementation of the rendering of the st
     });
 }
 ```
+
+Instead of rendering every item in the viewed page, the Resource Browser uses a similar approach to `react-window`, that is, based on the available space, initializes as many entries that can be visible at any time, plus an additional buffer, in the container. When rendering rows, the rows are reset, and placed relative to their sorting. Each page (See [Page](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/app/UCloud/index.ts#L41)) entry is checked if it is in view, and if so, rendered using the prepared row checked.
 
 The container size breakpoints are as follows:
 
@@ -100,3 +98,7 @@ The sort function can now be called using `this.dispatchMessage("sort", fn => fn
 The Resource Browser has many lines of CSS, which has been extracted into its own file, [ResourceBrowserStyle.ts](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/app/ui-components/ResourceBrowserStyle.ts). The styling relies on `injectStyle` mentioned in [`injectStyle`](../inject-style.md)
 
 Changes can be done directly in the Resource Browser, if changes should not persist between components.
+
+## Motivation
+
+The component was written to accommodate rendering of directories containing thousands of files, without any significant slowdowns. The component supports keyboard inputs, like navigation and shortcuts. The component replaced the previous custom 'List'-component, that was written in React, which had major slowdowns for larger directories. While packages like `react-window` could be used, this would only fix the performance aspect, and not the wanted interactions like keyboard shortcuts or drag to select. Initially, the component was written with file-browsing in mind, which is why some of the operations relate heavily to functionality to files, but were applicable to a lot of other resources on UCloud.

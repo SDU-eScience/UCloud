@@ -36,7 +36,7 @@ The `callAPI`-function is used for contacting the backend, fetching data and pos
 
 The first parameter, `APICallParameters`, is an object that contains HTTP method, optional body, and other relevant arguments for the network call.
 
-Helper functions to create an `APICallParameter`-object exist that map to different network actions. See `apiCreate`, `apiBrowse`, `apiRetrieve`, `apiSearch`, `apiUpdate`, and `apiDelete`.
+Helper functions to create an `APICallParameters`-object exist that map to different network actions. See `apiCreate`, `apiBrowse`, `apiRetrieve`, `apiSearch`, `apiUpdate`, and `apiDelete`.
 
 Example usage:
 
