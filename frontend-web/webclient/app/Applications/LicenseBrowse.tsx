@@ -88,7 +88,7 @@ export function LicenseBrowse({
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<License>(mount, "Licenses", opts).init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<License>(mount, "Licenses", browserRef, FEATURES, opts, "").init(browser => {
                 let startCreation = doNothing;
 
                 browser.setColumns({[ContainerSize.LARGE]:[{name: "License id"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]});

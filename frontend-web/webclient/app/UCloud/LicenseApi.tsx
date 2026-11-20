@@ -39,8 +39,8 @@ export interface LicenseFlags extends ResourceIncludeFlags {
 
 export type License = Resource<LicenseUpdate, LicenseStatus, LicenseSpecification>;
 
-class LicenseApi extends ResourceApi<License, ProductLicense, LicenseSpecification, LicenseUpdate,
-    LicenseFlags, LicenseStatus, LicenseSupport> {
+class LicenseApi extends ResourceApi<License, ProductLicense, LicenseSpecification,
+    LicenseFlags, LicenseSupport> {
     routingNamespace = "licenses";
     title = "Software License";
     productType = "LICENSE" as const;

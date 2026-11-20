@@ -66,7 +66,7 @@ function FavoriteBrowse({ selection, navigateToFolder }: {
     useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<FileMetadataAttached>(mount, "Favorites", {isModal: true}).init(browserRef, FEATURES, "/", browser => {
+            new ResourceBrowser<FileMetadataAttached>(mount, "Favorites", browserRef, FEATURES, {isModal: true}, "/").init(browser => {
                 browser.setColumns({
                     [ContainerSize.LARGE]: [{ name: "Name" }, { name: "", columnWidth: 32 }, { name: "", columnWidth: 0 }, { name: "", columnWidth: 0 }]
                 });

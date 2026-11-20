@@ -166,7 +166,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
         const mount = mountRef.current;
 
         if (mount && !browserRef.current) {
-            new ResourceBrowser<OutgoingShareGroup | OutgoingShareGroupPreview>(mount, TITLE, opts).init(browserRef, features, "", browser => {
+            new ResourceBrowser<OutgoingShareGroup | OutgoingShareGroupPreview>(mount, TITLE, browserRef, features, opts, "").init(browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
                 let shouldRemoveFakeDirectory = true;

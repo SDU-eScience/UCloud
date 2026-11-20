@@ -161,7 +161,7 @@ const DriveBrowse: React.FunctionComponent<{
             let searchOrigin = initialPath;
             const applicationFilter = (path: string): "ordinary" | "application" => path === applicationDrivesPath ? "application" : "ordinary";
             const directory: ApplicationDriveDirectory = {id: applicationDrivesPath, title: "Application drives", virtual: true};
-            new ResourceBrowser<DriveBrowserEntry>(mount, RESOURCE_NAME, browserOpts).init(browserRef, FEATURES, initialPath, browser => {
+            new ResourceBrowser<DriveBrowserEntry>(mount, RESOURCE_NAME, browserRef, FEATURES, browserOpts, initialPath).init(browser => {
                 addProjectListener("drive-browse", p => {
                     browser.features.filters = !!p;
                     if (p) {

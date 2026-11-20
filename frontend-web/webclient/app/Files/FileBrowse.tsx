@@ -8,7 +8,6 @@ import {
     addProjectSwitcherInPortal,
     checkIsWorkspaceAdmin,
     EmptyReasonTag,
-    OperationOrGroup,
     placeholderImage,
     providerIcon,
     ResourceBrowseFeatures,
@@ -245,8 +244,8 @@ function FileBrowse({opts, headerControls}: {
         let shares: Record<string, OutgoingShareGroup> = {};
         let initialFetchDone = false;
         if (mount && !browserRef.current) {
-            const resourceBrowser = new ResourceBrowser<UFile>(mount, RESOURCE_NAME, {...opts});
-            resourceBrowser.init(browserRef, features, undefined, browser => {
+            const resourceBrowser = new ResourceBrowser<UFile>(mount, RESOURCE_NAME, browserRef, features, {...opts});
+            resourceBrowser.init(browser => {
                 browser.setColumns(isSelector ? selectorRowTitles : rowTitles);
                 if (isSelector) browser.root.style.height = "100%";
                 if (compactFilters) {
@@ -787,77 +786,13 @@ function FileBrowse({opts, headerControls}: {
                 }]);
 
                 browser.on("fetchOperations", () => {
-                    function groupOperations<R>(ops: Operation<UFile, R>[]): OperationOrGroup<UFile, R>[] {
-                        const result: OperationOrGroup<UFile, R>[] = [];
-                        const restOperations: Operation<UFile, R>[] = [];
-                        let splitButtonGroups = new Map<string, Operation<UFile, R>[]>();
-
-                        // Finding split buttons and grouping them together
-                        ops.forEach(op => {
-                            if (op.splitButtonGroupId) {
-                                if (!splitButtonGroups.has(op.splitButtonGroupId)) {
-                                    splitButtonGroups.set(op.splitButtonGroupId, [op]);
-                                }
-                                else {
-                                    splitButtonGroups.get(op.splitButtonGroupId)?.push(op);
-                                }
-                            }
-                            else {
-                                restOperations.push(op);
-                            }
-                        });
-
-                        // Creating split buttons
-                        splitButtonGroups.forEach((operations, k) => {
-                            result.push({
-                                color: "secondaryMain",
-                                icon: "ellipsis",
-                                text: "",
-                                iconRotation: 90,
-                                operations: operations,
-                                buttonStyle: "split",
-                            })
-                        });
-
-                        let i = 0;
-                        // A max of 4 buttons for the view else we collapse them
-                        for (; i < restOperations.length && result.length < 4; i++) {
-                            const op = restOperations[i];
-                            result.push(op);
-                        }
-
-                        const overflow: Operation<UFile, R>[] = [];
-                        for (; i < restOperations.length; i++) {
-                            overflow.push(restOperations[i]);
-                        }
-
-                        if (overflow.length > 0) {
-                            result.push({
-                                color: "secondaryMain",
-                                icon: "ellipsis",
-                                text: "",
-                                iconRotation: 90,
-                                operations: overflow,
-                            })
-                        }
-
-                        return result;
-                    }
-
-                    const selected = browser.findSelectedEntries();
-                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as FileBrowseCallbacks;
                     const actions = FilesApi.retrieveActions();
                     if (!Array.isArray(actions)) {
-                        const result = appendOperationsToActions(actions, opts?.additionalOperations ?? [], selected);
+                        const result = appendOperationsToActions(actions, opts?.additionalOperations ?? [], browser.findSelectedEntries());
                         return isSelector ? selectorActions(result) : result;
                     }
-                    const enabledOperations = actions.filter(op => op.enabled(selected, callbacks, selected));
-                    if (opts?.additionalOperations) {
-                        (opts.additionalOperations).forEach(op => {
-                            if (op.enabled(selected, callbacks, selected)) enabledOperations.push(op);
-                        })
-                    }
-                    return groupOperations(enabledOperations);
+                    console.warn("Unintended")
+                    return [];
                 });
 
                 browser.on("fetchOperationsCallback", () => {

@@ -9,7 +9,6 @@
   - [Provider API Tokens](./overview/provider-api-tokens.md)
 - [Accounting](./overview/accounting.md)
 - [Orchestration](./overview/orchestration.md)
-- [Frontend](./dev/frontend-development.md)
 
 <!--
 # Becoming a Provider
@@ -79,6 +78,21 @@
 - [Reference](./k8s/reference.md)
     - [Configuration](./k8s/config-reference.md)
     - [CLI](./k8s/cli-reference.md)
+
+# UCloud frontend
+
+- [Frontend](./dev/frontend/frontend-development.md)
+- [Layout](./dev/frontend/frontend-layout.md)
+- [Architecture](./dev/frontend/frontend-architecture.md)
+- [Network calls](./dev/frontend/network-calls.md)
+- [Styling](./dev/frontend/inject-style.md)
+- [Testing](./dev/frontend/testing.md)
+- [UI Components](./dev/frontend/ui-components.md)
+- [ResourceAPI](./dev/frontend/resource-api.md)
+
+- [Resource Browser](./dev/frontend/resource-browser/about.md)
+    - [Features and operations](./dev/frontend/resource-browser/features-and-operations.md)
+    - [Use](./dev/frontend/resource-browser/use.md)
 
 
 # Style guidelines

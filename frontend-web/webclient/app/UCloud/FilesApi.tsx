@@ -6,7 +6,6 @@ import {
     ResourceApi,
     ResourceApiActions,
     ResourceBrowseCallbacks,
-    ResourceUpdate,
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import FileCollectionsApi, {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
@@ -84,7 +83,6 @@ import {
     UFile,
     UFileIncludeFlags,
     UFileSpecification,
-    UFileStatus
 } from "./UFile";
 import AppRoutes from "@/Routes";
 import {allowEditing, Editor, EditorApi, EditorLoadingState, Vfs} from "@/Editor/Editor";
@@ -348,7 +346,7 @@ function useSensitivity(resource: UFile): SensitivityLevel | null {
 }
 
 class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
-    ResourceUpdate, UFileIncludeFlags, UFileStatus, FileCollectionSupport, FileBrowseCallbacks> {
+    UFileIncludeFlags, FileCollectionSupport, FileBrowseCallbacks> {
     constructor() {
         super("files");
         this.sortEntries = [];

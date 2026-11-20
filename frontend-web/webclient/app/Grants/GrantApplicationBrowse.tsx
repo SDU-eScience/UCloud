@@ -1,6 +1,4 @@
 import {
-    addProjectSwitcherInPortal,
-    ColumnTitleList,
     EmptyReasonTag,
     ResourceBrowseFeatures,
     ResourceBrowser,
@@ -10,7 +8,7 @@ import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useLocation, useNavigate} from "react-router-dom";
 import {usePage} from "@/Navigation/Redux";
-import {callAPI, noopCall} from "@/Authentication/DataHook";
+import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
 import AppRoutes from "@/Routes";
 import {IconName} from "@/ui-components/Icon";
@@ -28,6 +26,7 @@ import {avatarState} from "@/AvataaarLib/hook";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
+import {ResourceBrowserProjectSwitcher} from "@/Project/ProjectSwitcher";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -60,14 +59,13 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
     const browserRef = React.useRef<ResourceBrowser<Grants.Application>>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
         usePage("Grant Applications", SidebarTabId.PROJECT);
     }
 
     const location = useLocation();
-    let isIngoing = addTrailingSlash(location.pathname).endsWith("/ingoing/");
+    const isIngoing = addTrailingSlash(location.pathname).endsWith("/ingoing/");
 
     const features: ResourceBrowseFeatures = {
         ...FEATURES,
@@ -78,7 +76,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Grants.Application>(mount, "Grants Application", opts).init(browserRef, features, "", browser => {
+            new ResourceBrowser<Grants.Application>(mount, "Grants Application", browserRef, features, opts, "").init(browser => {
                 function fetchGrants(newPath: string = "/") {
                     callAPI(Grants.browse({
                         query: browser.searchQuery,
@@ -362,7 +360,6 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 browserRef.current?.refresh();
             }
         }
-        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
@@ -373,7 +370,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
 
     const main = <>
         <div ref={mountRef} />
-        {switcher}
+        <ResourceBrowserProjectSwitcher browser={browserRef.current} />
     </>;
     if (opts?.embedded) return <div>{main}</div>;
     return <MainContainer main={main} />
