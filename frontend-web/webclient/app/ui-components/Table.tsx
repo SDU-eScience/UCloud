@@ -150,6 +150,7 @@ export const TableRow: React.FunctionComponent<BoxProps & {
     highlighted?: boolean;
     className?: string;
     role?: string;
+    id?: string;
     tabIndex?: number;
     ["aria-selected"]?: boolean;
 }> = props => {
@@ -157,6 +158,7 @@ export const TableRow: React.FunctionComponent<BoxProps & {
         data-highlight={props.highlightOnHover === true}
         data-highlighted={props.highlighted === true}
         className={props.className}
+        id={props.id}
         style={unbox(props)}
         {...extractEventHandlers(props)}
         {...extractDataTags(props as Record<string, string>)}
@@ -169,14 +171,14 @@ export const TableRow: React.FunctionComponent<BoxProps & {
 
 TableRow.displayName = "TableRow";
 
-export const TableHeader: React.FunctionComponent<{children?: React.ReactNode;}> = props => {
-    return <thead children={props.children} />;
+export const TableHeader: React.FunctionComponent<{children?: React.ReactNode; role?: string;}> = props => {
+    return <thead role={props.role} children={props.children} />;
 }
 
 TableHeader.displayName = "TableHeader";
 
-export const TableHeaderCell: React.FunctionComponent<BoxProps & {children?: React.ReactNode;}> = props => {
-    return <th style={unbox(props)} {...extractEventHandlers(props)} children={props.children} />;
+export const TableHeaderCell: React.FunctionComponent<BoxProps & {children?: React.ReactNode; role?: string;}> = props => {
+    return <th role={props.role} style={unbox(props)} {...extractEventHandlers(props)} children={props.children} />;
 }
 
 TableHeaderCell.displayName = "TableHeaderCell";

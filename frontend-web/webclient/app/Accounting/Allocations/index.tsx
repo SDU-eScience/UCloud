@@ -57,9 +57,13 @@ const Allocations: React.FunctionComponent = () => {
     React.useEffect(() => {
         const usernames = new Set<string>();
         for (const recipient of state.subAllocations.recipients) {
-            usernames.add(recipient.owner.reference.type === "user" ?
-                recipient.owner.reference.username :
-                projectInfoPi(projectInfo.data[recipient.owner.reference.projectId], recipient.owner.primaryUsername) ?? "-");
+            const username = recipient.owner.reference.type === "user"
+                ? recipient.owner.reference.username
+                : projectInfoPi(
+                    projectInfo.data[recipient.owner.reference.projectId],
+                    recipient.owner.primaryUsername,
+                ) ?? "-";
+            usernames.add(username);
         }
         avatars.updateCache([...usernames]);
     }, [projectInfo, state.subAllocations.recipients])
@@ -69,27 +73,6 @@ const Allocations: React.FunctionComponent = () => {
     // These event handlers translate, primarily DOM, events to higher-level UIEvents which are sent to
     // dispatchEvent(). There is nothing complicated in these, but they do take up a bit of space. When you are writing
     // these, try to avoid having dependencies on more than just dispatchEvent itself.
-    useEffect(() => {
-        const handler = (ev: KeyboardEvent) => {
-            switch (ev.code) {
-                case "KeyK": {
-                    if (ev.ctrlKey || ev.metaKey) {
-                        ev.preventDefault();
-                        const box = searchBox.current;
-                        if (box) {
-                            box.scrollIntoView({block: "nearest"});
-                            box.focus();
-                        }
-                    }
-                    break;
-                }
-            }
-        };
-
-        document.body.addEventListener("keydown", handler);
-        return () => document.body.removeEventListener("keydown", handler);
-    }, []);
-
     const onEdit = useCallback((elem: HTMLElement) => {
         const idx = parseInt(elem.getAttribute("data-idx") ?? "");
         const gidx = parseInt(elem.getAttribute("data-gidx") ?? "");

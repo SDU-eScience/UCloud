@@ -12,13 +12,49 @@ import {SubProjectList, YourAllocations} from "./CommonSections";
 import {injectStyle} from "@/Unstyled";
 import AppRoutes from "@/Routes";
 import {allocationNormalize} from "./AllocationModel";
+import {focusAllocationTable, useAllocationShortcuts} from "./AllocationShortcuts";
+import {useShortcutReveal} from "@/Applications/KeyboardNavigation";
 
 const AllocationPageStyle = injectStyle("allocation-page", k => `
-    ${k} > header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
-    ${k} > header h3 { margin: 0; }
-    ${k} .demo-badge { padding: 3px 7px; border-radius: 3px; background: var(--primaryMain); color: var(--primaryContrast); font-size: 11px; }
-    ${k} .disabled-alloc .row-left, ${k} .disabled-alloc .low-opaqueness { filter: opacity(0.5); }
-    ${k} .sub-alloc { display: flex; align-items: center; gap: 8px; }
+    ${k}[data-mode="allocations"] {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - var(--termsize, 0px) - 32px);
+        min-height: 0;
+        min-width: 0;
+    }
+    ${k} > header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        flex: 0 0 auto;
+    }
+    ${k} > header h3 {
+        margin: 0;
+    }
+    ${k} .demo-badge {
+        padding: 3px 7px;
+        border-radius: 3px;
+        background: var(--primaryMain);
+        color: var(--primaryContrast);
+        font-size: 11px;
+    }
+    ${k} .disabled-alloc .row-left, ${k} .disabled-alloc .low-opaqueness {
+        filter: opacity(0.5);
+    }
+    ${k} .sub-alloc {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    ${k} [data-allocation-shortcut-hint] {
+        display: none;
+    }
+    ${k}[data-shortcuts-visible="true"] [data-allocation-shortcut-hint] {
+        display: inline-flex;
+    }
 `);
 
 export function AllocationPage(props: {
@@ -35,6 +71,8 @@ export function AllocationPage(props: {
     const basePath = props.demo ? AppRoutes.accounting.allocationsDemo() : AppRoutes.accounting.allocations();
     const allocationTree = useRef<TreeApi>(null);
     const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+    const shortcutsVisible = useShortcutReveal();
+    useAllocationShortcuts();
     const state = props.subProjects.state;
     const model = useMemo(() => allocationNormalize(state.remoteData.wallets ?? [], props.snapshotTime ?? Date.now()),
         [state.remoteData.wallets, props.snapshotTime]);
@@ -45,7 +83,9 @@ export function AllocationPage(props: {
             (bPriority === -1 ? ProductTypesByPriority.length : bPriority);
     });
 
-    return <MainContainer headerSize={0} main={<div className={AllocationPageStyle}>
+    return <MainContainer headerSize={0} main={<div className={AllocationPageStyle}
+        data-mode={providerTools ? "provider" : received ? "received" : "allocations"}
+        data-shortcuts-visible={shortcutsVisible ? "true" : undefined}>
         <header>
             {providerTools ?
                 <h3>Provider tools</h3> :
@@ -58,8 +98,22 @@ export function AllocationPage(props: {
         </header>
         {providerTools ?
             props.providerTools :
-            received ? <YourAllocations state={state} allocations={sortedAllocations} allocationTree={allocationTree} indent={16} /> : <>
-                <AllocationOverview model={model} loading={state.remoteData.wallets === undefined} personalWorkspaces={!state.viewOnlyProjects} dateRange={props.dateRange} selectedCategories={selectedCategories} onSelectCategories={setSelectedCategories} />
+            received ?
+                <YourAllocations
+                    state={state}
+                    allocations={sortedAllocations}
+                    allocationTree={allocationTree}
+                    indent={16}
+                /> :
+                <>
+                <AllocationOverview
+                    model={model}
+                    loading={state.remoteData.wallets === undefined}
+                    personalWorkspaces={!state.viewOnlyProjects}
+                    dateRange={props.dateRange}
+                    selectedCategories={selectedCategories}
+                    onSelectCategories={setSelectedCategories}
+                />
                 <SubProjectList
                     {...props.subProjects}
                     model={model}
@@ -67,7 +121,13 @@ export function AllocationPage(props: {
                     dateRange={props.dateRange}
                     selectedCategories={selectedCategories}
                     onCategoriesChange={setSelectedCategories}
-                    periodControl={<AllocationPeriodFilter now={model.now} value={props.dateRange} onChange={props.onDateRangeChange} />}
+                    periodControl={<AllocationPeriodFilter
+                        now={model.now}
+                        value={props.dateRange}
+                        onChange={props.onDateRangeChange}
+                        shortcut="K"
+                        onReturnFocus={focusAllocationTable}
+                    />}
                 />
             </>}
     </div>} />;

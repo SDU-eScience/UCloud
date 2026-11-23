@@ -1,9 +1,50 @@
 import * as React from "react";
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
 import {createKeyboardShortcut, isLikelyMac} from "@/UtilityFunctions";
 import type {KeyboardShortcutModifier} from "@/UtilityFunctions";
 import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
 import {injectStyle} from "@/Unstyled";
+
+export function isModalOpen(): boolean {
+    return document.querySelector(".ReactModal__Overlay") !== null;
+}
+
+export function useShortcutReveal(): boolean {
+    const [visible, setVisible] = useState(false);
+    useEffect(() => {
+        const update = (event: KeyboardEvent) => {
+            const primaryPressed = isLikelyMac ? event.metaKey : event.ctrlKey;
+            setVisible(!isModalOpen() && event.altKey && primaryPressed);
+        };
+        const hide = () => setVisible(false);
+        const onKeyDown = (event: KeyboardEvent) => update(event);
+        const onKeyUp = (event: KeyboardEvent) => update(event);
+        document.addEventListener("keydown", onKeyDown);
+        document.addEventListener("keyup", onKeyUp);
+        window.addEventListener("blur", hide);
+        return () => {
+            document.removeEventListener("keydown", onKeyDown);
+            document.removeEventListener("keyup", onKeyUp);
+            window.removeEventListener("blur", hide);
+        };
+    }, []);
+    return visible;
+}
+
+export function ShortcutHint(props: {
+    shortcut: string;
+    modifiers?: KeyboardShortcutModifier[];
+    compact?: boolean;
+    hideUntilReveal?: boolean;
+}): React.ReactNode {
+    return <span
+        className={ShortcutClass}
+        style={{marginLeft: 8, marginRight: 4}}
+        data-allocation-shortcut-hint={props.hideUntilReveal ? "" : undefined}
+    >
+        {createKeyboardShortcut(props.shortcut, props.modifiers ?? ["ctrl", "alt"], props.compact)}
+    </span>;
+}
 
 export const FIELD_NAVIGATION_SELECTOR = [
     "[data-job-info-field]",
@@ -36,8 +77,7 @@ export function focusFirstNavigationTarget(root: HTMLElement, selector = FIELD_N
 }
 
 export function closeOpenDropdown(field: HTMLElement): void {
-    const dropdown = field.getAttribute("aria-expanded") === "true" ? field :
-        field.querySelector<HTMLElement>("[aria-expanded='true']");
+    const dropdown = field.closest<HTMLElement>("[aria-expanded='true']");
     dropdown?.querySelector<HTMLElement>("[data-dropdown-trigger]")?.click();
 }
 

@@ -47,6 +47,7 @@ export type ClickableDropdownProps<T> = {
     arrowkeyNavigationKey?: string; // e.g. "data-entry";
     hoverColor?: ThemeColor;
     triggerAriaLabel?: string;
+    triggerAriaKeyshortcuts?: string;
     /**
      * Requires `arrowkeyNavigationKey` to be set or that `props.children` are provided.
      **/
@@ -332,6 +333,7 @@ function ClickableDropdown<T>({
             tabIndex={props.focusable ? 0 : undefined}
             role={props.focusable ? "button" : undefined}
             ariaLabel={props.triggerAriaLabel}
+            ariaKeyshortcuts={props.triggerAriaKeyshortcuts}
             ariaExpanded={props.focusable ? open : undefined}
             autoFocus={props.autoFocus}
             onKeyDown={event => {
@@ -350,6 +352,7 @@ function ClickableDropdown<T>({
                     _onKeyDown(event, divRef, counter, navigationKey, props.hoverColor ?? "primaryLight", props.onSelect);
                     return;
                 }
+                if (navigationKey && open && (event.key === "Enter" || event.key === " ")) return;
                 if (!props.focusable || event.target !== event.currentTarget) return;
                 if (event.key !== "Enter" && event.key !== " ") return;
                 if (event.metaKey || event.ctrlKey || event.altKey) return;
@@ -404,12 +407,16 @@ function _onKeyDown(
     onSelect?: ((el: Element | undefined) => void),
 ) {
     if (e.key === "Enter" && e.altKey && (e.metaKey || e.ctrlKey)) return;
+    if (e.target instanceof Element && e.target.closest("button, [role='switch']")) return;
+    if (e.target instanceof Element && e.target.closest("input, textarea, select, [contenteditable='true']") &&
+        e.key === " ") return;
     if (!wrapper.current) return;
     const isUp = e.key === "ArrowUp";
     const isDown = e.key === "ArrowDown";
     const isEnter = e.key === "Enter";
+    const isSpace = e.key === " ";
 
-    if (isUp || isDown || isEnter) {
+    if (isUp || isDown || isEnter || isSpace) {
         e.preventDefault();
         e.stopPropagation();
     }
@@ -439,7 +446,7 @@ function _onKeyDown(
         if (oldIndex !== -1) listEntries.item(oldIndex)["style"].backgroundColor = "";
         listEntries.item(index.current)["style"].backgroundColor = `var(--${hoverColor})`;
         listEntries.item(index.current).scrollIntoView({behavior: "instant", block: "nearest"});
-    } else if (isEnter && index.current !== -1) {
+    } else if ((isEnter || isSpace) && index.current !== -1) {
         onSelect?.(listEntries.item(index.current));
     }
 }

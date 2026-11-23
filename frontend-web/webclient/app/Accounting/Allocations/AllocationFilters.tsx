@@ -7,6 +7,8 @@ import {classConcat, injectStyle} from "@/Unstyled";
 import {UcxTableControlsClass} from "@/UCX/UcxBrowser";
 import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
 import {formatNumber} from "@/Utilities/NumberFormatting";
+import {ShortcutHint} from "@/Applications/KeyboardNavigation";
+import {focusAllocationTable} from "./AllocationShortcuts";
 
 export type AllocationFilterState = "all" | "active" | "expiring" | "upcoming" | "exhausted" | "expired";
 
@@ -18,13 +20,43 @@ export interface AllocationFilterOption {
 }
 
 const AllocationFilterOptionsStyle = injectStyle("allocation-filter-options", k => `
-    ${k} { padding: 8px; max-height: 320px; overflow-y: auto; }
-    ${k} .allocation-filter-option { display: flex; align-items: center; gap: 12px; padding: 9px 8px; cursor: pointer; font-size: 13px; border-radius: 4px; }
-    ${k} .allocation-filter-option:hover { background: var(--rowHover); }
-    ${k} .allocation-filter-label { flex: 1; min-width: 0; }
-    ${k} .allocation-filter-icon { display: flex; align-items: center; justify-content: center; flex: 0 0 18px; }
-    ${k} .allocation-filter-option > [role="switch"] { flex-shrink: 0; }
-    ${k} .allocation-filter-section { margin: 4px 0; padding: 8px 8px 0; border-top: 1px solid var(--borderColor); color: var(--textSecondary); font-size: 12px; }
+    ${k} {
+        padding: 8px;
+        max-height: 320px;
+        overflow-y: auto;
+    }
+    ${k} .allocation-filter-option {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 9px 8px;
+        cursor: pointer;
+        font-size: 13px;
+        border-radius: 4px;
+    }
+    ${k} .allocation-filter-option:hover {
+        background: var(--rowHover);
+    }
+    ${k} .allocation-filter-label {
+        flex: 1;
+        min-width: 0;
+    }
+    ${k} .allocation-filter-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 18px;
+    }
+    ${k} .allocation-filter-option > [role="switch"] {
+        flex-shrink: 0;
+    }
+    ${k} .allocation-filter-section {
+        margin: 4px 0;
+        padding: 8px 8px 0;
+        border-top: 1px solid var(--borderColor);
+        color: var(--textSecondary);
+        font-size: 12px;
+    }
 `);
 
 function AllocationFilterSelect(props: {
@@ -35,33 +67,53 @@ function AllocationFilterSelect(props: {
     onChange: (selected: string[]) => void;
     visibility?: boolean;
 }): React.ReactNode {
+    const toggle = (key: string) => {
+        const next = props.selected.includes(key)
+            ? props.selected.filter(selectedKey => selectedKey !== key)
+            : [...props.selected, key];
+        props.onChange(next);
+    };
     return <ClickableDropdown
-        trigger={<span className="allocation-filter-trigger"><Icon name={props.icon} size={15} />{props.label}{!props.visibility && props.selected.length > 0 ? ` (${formatNumber(props.selected.length)})` : ""}<Icon name="heroChevronDown" size={12} /></span>}
+        trigger={<span className="allocation-filter-trigger">
+            <Icon name={props.icon} size={15} />
+            {props.label}
+            {!props.visibility && props.selected.length > 0 ? ` (${formatNumber(props.selected.length)})` : ""}
+            <Icon name="heroChevronDown" size={12} />
+        </span>}
         triggerAriaLabel={props.visibility ? "Choose visible columns" : `Filter by ${props.label.toLowerCase()}`}
         width={300}
         focusable
         keepOpenOnClick
         colorOnHover={false}
         paddingControlledByContent
+        data-allocation-filter-control=""
+        arrowkeyNavigationKey="data-allocation-filter-option"
+        onSelect={element => {
+            const key = element?.getAttribute("data-allocation-filter-option");
+            if (key !== null && key !== undefined) toggle(key);
+        }}
     >
         <div className={AllocationFilterOptionsStyle}>
             {props.options.map((option, index) => {
-                const toggle = () => {
-                    const next = props.selected.includes(option.key)
-                        ? props.selected.filter(key => key !== option.key)
-                        : [...props.selected, option.key];
-                    props.onChange(next);
-                };
+                const selected = props.selected.includes(option.key);
                 return <React.Fragment key={option.key}>
-                    {option.advanced && !props.options[index - 1]?.advanced ? <div className="allocation-filter-section">Advanced</div> : null}
-                    <div className="allocation-filter-option" onClick={toggle}>
+                    {option.advanced && !props.options[index - 1]?.advanced ?
+                        <div className="allocation-filter-section">Advanced</div> :
+                        null}
+                    <div
+                        className="allocation-filter-option"
+                        data-allocation-filter-option={option.key}
+                        role="menuitemcheckbox"
+                        aria-checked={selected}
+                        onClick={() => toggle(option.key)}
+                    >
                         {option.icon ? <span className="allocation-filter-icon">{option.icon}</span> : null}
                         <span className="allocation-filter-label">{option.label}</span>
                         <Toggle
                             height={18}
                             activeColor="primaryMain"
-                            checked={props.selected.includes(option.key)}
-                            onChange={toggle}
+                            checked={selected}
+                            onChange={() => toggle(option.key)}
                             ariaLabel={option.label}
                         />
                     </div>
@@ -72,22 +124,90 @@ function AllocationFilterSelect(props: {
 }
 
 const AllocationFiltersStyle = injectStyle("allocation-filters", k => `
-    ${k} { flex: 0 0 auto; margin-bottom: 12px; }
-    ${k} .allocation-toolbar, ${k} .allocation-filter-row, ${k} .allocation-state-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-    ${k} .allocation-toolbar { gap: 12px; margin-bottom: 12px; }
-    ${k} .allocation-actions { margin-left: auto; }
-    ${k} .allocation-filter-row { padding: 10px 0; border-top: 1px solid var(--borderColor); border-bottom: 1px solid var(--borderColor); }
-    ${k} .allocation-state-row { gap: 2px; font-size: 12px; color: var(--textSecondary); }
-    ${k} .allocation-search { flex: 1 1 280px; max-width: 380px; }
-    ${k} .allocation-search .table-filter { width: 100%; }
-    ${k} .allocation-filter-trigger { display: flex; align-items: center; gap: 6px; height: 35px; padding: 0 14px; border: 1px solid var(--borderColor); border-radius: 8px; background: transparent; font-size: 14px; color: var(--textPrimary); user-select: none; }
-    ${k} .allocation-filter-trigger:hover { background: var(--rowHover); }
-    ${k} .allocation-result-count { margin-left: auto; font-size: 12px; color: var(--textSecondary); }
-    ${k} .allocation-state-button { border: 0; border-radius: 8px; padding: 6px 8px; background: transparent; color: var(--textSecondary); cursor: pointer; font-size: 12px; }
-    ${k} .allocation-state-button:hover { background: var(--rowHover); }
-    ${k} .allocation-state-button[aria-pressed="true"] { background: color-mix(in srgb, var(--textPrimary) 8%, transparent); color: var(--textPrimary); }
-    ${k} .allocation-state-button b { margin-left: 5px; font-weight: 400; opacity: 0.75; }
-    ${k} .allocation-personal { display: inline-flex; align-items: center; gap: 8px; padding: 0 8px; color: var(--textPrimary); font-size: 12px; }
+    ${k} {
+        flex: 0 0 auto;
+        margin-bottom: 12px;
+    }
+    ${k} .allocation-toolbar, ${k} .allocation-filter-row, ${k} .allocation-state-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+    ${k} .allocation-toolbar {
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+    ${k} .allocation-actions {
+        margin-left: auto;
+    }
+    ${k} .allocation-filter-row {
+        padding: 10px 0;
+        border-top: 1px solid var(--borderColor);
+        border-bottom: 1px solid var(--borderColor);
+    }
+    ${k} .allocation-state-row {
+        gap: 2px;
+        font-size: 12px;
+        color: var(--textSecondary);
+    }
+    ${k} .allocation-search {
+        flex: 1 1 280px;
+        max-width: 380px;
+    }
+    ${k} .allocation-search .table-filter {
+        width: 100%;
+    }
+    ${k} .allocation-filter-trigger {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 35px;
+        padding: 0 14px;
+        border: 1px solid var(--borderColor);
+        border-radius: 8px;
+        background: transparent;
+        font-size: 14px;
+        color: var(--textPrimary);
+        user-select: none;
+    }
+    ${k} .allocation-filter-trigger:hover {
+        background: var(--rowHover);
+    }
+    ${k} .allocation-result-count {
+        margin-left: auto;
+        font-size: 12px;
+        color: var(--textSecondary);
+    }
+    ${k} .allocation-state-button {
+        border: 0;
+        border-radius: 8px;
+        padding: 6px 8px;
+        background: transparent;
+        color: var(--textSecondary);
+        cursor: pointer;
+        font-size: 12px;
+    }
+    ${k} .allocation-state-button:hover {
+        background: var(--rowHover);
+    }
+    ${k} .allocation-state-button[aria-pressed="true"] {
+        background: color-mix(in srgb, var(--textPrimary) 8%, transparent);
+        color: var(--textPrimary);
+    }
+    ${k} .allocation-state-button b {
+        margin-left: 5px;
+        font-weight: 400;
+        opacity: 0.75;
+    }
+    ${k} .allocation-personal {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 8px;
+        color: var(--textPrimary);
+        font-size: 12px;
+    }
 `);
 
 export function AllocationFilters(props: {
@@ -123,6 +243,30 @@ export function AllocationFilters(props: {
         || props.selectedProviders.length > 0
         || props.state !== "all"
         || props.personalWorkspaces;
+    const onFilterRowKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+        if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            focusAllocationTable();
+            return;
+        }
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+        if ((event.target as HTMLElement).closest("[data-tag='dropdown'][aria-expanded='true']")) return;
+        const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
+            "[data-allocation-filter-control], button:not(:disabled), [role='switch']"
+        )).filter(element => element.offsetParent !== null && !element.closest("[data-visible='false']"));
+        const current = (event.target as HTMLElement).closest<HTMLElement>(
+            "[data-allocation-filter-control], button, [role='switch']"
+        );
+        if (!current) return;
+        const index = controls.indexOf(current);
+        const next = controls[index + (event.key === "ArrowRight" ? 1 : -1)];
+        if (!next) return;
+        event.preventDefault();
+        event.stopPropagation();
+        next.focus({preventScroll: true});
+    };
     return <div className={AllocationFiltersStyle}>
         <div className="allocation-toolbar">
             <div className={classConcat("allocation-search", UcxTableControlsClass)}>
@@ -133,9 +277,11 @@ export function AllocationFilters(props: {
                         value={props.query}
                         placeholder="Search workspace, PI or product…"
                         aria-label="Search allocations"
-                        aria-keyshortcuts="/"
+                        aria-keyshortcuts="/ Control+K Meta+K"
+                        data-allocation-shortcut="search"
                         onChange={event => props.onQueryChange(event.currentTarget.value)}
                         onKeyDown={event => {
+                            if (event.altKey && (event.metaKey || event.ctrlKey)) return;
                             event.stopPropagation();
                             if (event.key === "Escape" || event.key === "Enter") {
                                 event.preventDefault();
@@ -143,16 +289,40 @@ export function AllocationFilters(props: {
                             }
                         }}
                     />
-                    {props.query === "" ? <span className="table-filter-shortcut"><div className={ShortcutClass}>/</div></span> : null}
+                    {props.query === "" ?
+                        <span className="table-filter-shortcut">
+                            <div className={ShortcutClass}>/</div>
+                        </span> :
+                        null}
                 </div>
             </div>
             {props.periodControl}
             <div className="allocation-actions">{props.actions}</div>
         </div>
-        <div className="allocation-filter-row">
-            <AllocationFilterSelect label="Products" icon="heroCpuChip" options={props.products} selected={props.selectedProducts} onChange={props.onProductsChange} />
-            <AllocationFilterSelect label="Provider" icon="heroCloud" options={props.providers} selected={props.selectedProviders} onChange={props.onProvidersChange} />
-            <AllocationFilterSelect label="Columns" icon="heroViewColumns" options={props.columns} selected={props.visibleColumns} onChange={props.onColumnsChange} visibility />
+        <div className="allocation-filter-row" data-allocation-shortcut="filters"
+            aria-keyshortcuts="Control+Alt+G Meta+Alt+G" onKeyDown={onFilterRowKeyDown}>
+            <AllocationFilterSelect
+                label="Products"
+                icon="heroCpuChip"
+                options={props.products}
+                selected={props.selectedProducts}
+                onChange={props.onProductsChange}
+            />
+            <AllocationFilterSelect
+                label="Provider"
+                icon="heroCloud"
+                options={props.providers}
+                selected={props.selectedProviders}
+                onChange={props.onProvidersChange}
+            />
+            <AllocationFilterSelect
+                label="Columns"
+                icon="heroViewColumns"
+                options={props.columns}
+                selected={props.visibleColumns}
+                onChange={props.onColumnsChange}
+                visibility
+            />
             <div className="allocation-state-row" aria-label="Allocation state filters">
                 {states.map(([state, label]) => <button
                     key={state}
@@ -163,10 +333,24 @@ export function AllocationFilters(props: {
             </div>
             <div className="allocation-personal">
                 <span>Personal workspaces</span>
-                <Toggle height={18} activeColor="primaryMain" checked={props.personalWorkspaces} onChange={props.onPersonalWorkspacesChange} ariaLabel="Personal workspaces" />
+                <Toggle
+                    height={18}
+                    activeColor="primaryMain"
+                    checked={props.personalWorkspaces}
+                    onChange={props.onPersonalWorkspacesChange}
+                    ariaLabel="Personal workspaces"
+                />
             </div>
-            {hasFilters ? <Button color="ghost" onClick={props.onClear}><Icon name="heroXMark" size={13} />Clear filters</Button> : null}
-            <span className="allocation-result-count">{formatNumber(props.workspaceCount)} workspaces</span>
+            {hasFilters ?
+                <Button color="ghost" onClick={props.onClear}>
+                    <Icon name="heroXMark" size={13} />
+                    Clear filters
+                </Button> :
+                null}
+            <span className="allocation-result-count">
+                {formatNumber(props.workspaceCount)} workspaces
+                <ShortcutHint shortcut="G" hideUntilReveal />
+            </span>
         </div>
     </div>;
 }

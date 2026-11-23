@@ -73,6 +73,8 @@ import {BulkAllocationWizard} from "./BulkAllocationWizard";
 import {allocationCurrentCalendarYear} from "./AllocationPeriodFilter";
 import {allocationModelRecipients, allocationWorkspaceInfo} from "./AllocationModel";
 import type {AllocationModel, AllocationModelProduct, AllocationModelRecipient} from "./AllocationModel";
+import {ShortcutHint, SubmitShortcut} from "@/Applications/KeyboardNavigation";
+import {focusAllocationAction, focusAllocationTable} from "./AllocationShortcuts";
 
 const allocationFiltersModalStyle: ReactModal.Styles = {
     ...largeModalStyle,
@@ -185,14 +187,20 @@ export const YourAllocations: React.FunctionComponent<{
                                                 .map(alloc =>
                                                     <TreeNode
                                                         key={alloc.id}
-                                                        className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
+                                                        className={
+                                                            alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : ""
+                                                        }
                                                         left={<Flex gap={"32px"}>
                                                             <Flex width={"200px"}>
                                                                 <Icon name={"heroBanknotes"} ml={"8px"} mr={4} />
                                                                 <div>
                                                                     <b>Allocation ID:</b>
                                                                     {" "}
-                                                                    <code>{chunkedString(alloc.id.toString().padStart(6, "0"), 3, false).join(" ")}</code>
+                                                                    <code>{chunkedString(
+                                                                        alloc.id.toString().padStart(6, "0"),
+                                                                        3,
+                                                                        false,
+                                                                    ).join(" ")}</code>
                                                                 </div>
                                                             </Flex>
 
@@ -425,17 +433,40 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
 `);
 
 const subProjectsStyle = injectStyle("sub-projects", k => ` 
+    ${k} {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 0;
+        min-height: 0;
+        min-width: 0;
+    }
+
     ${k} .sub-projects-search-bar-container {
         display: flex;
         flex-grow: 1;
         gap: 10px;
     }
-    
+
+    ${k} .sub-projects-heading {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        margin: 24px 0 10px;
+    }
+
+    ${k} .sub-projects-heading h3 {
+        margin: 0;
+    }
+
     ${k} .sub-projects-container {
         overflow: hidden;
         border: 0;
         border-radius: 5px;
         padding: 0;
+        flex: 1 1 0;
+        min-height: 320px;
+        width: 100%;
     }
     
     ${k} .filters-button {
@@ -818,9 +849,11 @@ export const KeyMetrics: React.FunctionComponent<{
                                         }
                                         right={<Flex flexDirection={"row"} gap={"8px"}>
                                             {tree.usageAndQuota.map((uq, idx) => {
-                                                let label = `${formatNumber(okPercentage, {precision: 2})}% Ok` +
-                                                    ` | ${formatNumber(atRiskPercentage, {precision: 2})}% At risk` +
-                                                    ` | ${formatNumber(underusedPercentage, {precision: 2})}% Underused`;
+                                                const ok = formatNumber(okPercentage, {precision: 2});
+                                                const atRisk = formatNumber(atRiskPercentage, {precision: 2});
+                                                const underused = formatNumber(underusedPercentage, {precision: 2});
+                                                let label = `${ok}% Ok | ${atRisk}% At risk`;
+                                                label += ` | ${underused}% Underused`;
                                                 return <React.Fragment key={idx}>
                                                     <AllocationBar
                                                         label={label}
@@ -844,7 +877,10 @@ export const KeyMetrics: React.FunctionComponent<{
                                                     </Flex>
                                                 }
                                                 right={<Flex flexDirection={"row"} gap={"8px"}>
-                                                    <ProgressBar uq={usageAndQuotaByProduct[productCategoryKey(wallet.category)]} responsive />
+                                                    <ProgressBar
+                                                        uq={usageAndQuotaByProduct[productCategoryKey(wallet.category)]}
+                                                        responsive
+                                                    />
                                                 </Flex>}
                                             >
                                             </TreeNode>
@@ -922,6 +958,8 @@ function DurationSelector(props: {periodRef: {start: Date | null; end: Date | nu
     const originalEnd = useMemo(() => props.periodRef.end, []);
     const [startDate, setStartDate] = useState<Date | null>(props.periodRef.start);
     const [endDate, setEndDate] = useState<Date | null>(props.periodRef.end);
+    const currentStart = dateToStringNoTime(originalStart?.getTime() ?? Date.now());
+    const currentEnd = dateToStringNoTime(originalEnd?.getTime() ?? Date.now());
 
     const onChange = React.useCallback((dates: [Date | null, Date | null]) => {
         const [start, end] = dates
@@ -933,7 +971,7 @@ function DurationSelector(props: {periodRef: {start: Date | null; end: Date | nu
 
     return <Label>
         Allocation period
-        (Current: {dateToStringNoTime(originalStart?.getTime() ?? new Date().getTime())} - {dateToStringNoTime(originalEnd?.getTime() ?? new Date().getTime())})
+        (Current: {currentStart} - {currentEnd})
         <br />
         <DatePicker
             selected={startDate}
@@ -962,7 +1000,10 @@ function AllocationRetireConfirmation(props: {
         `Retire allocation ${props.allocationIds[0]}?`;
     return <div onKeyDown={event => event.stopPropagation()}>
         <Heading.h3>{title}</Heading.h3>
-        <p>{count === 1 ? "This allocation" : `These ${count} allocations`} for {props.workspaceTitle} will stop providing quota immediately.</p>
+        <p>
+            {count === 1 ? "This allocation" : `These ${count} allocations`} for {props.workspaceTitle} will stop
+            providing quota immediately.
+        </p>
         <p>Upcoming allocations will be canceled without changing their start dates.</p>
         <Flex justifyContent="flex-end" gap="8px">
             <Button color="ghost" disabled={submitting} onClick={() => dialogStore.failure()}>Cancel</Button>
@@ -996,6 +1037,8 @@ function openUpdater(
     }
     let quota = originalQuota;
     let reason = "";
+    const allocationUnitName = Accounting.allocationInputUnit(category).name;
+    const currentQuota = Accounting.balanceToString(category, quota);
     dialogStore.addDialog((
         <form onSubmit={async ev => {
             ev.preventDefault();
@@ -1038,9 +1081,16 @@ function openUpdater(
                     <Flex mb={"16px"} flexDirection={"row"}>
                         <DurationSelector periodRef={periodRef} />
                         <Label ml={"auto"}>
-                            Allocation quota in {Accounting.allocationInputUnit(category).name} (Current: {Accounting.balanceToString(category, quota)})
-                            <Input type="number" defaultValue={Accounting.allocationInputValue(category, quota)} min={0}
-                                onChange={e => quota = Accounting.allocationInputToRaw(category, e.target.valueAsNumber)} />
+                            Allocation quota in {allocationUnitName} (Current: {currentQuota})
+                            <Input
+                                type="number"
+                                defaultValue={Accounting.allocationInputValue(category, quota)}
+                                min={0}
+                                onChange={e => quota = Accounting.allocationInputToRaw(
+                                    category,
+                                    e.target.valueAsNumber,
+                                )}
+                            />
                         </Label>
                     </Flex>
                     <Label mb={"16px"}>
@@ -1069,7 +1119,9 @@ const SubProjectListRow: React.FunctionComponent<{
     setNodeState: (action: TreeAction, reference: string, group?: string | null) => void;
     dispatchEvent: (ev: UIEvent) => void;
 }> = ({style, recipient, listRef, rowIdx, recipientIdx, avatars, state, setNodeState, dispatchEvent}) => {
-    const projectInfo = useProjectInfo(recipient.owner.reference.type === "user" ? "" : recipient.owner.reference.projectId);
+    const projectInfo = useProjectInfo(
+        recipient.owner.reference.type === "user" ? "" : recipient.owner.reference.projectId,
+    );
     const workspaceId = recipient.owner.reference["username"] ?? recipient.owner.reference["projectId"] ?? "";
     const pi = recipient.owner.reference.type === "user" ?
         recipient.owner.reference.username :
@@ -1165,7 +1217,11 @@ const SubProjectListRow: React.FunctionComponent<{
                                         <div>
                                             <b>Allocation ID:</b>
                                             {" "}
-                                            <code>{chunkedString(alloc.allocationId.toString().padStart(6, "0"), 3, false).join(" ")}</code>
+                                            <code>{chunkedString(
+                                                alloc.allocationId.toString().padStart(6, "0"),
+                                                3,
+                                                false,
+                                            ).join(" ")}</code>
                                         </div>
                                     </Flex>
 
@@ -1468,7 +1524,11 @@ export function SubProjectList({
             0,
         );
     }, [dispatchEvent]);
-    const retireAllocationsWithDialog = useCallback((allocationIds: number[], workspaceTitle: string, grantId?: number) => {
+    const retireAllocationsWithDialog = useCallback((
+        allocationIds: number[],
+        workspaceTitle: string,
+        grantId?: number,
+    ) => {
         dialogStore.addDialog(<AllocationRetireConfirmation
             allocationIds={allocationIds}
             workspaceTitle={workspaceTitle}
@@ -1502,17 +1562,24 @@ export function SubProjectList({
             demo={demo}
             onClose={changed => {
                 setAllocationRecipients(null);
-                if (!changed) return;
-                void loadWallets().then(wallets => dispatchEvent({type: "WalletsLoaded", wallets}));
+                if (!changed) {
+                    requestAnimationFrame(() => requestAnimationFrame(() => focusAllocationAction("allocate")));
+                    return;
+                }
+                void loadWallets().then(wallets => {
+                    dispatchEvent({type: "WalletsLoaded", wallets});
+                    requestAnimationFrame(() => focusAllocationTable());
+                });
             }}
         /> : null}
         <div className={subProjectsStyle}>
             {projectId !== undefined && <>
-                <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
-                    <h3 style={{margin: 0}}>Sub-projects</h3>
-                </Flex>
+                <div className="sub-projects-heading">
+                    <h3>Sub-projects</h3>
+                    <ShortcutHint shortcut="S" hideUntilReveal />
+                </div>
 
-                <div className="sub-projects-container" style={{height: "clamp(420px, 65vh, 760px)", width: "100%"}}>
+                <div className="sub-projects-container">
                     {state.remoteData.wallets === undefined ? <>
                         <div style={{padding: 20}}><HexSpin size={64} /></div>
                     </> : <AllocationGrid
@@ -1530,15 +1597,23 @@ export function SubProjectList({
                         onClearFilters={clearFilters}
                         onAllocate={projectRole !== OldProjectRole.USER ? setAllocationRecipients : undefined}
                         toolbar={<Flex gap="8px">
-                            <Button height={35} onClick={onExportData}>
-                                <Icon name="heroArrowDownTray" mr={8} />Export
+                            <Button height={35} data-allocation-shortcut="export"
+                                ariaKeyshortcuts="Control+Alt+E Meta+Alt+E" onClick={onExportData}>
+                                <Icon name="heroArrowDownTray" mr={8} />Export<SubmitShortcut shortcut="E" />
                             </Button>
                         </Flex>}
                         emptyMessage={selectedCategories && selectedCategories.length > 0
                             ? "No allocations match the current search, filters or period."
                             : undefined}
-                        onEdit={onEditAllocation ?? (projectRole !== OldProjectRole.USER ? editAllocationWithDialog : undefined)}
-                        onRetire={!demo && projectRole !== OldProjectRole.USER ? retireAllocationsWithDialog : undefined}
+                        onEdit={
+                            onEditAllocation
+                            ?? (projectRole !== OldProjectRole.USER ? editAllocationWithDialog : undefined)
+                        }
+                        onRetire={
+                            !demo && projectRole !== OldProjectRole.USER
+                                ? retireAllocationsWithDialog
+                                : undefined
+                        }
                         onOpenGrant={onOpenGrant}
                         renderGrantLink={renderGrantLink}
                     />}

@@ -659,6 +659,8 @@ export const isLikelyMac = navigator["userAgentData"]?.["platform"] === "macOS" 
     navigator["platform"]?.toLocaleLowerCase().includes("mac") ||
     navigator["userAgent"]?.toLocaleLowerCase().includes("macintosh");
 
+export const isLikelySafari = navigator["vendor"] === "Apple Computer, Inc.";
+
 export type KeyboardShortcutModifier = "ctrl" | "alt";
 
 export function createKeyboardShortcut(key: string, modifiers: KeyboardShortcutModifier[] = [], compact = false): string {

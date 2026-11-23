@@ -1,5 +1,11 @@
 import {explainUnit} from "@/Accounting";
-import type {Allocation, AllocationDisplayTreeRecipient, AllocationGroup, ProductCategoryV2, WalletV2} from "@/Accounting";
+import type {
+    Allocation,
+    AllocationDisplayTreeRecipient,
+    AllocationGroup,
+    ProductCategoryV2,
+    WalletV2,
+} from "@/Accounting";
 import type {ProjectInfo} from "@/Project/InfoCache";
 import {projectInfoPi, projectInfoTitle} from "@/Project/InfoCache";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
@@ -81,7 +87,10 @@ export interface AllocationModelRecipient {
     products: AllocationModelProduct[];
 }
 
-export function allocationModelRecipients(model: AllocationModel, workspaceKeys: ReadonlySet<string>): AllocationModelRecipient[] {
+export function allocationModelRecipients(
+    model: AllocationModel,
+    workspaceKeys: ReadonlySet<string>,
+): AllocationModelRecipient[] {
     const recipients = new Map<string, AllocationModelRecipient>();
     for (const product of model.products) {
         if (!workspaceKeys.has(product.workspaceKey)) continue;
@@ -117,7 +126,11 @@ export function allocationDateRangeBounds(range?: AllocationDateRange): {start: 
     };
 }
 
-export function allocationOverlapsRange(start: number, end: number, range: {start: number | null; end: number | null}): boolean {
+export function allocationOverlapsRange(
+    start: number,
+    end: number,
+    range: {start: number | null; end: number | null},
+): boolean {
     if (range.start !== null && end < range.start) return false;
     if (range.end !== null && start > range.end) return false;
     return true;
@@ -179,7 +192,11 @@ function allocationDisplayAmounts(raw: AllocationAmounts, category: ProductCateg
     return result;
 }
 
-function allocationNormalizeSlice(allocation: Allocation, category: ProductCategoryV2, now: number): AllocationModelSlice {
+function allocationNormalizeSlice(
+    allocation: Allocation,
+    category: ProductCategoryV2,
+    now: number,
+): AllocationModelSlice {
     const consumption = category.accountingModel === "CONSUMPTION";
     const factor = explainUnit(category).balanceFactor;
     const rawQuota = allocation.retired ? allocation.retiredQuota ?? allocation.quota : allocation.quota;
@@ -205,7 +222,12 @@ function allocationNormalizeSlice(allocation: Allocation, category: ProductCateg
     };
 }
 
-function allocationSliceMatchesState(slice: AllocationModelSlice, state: AllocationStatus, product: AllocationModelProduct, now: number): boolean {
+function allocationSliceMatchesState(
+    slice: AllocationModelSlice,
+    state: AllocationStatus,
+    product: AllocationModelProduct,
+    now: number,
+): boolean {
     if (state === "expired") return slice.retired;
     if (slice.retired) return false;
     if (state === "upcoming") return slice.start > now;
@@ -227,6 +249,10 @@ function allocationSummarizeGrant(
 ): AllocationModelGrant {
     const pooled = slices.some(slice => slice.attribution === "pooled");
     const notApplicable = slices.some(slice => slice.attribution === "not-applicable");
+    let attribution: AllocationAttribution = "recorded";
+    if (pooled) attribution = "pooled";
+    else if (notApplicable) attribution = "not-applicable";
+    else if (slices.every(slice => slice.attribution === "future")) attribution = "future";
     return {
         ...grant,
         allocationId: slices[0].allocationId,
@@ -236,20 +262,34 @@ function allocationSummarizeGrant(
         rawQuota: slices.reduce((sum, slice) => sum + slice.rawQuota, 0),
         used: pooled || notApplicable ? null : slices.reduce((sum, slice) => sum + (slice.used ?? 0), 0),
         recordedUsed: slices.reduce((sum, slice) => sum + (slice.attribution === "recorded" ? slice.used ?? 0 : 0), 0),
-        attribution: pooled ? "pooled" : notApplicable ? "not-applicable" : slices.every(slice => slice.attribution === "future") ? "future" : "recorded",
+        attribution,
         slices,
     };
 }
 
-export function allocationFilterProductsByState(products: AllocationModelProduct[], state: AllocationStatus | "all", now: number): AllocationModelProduct[] {
+function allocationFilterGrants(
+    grants: AllocationModelGrant[],
+    matches: (slice: AllocationModelSlice) => boolean,
+): AllocationModelGrant[] {
+    return grants.flatMap(grant => {
+        const slices = grant.slices.filter(matches);
+        if (slices.length === 0) return [];
+        return [slices.length === grant.slices.length ? grant : allocationSummarizeGrant(grant, slices)];
+    });
+}
+
+export function allocationFilterProductsByState(
+    products: AllocationModelProduct[],
+    state: AllocationStatus | "all",
+    now: number,
+): AllocationModelProduct[] {
     if (state === "all") return products;
     return products.flatMap(product => {
         if (!product.states.has(state)) return [];
-        const grants = product.grants.flatMap(grant => {
-            const slices = grant.slices.filter(slice => allocationSliceMatchesState(slice, state, product, now));
-            if (slices.length === 0) return [];
-            return [slices.length === grant.slices.length ? grant : allocationSummarizeGrant(grant, slices)];
-        });
+        const grants = allocationFilterGrants(
+            product.grants,
+            slice => allocationSliceMatchesState(slice, state, product, now),
+        );
         if (grants.length === 0) return [];
         return [{
             ...product,
@@ -257,6 +297,29 @@ export function allocationFilterProductsByState(products: AllocationModelProduct
             start: Math.min(...grants.map(grant => grant.start)),
             end: Math.max(...grants.map(grant => grant.end)),
         }];
+    });
+}
+
+export function allocationFilterProductsByRange(
+    products: AllocationModelProduct[],
+    dateRange: AllocationDateRange | undefined,
+    now: number,
+): AllocationModelProduct[] {
+    const range = allocationDateRangeBounds(dateRange);
+    if (range.start === null && range.end === null) return products;
+    return products.flatMap(product => {
+        const grants = allocationFilterGrants(product.grants, slice =>
+            allocationOverlapsRange(slice.start, slice.end - 1, range)
+        );
+        if (grants.length === 0) return [];
+        const filtered: AllocationModelProduct = {
+            ...product,
+            grants,
+            start: Math.min(...grants.map(grant => grant.start)),
+            end: Math.max(...grants.map(grant => grant.end)),
+        };
+        filtered.states = allocationProductStates(filtered, now);
+        return [filtered];
     });
 }
 
@@ -287,7 +350,12 @@ export function allocationNormalize(wallets: WalletV2[], now: number): Allocatio
             const workspaceKey = owner.reference.type === "project" ?
                 `project:${owner.reference.projectId}` : `user:${owner.reference.username}`;
             const key = `product:${workspaceKey}/${category.provider}/${category.name}`;
-            const groupKey = `${key}/${wallet.owner.type === "project" ? wallet.owner.projectId : wallet.owner.username}/${child.group.id ?? child.group.allocations.map(allocation => allocation.id).sort((a, b) => a - b).join(",")}`;
+            const ownerKey = wallet.owner.type === "project" ? wallet.owner.projectId : wallet.owner.username;
+            const groupId = child.group.id ?? child.group.allocations
+                .map(allocation => allocation.id)
+                .sort((a, b) => a - b)
+                .join(",");
+            const groupKey = `${key}/${ownerKey}/${groupId}`;
             if (seenGroups.has(groupKey) || child.group.allocations.length === 0) continue;
             seenGroups.add(groupKey);
             let product = products.get(key);
@@ -309,7 +377,9 @@ export function allocationNormalize(wallets: WalletV2[], now: number): Allocatio
                 products.set(key, product);
             }
             if (child.group.id !== undefined) product.groupIds.push(child.group.id);
-            if (child.maxUsable !== undefined) product.maxUsable = child.maxUsable * explainUnit(category).balanceFactor;
+            if (child.maxUsable !== undefined) {
+                product.maxUsable = child.maxUsable * explainUnit(category).balanceFactor;
+            }
             const groupAmounts = allocationGroupAmounts(child.group, category, now);
             allocationAddAmounts(product.raw, groupAmounts);
             const activeCount = child.group.allocations.filter(allocation =>
@@ -351,7 +421,10 @@ export function allocationNormalize(wallets: WalletV2[], now: number): Allocatio
     return {now, products: [...products.values()], received};
 }
 
-export function allocationWorkspaceInfo(owner: AllocationModelProduct["owner"], projectInfo: Record<string, ProjectInfo | null>) {
+export function allocationWorkspaceInfo(
+    owner: AllocationModelProduct["owner"],
+    projectInfo: Record<string, ProjectInfo | null>,
+) {
     if (owner.reference.type === "user") {
         const username = owner.reference.username;
         return {title: username, pi: username, type: "user" as const, id: username};
@@ -365,12 +438,16 @@ export function allocationWorkspaceInfo(owner: AllocationModelProduct["owner"], 
     };
 }
 
-export function allocationSelectProducts(model: AllocationModel, selection: AllocationProductSelection): AllocationModelProduct[] {
+export function allocationSelectProducts(
+    model: AllocationModel,
+    selection: AllocationProductSelection,
+): AllocationModelProduct[] {
     const range = allocationDateRangeBounds(selection.dateRange);
     const needle = selection.query?.trim().toLowerCase() ?? "";
     return model.products.filter(product => {
         if (!selection.personalWorkspaces && product.owner.reference.type === "user") return false;
-        if (selection.categories?.length && !selection.categories.includes(`${product.category.provider}/${product.category.name}`)) return false;
+        const categoryKey = `${product.category.provider}/${product.category.name}`;
+        if (selection.categories?.length && !selection.categories.includes(categoryKey)) return false;
         if (selection.providers?.length && !selection.providers.includes(product.category.provider)) return false;
         if (selection.state && selection.state !== "all" && !product.states.has(selection.state)) return false;
         const overlaps = product.grants.some(grant => grant.slices.some(slice =>
@@ -378,7 +455,12 @@ export function allocationSelectProducts(model: AllocationModel, selection: Allo
         ));
         if (!overlaps) return false;
         const workspace = allocationWorkspaceInfo(product.owner, selection.projectInfo ?? {});
-        const text = `${workspace.title} ${workspace.pi} ${product.category.name} ${getShortProviderTitle(product.category.provider)}`.toLowerCase();
+        const text = [
+            workspace.title,
+            workspace.pi,
+            product.category.name,
+            getShortProviderTitle(product.category.provider),
+        ].join(" ").toLowerCase();
         return needle === "" || text.includes(needle);
     }).sort((a, b) => {
         const aWorkspace = allocationWorkspaceInfo(a.owner, selection.projectInfo ?? {});

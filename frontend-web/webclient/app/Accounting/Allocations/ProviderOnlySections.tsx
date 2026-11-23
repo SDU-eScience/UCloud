@@ -285,10 +285,12 @@ export const GiftSection: React.FunctionComponent<{
                                             <td>
                                                 <ul>
                                                     {g.resources.map((r, idx) => {
-                                                        const pc = (state.remoteData.managedProducts ?? {})[r.provider]?.find(it => it.name === r.category);
+                                                        const pc = (state.remoteData.managedProducts ?? {})[r.provider]
+                                                            ?.find(it => it.name === r.category);
                                                         if (!pc) return null;
                                                         return <li key={idx}>
-                                                            {r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}
+                                                            {r.category} / {r.provider}:{" "}
+                                                            {Accounting.balanceToString(pc, r.balanceRequested)}
                                                         </li>
                                                     })}
                                                 </ul>
@@ -297,7 +299,11 @@ export const GiftSection: React.FunctionComponent<{
                                         <tr>
                                             <th>Granted</th>
                                             <td>
-                                                {g.renewEvery == 0 ? "Once" : (g.renewEvery == 1 ? "Every month" : "Every " + g.renewEvery.toString() + " months")}
+                                                {g.renewEvery == 0
+                                                    ? "Once"
+                                                    : g.renewEvery == 1
+                                                        ? "Every month"
+                                                        : `Every ${g.renewEvery} months`}
                                             </td>
                                         </tr>
                                         <tr>
@@ -406,7 +412,9 @@ export const GiftSection: React.FunctionComponent<{
                                                     placeholder={"0"}
                                                     name={`gift-resource-${cat.name}/${cat.provider}`}
                                                     onInput={onGiftInput}
-                                                    value={state.gifts?.resources?.[`${cat.name}/${cat.provider}`] ?? ""}
+                                                    value={
+                                                        state.gifts?.resources?.[`${cat.name}/${cat.provider}`] ?? ""
+                                                    }
                                                     onKeyDown={stopPropagation}
                                                 />
                                                 <Box width={"150px"}>{Accounting.allocationInputUnit(cat).name}</Box>
@@ -503,7 +511,9 @@ export const RootAllocationSections: React.FunctionComponent<{
                 const [category, provider] = categoryAndProvider.split("/");
                 const resolvedCategory = products[provider]?.find(it => it.name === category);
                 if (!resolvedCategory) {
-                    sendFailureNotification("Internal failure while creating a root allocation. Try reloading the page!");
+                    sendFailureNotification(
+                        "Internal failure while creating a root allocation. Try reloading the page!"
+                    );
                     return;
                 }
 
@@ -604,7 +614,9 @@ export const RootAllocationSections: React.FunctionComponent<{
                                             height={20}
                                             placeholder={"0"}
                                             name={`root-resource-${cat.name}/${cat.provider}`}
-                                            value={state.rootAllocations?.resources?.[`${cat.name}/${cat.provider}`] ?? ""}
+                                            value={
+                                                state.rootAllocations?.resources?.[`${cat.name}/${cat.provider}`] ?? ""
+                                            }
                                             onInput={onRootAllocationInput}
                                             onKeyDown={stopPropagation}
                                         />

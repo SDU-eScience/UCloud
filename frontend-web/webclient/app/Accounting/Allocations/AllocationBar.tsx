@@ -30,7 +30,12 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
         width: 100%;
         height: 100%;
         background: linear-gradient(
-            120deg, #0000 0%, #0000 var(--limit), var(--underused-bar-color-start) var(--limit), var(--underused-bar-color-end) 100%);
+            120deg,
+            #0000 0%,
+            #0000 var(--limit),
+            var(--underused-bar-color-start) var(--limit),
+            var(--underused-bar-color-end) 100%
+        );
         pointer-events: none;
     }
 

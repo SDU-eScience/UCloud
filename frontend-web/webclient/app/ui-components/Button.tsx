@@ -25,6 +25,8 @@ export interface ButtonProps extends HeightProps, SpaceProps, WidthProps, WithEv
     borderRadius?: string;
     className?: string;
     ariaLabel?: string;
+    ariaDisabled?: boolean;
+    ariaKeyshortcuts?: string;
 }
 
 export enum StandardButtonSize {
@@ -66,12 +68,13 @@ export const ButtonClass = injectStyle("button", k => `
         margin-right: 0;
     }
     
-    ${k}:disabled {
+    ${k}:disabled, ${k}[aria-disabled="true"] {
         opacity: 0.25;
     }
     
-    ${k}:disabled:hover {
+    ${k}:disabled:hover, ${k}[aria-disabled="true"]:hover {
         background: var(--bgColor, var(--primaryMain));
+        cursor: default;
     }
 
     ${k}:focus {
@@ -183,12 +186,13 @@ export const Button: React.FunctionComponent<ButtonProps> = props => {
         style={inlineStyles}
         disabled={props.disabled}
         aria-label={props.ariaLabel}
+        aria-disabled={props.ariaDisabled === true ? true : undefined}
+        aria-keyshortcuts={props.ariaKeyshortcuts}
         type={props.type as any}
         {...extractEventHandlers(props)}
         {...extractDataTags(props)}
         ref={props.btnRef}
         title={props.title}
-        aria-label={props.ariaLabel}
         tabIndex={0}
     >
         {props.children}

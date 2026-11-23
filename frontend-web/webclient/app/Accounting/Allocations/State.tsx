@@ -114,7 +114,12 @@ export type UIAction =
     | {type: "SortSubprojects", sortBy?: string, ascending: boolean}
     | {type: "SubProjectData", projects: Record<string, ProjectInfo | null>}
     | {type: "UsageReportLoaded", reports: UsageReport[]}
-    | {type: "SubProjectFilterSettingUpdated", setting: SubProjectFilterSetting, newValue: string | undefined, enabled: boolean}
+    | {
+        type: "SubProjectFilterSettingUpdated",
+        setting: SubProjectFilterSetting,
+        newValue: string | undefined,
+        enabled: boolean,
+    }
     | {type: "SubProjectFilterSettingsLoad", settings: Record<SubProjectFilterSetting, SubProjectFilter>}
     ;
 
@@ -135,9 +140,13 @@ function recipientTitle(recipient: AllocationDisplayTreeRecipient, state: State)
 }
 
 function recipientPrimaryUsername(recipient: AllocationDisplayTreeRecipient, state: State): string {
-    return recipient.owner.reference.type === "user" ?
-        recipient.owner.primaryUsername ?? recipient.owner.reference.username :
-        projectInfoPi(state.subprojectInfo[recipient.owner.reference.projectId], recipient.owner.primaryUsername) ?? "-";
+    if (recipient.owner.reference.type === "user") {
+        return recipient.owner.primaryUsername ?? recipient.owner.reference.username;
+    }
+    return projectInfoPi(
+        state.subprojectInfo[recipient.owner.reference.projectId],
+        recipient.owner.primaryUsername,
+    ) ?? "-";
 }
 
 function productCategoryKey(category: Accounting.ProductCategoryV2): string {
@@ -203,7 +212,11 @@ function recipientMatchesAllocationStatus(
     return false;
 }
 
-function searchAndFilteringQueryMatches(recipient: AllocationDisplayTreeRecipient, state: State, query: string): boolean {
+function searchAndFilteringQueryMatches(
+    recipient: AllocationDisplayTreeRecipient,
+    state: State,
+    query: string,
+): boolean {
     if (recipient.owner.reference.type === "user" && state.viewOnlyProjects) return false;
     if (recipient.owner.reference.type === "project" && !state.viewOnlyProjects) return false;
 
@@ -471,7 +484,8 @@ export function stateReducer(state: State, action: UIAction): State {
                 if (draft.viewOnlyProjects) {
                     draft.subAllocations = state.cache.projects;
                 } else {
-                    draft.subAllocations = state.cache.personalWorkspace ?? Accounting.buildSubAllocations(state.remoteData.wallets ?? [], draft.viewOnlyProjects);
+                    draft.subAllocations = state.cache.personalWorkspace
+                        ?? Accounting.buildSubAllocations(state.remoteData.wallets ?? [], draft.viewOnlyProjects);
                     draft.cache.personalWorkspace = draft.subAllocations;
                 }
             }));
@@ -587,8 +601,8 @@ export function stateReducer(state: State, action: UIAction): State {
             state.subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE] ??
             subProjectsDefaultSettings[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE];
         const selectedProductType = currentProductTypeFilter.selected;
-        const productTypeSelectionIsValid =
-            selectedProductType !== undefined && currentProductTypeFilter.options.map(it => it.key).includes(selectedProductType);
+        const productTypeSelectionIsValid = selectedProductType !== undefined
+            && currentProductTypeFilter.options.map(it => it.key).includes(selectedProductType);
         const normalizedProductTypeSelection =
             productTypeSelectionIsValid ? selectedProductType : undefined;
         const normalizedProductTypeEnabled =
@@ -610,7 +624,8 @@ export function stateReducer(state: State, action: UIAction): State {
             subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT] ??
             subProjectsDefaultSettings[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT];
         const selectedProduct = currentProductFilter.selected;
-        const productSelectionIsValid = selectedProduct !== undefined && productOptions.map(it => it.key).includes(selectedProduct);
+        const productSelectionIsValid = selectedProduct !== undefined
+            && productOptions.map(it => it.key).includes(selectedProduct);
         const normalizedProductSelection = productSelectionIsValid ? selectedProduct : undefined;
         const normalizedProductEnabled = normalizedProductSelection !== undefined && currentProductFilter.enabled;
         const productOptionsUnchanged =
@@ -637,7 +652,8 @@ export function stateReducer(state: State, action: UIAction): State {
             subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PROVIDER] ??
             subProjectsDefaultSettings[SubProjectFilterSetting.ALLOCATED_BY_PROVIDER];
         const selectedProvider = currentProviderFilter.selected;
-        const providerSelectionIsValid = selectedProvider !== undefined && providerOptions.map(it => it.key).includes(selectedProvider);
+        const providerSelectionIsValid = selectedProvider !== undefined
+            && providerOptions.map(it => it.key).includes(selectedProvider);
         const normalizedProviderSelection = providerSelectionIsValid ? selectedProvider : undefined;
         const normalizedProviderEnabled = normalizedProviderSelection !== undefined && currentProviderFilter.enabled;
         const providerOptionsUnchanged =
@@ -795,7 +811,10 @@ export async function loadWallets(filterChildrenByIdleTimeInDays?: number, filte
     );
 }
 
-export function useEventReducer(didCancel: React.RefObject<boolean>, doDispatch: (action: UIAction) => void): (event: UIEvent) => unknown {
+export function useEventReducer(
+    didCancel: React.RefObject<boolean>,
+    doDispatch: (action: UIAction) => void,
+): (event: UIEvent) => unknown {
     return useCallback(async (event: UIEvent) => {
         function dispatch(ev: UIAction) {
             if (didCancel.current === true) return;
@@ -983,7 +1002,9 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
      [SubProjectFilterSetting.OVERALLOCATION_AT_RISK]: {
         setting: SubProjectFilterSetting.OVERALLOCATION_AT_RISK,
         title: "Overallocations at risk",
-        description: "Shows the distribution of how resources of sub-projects are used: at risk of running out, underused or ok",
+        description:
+            "Shows the distribution of how resources of sub-projects are used: "
+            + "at risk of running out, underused or ok",
         options: [],
         selected: undefined,
         enabled: false,

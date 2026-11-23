@@ -41,6 +41,7 @@ export const Dropdown: React.FunctionComponent<DropdownProps & {
         tabIndex={props.tabIndex}
         role={props.role}
         aria-label={props.ariaLabel}
+        aria-keyshortcuts={props.ariaKeyshortcuts}
         aria-expanded={props.ariaExpanded}
         autoFocus={props.autoFocus}
         onKeyDown={props.onKeyDown}
@@ -54,6 +55,7 @@ type DropdownProps = {
     tabIndex?: number;
     role?: string;
     ariaLabel?: string;
+    ariaKeyshortcuts?: string;
     ariaExpanded?: boolean;
     autoFocus?: boolean;
     onKeyDown?: React.KeyboardEventHandler<HTMLDivElement>;

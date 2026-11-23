@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useLayoutEffect, useMemo, useRef, useState} from "react";
+import {useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import ReactModal from "react-modal";
 import {format} from "date-fns";
 import {allocationInputToRaw, allocationInputUnit, allocationInputValue, productTypeToIcon} from "@/Accounting";
@@ -28,7 +28,7 @@ import {TutorialWizardProgress} from "@/ui-components/TutorialWizard";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {formatNumber} from "@/Utilities/NumberFormatting";
-import {doNothing, extractErrorMessage, isLikelyMac} from "@/UtilityFunctions";
+import {doNothing, extractErrorMessage, isLikelyMac, isLikelySafari} from "@/UtilityFunctions";
 import {injectStyle} from "@/Unstyled";
 import {AllocationAmount} from "./AllocationCells";
 import {allocationDateRangeBounds} from "./AllocationGrid";
@@ -37,6 +37,11 @@ import {allocationCategoryKey} from "./AllocationOverview";
 import {allocationCompareProducts} from "./AllocationPresentation";
 import {AllocationPeriodFilter} from "./AllocationPeriodFilter";
 import {allocationSlices} from "./AllocationSlices";
+
+const bulkAllocationBackKey = isLikelySafari ? "J" : "B";
+const bulkAllocationNextKey = isLikelySafari ? "K" : "N";
+const bulkAllocationBackCode = `Key${bulkAllocationBackKey}`;
+const bulkAllocationNextCode = `Key${bulkAllocationNextKey}`;
 
 const bulkAllocationProductColumns: TableColumn[] = [
     {key: "product", label: "Product", jsonPath: "product", sortType: TableColumnSortType.Text},
@@ -65,6 +70,10 @@ const bulkAllocationSliceColumn: TableColumn = {
     jsonPath: "slices",
     sortType: TableColumnSortType.Number,
 };
+
+const bulkAllocationSliceDescription =
+    "Provides finer control over how consumption based allocations are split up into several slices. "
+    + "Quota not consumed in a given slice is not carried over to the next slice.";
 
 const BulkAllocationWizardStyle = injectStyle("bulk-allocation-wizard", k => `
     ${k} {
@@ -100,6 +109,11 @@ const BulkAllocationWizardStyle = injectStyle("bulk-allocation-wizard", k => `
         padding: 24px;
         overflow: auto;
         outline: none;
+    }
+
+    ${k} .bulk-content:focus-visible {
+        outline: 2px solid var(--primaryMain);
+        outline-offset: -2px;
     }
 
     ${k} .bulk-content > p {
@@ -487,11 +501,17 @@ const BulkAllocationWizardStyle = injectStyle("bulk-allocation-wizard", k => `
     }
 `);
 
-function bulkAllocationWorkspaceTitle(recipient: AllocationModelRecipient, projectInfo: Record<string, ProjectInfo | null>): string {
+function bulkAllocationWorkspaceTitle(
+    recipient: AllocationModelRecipient,
+    projectInfo: Record<string, ProjectInfo | null>,
+): string {
     return allocationWorkspaceInfo(recipient.owner, projectInfo).title;
 }
 
-function bulkAllocationWorkspacePi(recipient: AllocationModelRecipient, projectInfo: Record<string, ProjectInfo | null>): string | null {
+function bulkAllocationWorkspacePi(
+    recipient: AllocationModelRecipient,
+    projectInfo: Record<string, ProjectInfo | null>,
+): string | null {
     const owner = recipient.owner.reference;
     if (owner.type === "user") return null;
     return allocationWorkspaceInfo(recipient.owner, projectInfo).pi;
@@ -530,8 +550,10 @@ function BulkAllocationTable(props: {
     renderGroupHeader: (group: string) => React.ReactNode;
     editable?: boolean;
     hasSlices?: boolean;
+    onNavigateEnd?: () => void;
 }): React.ReactNode {
     const store = useMemo(() => new UcxTableStore(), []);
+    const tableRef = useRef<HTMLDivElement>(null);
     useLayoutEffect(() => {
         store.apply({
             tableId: props.id,
@@ -543,12 +565,18 @@ function BulkAllocationTable(props: {
         });
     }, [store, props.id, props.columns, props.rows]);
 
-    return <div className="bulk-table" data-editable={props.editable} data-slices={props.hasSlices} data-table={props.variant}>
+    return <div ref={tableRef} className="bulk-table" data-bulk-table-navigation={props.editable ? "" : undefined}
+        data-editable={props.editable} data-slices={props.hasSlices} data-table={props.variant}>
         <UcxStreamedTable
             tableId={props.id}
             store={store}
             preserveRowOrder
             navigateInputs={props.editable}
+            navigateInputsHorizontal={props.variant === "adjust"}
+            onNavigateInputsEnd={props.onNavigateEnd}
+            onNavigateInputsEscape={() => tableRef.current
+                ?.querySelector<HTMLElement>(`[data-ucx-table="${props.id}"]`)
+                ?.focus({preventScroll: true})}
             showControls={false}
             density="compact"
             rowHeight={45}
@@ -599,24 +627,90 @@ export function BulkAllocationWizard(props: {
     const submitting = useRef(false);
     const completedRef = useRef(0);
     const contentRef = useRef<HTMLDivElement>(null);
+    const primaryButtonRef = useRef<HTMLButtonElement>(null);
+    const cancelButtonRef = useRef<HTMLButtonElement>(null);
+    useEffect(() => {
+        const page = document.querySelector<HTMLElement>('[data-mode="allocations"]');
+        page?.setAttribute("inert", "");
+        return () => page?.removeAttribute("inert");
+    }, []);
     const focusCurrentStep = () => {
         const content = contentRef.current;
-        const target = content?.querySelector<HTMLElement>("[data-recipient-search]") ??
-            content?.querySelector<HTMLElement>("input, textarea, [data-navigation-field]") ?? content;
-        target?.focus({preventScroll: true});
+        if (!content) return;
+        let target: HTMLElement | null = null;
+        if (step === -1) {
+            target = content.querySelector<HTMLElement>("[data-recipient-table='available'] [data-ucx-table]") ??
+                content.querySelector<HTMLElement>("[data-recipient-search]");
+        } else if (step === 0) {
+            target = content.querySelector<HTMLElement>(
+                "[data-allocation-shortcut='period'] [data-tag='dropdown']"
+            );
+        } else if (step === 1) {
+            target = content.querySelector<HTMLElement>("[data-bulk-quota-input]");
+        } else if (step === 2) {
+            target = content.querySelector<HTMLElement>(
+                "[data-bulk-adjust-control] input, [data-bulk-adjust-control] select"
+            );
+        } else if (step === 3) {
+            target = content.querySelector<HTMLElement>("textarea[data-navigation-field]");
+        }
+        (target ?? content).focus({preventScroll: true});
+    };
+    const focusFirstInvalid = () => {
+        const content = contentRef.current;
+        if (!content) return;
+        let target: HTMLElement | null = null;
+        if (step === -1) {
+            target = content.querySelector<HTMLElement>("[data-recipient-draft] input") ??
+                content.querySelector<HTMLElement>("[data-recipient-search]");
+        } else if (step === 0) {
+            target = !periodValid
+                ? content.querySelector<HTMLElement>(
+                    "[data-allocation-shortcut='period'] [data-tag='dropdown']"
+                )
+                : content.querySelector<HTMLElement>("[data-bulk-split-length] input");
+            target = target ?? content.querySelector<HTMLElement>(
+                "[data-allocation-shortcut='period'] [data-tag='dropdown']"
+            );
+        } else if (step === 1) {
+            target = content.querySelector<HTMLElement>("[data-bulk-quota-input][aria-invalid='true']") ??
+                content.querySelector<HTMLElement>("[data-bulk-quota-input]");
+        } else if (step === 2) {
+            target = content.querySelector<HTMLElement>("[data-bulk-invalid='true'] input") ??
+                content.querySelector<HTMLElement>("[data-bulk-invalid='true'] select") ??
+                content.querySelector<HTMLElement>(
+                    "[data-bulk-adjust-control] input, [data-bulk-adjust-control] select"
+                );
+        } else if (step === 3) {
+            target = content.querySelector<HTMLElement>("textarea[data-navigation-field]");
+        }
+        (target ?? content).focus({preventScroll: true});
     };
     useLayoutEffect(() => {
         const frame = requestAnimationFrame(focusCurrentStep);
         return () => cancelAnimationFrame(frame);
     }, [step]);
     const categories = useMemo(() => [...props.categories].sort(allocationCompareProducts), [props.categories]);
-    const categoryByKey = useMemo(() => new Map(categories.map(category => [allocationCategoryKey(category), category])), [categories]);
-    const rawQuota = (category: ProductCategoryV2) => allocationInputToRaw(category, Number(quotas[allocationCategoryKey(category)] ?? 0));
+    const categoryByKey = useMemo(
+        () => new Map(categories.map(category => [allocationCategoryKey(category), category])),
+        [categories],
+    );
+    const rawQuota = (category: ProductCategoryV2) => allocationInputToRaw(
+        category,
+        Number(quotas[allocationCategoryKey(category)] ?? 0),
+    );
     const chosen = categories.filter(category => Number(quotas[allocationCategoryKey(category)]) > 0);
-    const invalidQuota = categories.some(category => {
+    const quotaInvalid = (category: ProductCategoryV2): boolean => {
         const value = quotas[allocationCategoryKey(category)] ?? "";
-        return value !== "" && (!Number.isFinite(Number(value)) || !Number.isFinite(rawQuota(category)) || Number(value) < 0 || (Number(value) > 0 && rawQuota(category) <= 0));
-    });
+        const valueNumber = Number(value);
+        const raw = rawQuota(category);
+        return value !== ""
+            && (!Number.isFinite(valueNumber)
+                || !Number.isFinite(raw)
+                || valueNumber < 0
+                || (valueNumber > 0 && raw <= 0));
+    };
+    const invalidQuota = categories.some(quotaInvalid);
     const workspacePercentFor = (index: number) => workspacePercents[index] ?? "100";
     const workspacePercentNumber = (index: number): number | null => {
         const value = workspacePercentFor(index).trim();
@@ -639,11 +733,15 @@ export function BulkAllocationWizard(props: {
     );
     const hasSplitSchedule = splitEnabled && schedule.length > 1;
     const adjustColumns = useMemo(
-        () => hasSplitSchedule ? [...bulkAllocationAdjustColumns, bulkAllocationSliceColumn] : bulkAllocationAdjustColumns,
+        () => hasSplitSchedule
+            ? [...bulkAllocationAdjustColumns, bulkAllocationSliceColumn]
+            : bulkAllocationAdjustColumns,
         [hasSplitSchedule],
     );
     const reviewColumns = useMemo(
-        () => hasSplitSchedule ? [...bulkAllocationReviewColumns, bulkAllocationSliceColumn] : bulkAllocationReviewColumns,
+        () => hasSplitSchedule
+            ? [...bulkAllocationReviewColumns, bulkAllocationSliceColumn]
+            : bulkAllocationReviewColumns,
         [hasSplitSchedule],
     );
     const sliceCadence = Number(splitMonths) === 1 ? "one every month" : `one every ${splitMonths} months`;
@@ -726,17 +824,32 @@ export function BulkAllocationWizard(props: {
                     : !!reason.trim()));
     const nextDisabledReason = canGoNext ? undefined : (() => {
         if (busy) return "Allocation is in progress.";
-        if (step === -1) return draftPending ? "Add the draft sub-project or clear the row." : "Choose at least one recipient.";
+        if (step === -1) {
+            return draftPending
+                ? "Add the draft sub-project or clear the row."
+                : "Choose at least one recipient.";
+        }
         if (!scheduleValid) return "Enter a positive whole number of months per slice.";
         if (step === 0) return "Choose a valid allocation period.";
         if (invalidQuota) return "Enter a valid quota, or clear the invalid value.";
         if (chosen.length === 0) return "Enter a quota for at least one product.";
-        if (step >= 2 && adjustmentInvalid) return "Enter a valid percentage or amount for every adjusted value.";
-        if (step >= 2 && allocationWorkspaces.length === 0) return "At least one workspace must receive a positive amount.";
+        if (step >= 2 && adjustmentInvalid) {
+            return "Enter a valid percentage or amount for every adjusted value.";
+        }
+        if (step >= 2 && allocationWorkspaces.length === 0) {
+            return "At least one workspace must receive a positive amount.";
+        }
         if (!reason.trim()) return "Enter a reason for the allocation.";
         return "Complete the required fields to continue.";
     })();
-    const names = [...(showRecipientStep ? ["Recipients"] : []), "Period", "Products", ...(showAdjust ? ["Adjust"] : []), "Reason", "Review"];
+    const names = [
+        ...(showRecipientStep ? ["Recipients"] : []),
+        "Period",
+        "Products",
+        ...(showAdjust ? ["Adjust"] : []),
+        "Reason",
+        "Review",
+    ];
     const number = (value: number) => formatNumber(value, {precision: 2, removeTrailingZeros: true});
     const productRows: TableRow[] = (step === 4 ? chosen : categories).map(category => {
         const key = allocationCategoryKey(category);
@@ -758,7 +871,14 @@ export function BulkAllocationWizard(props: {
     const adjustTableRows: TableRow[] = workspaceRows.map(row => ({
         key: row.key,
         group: `${row.recipientIndex}`,
-        cells: [row.category.name, `${row.current}`, `${row.base}`, `${row.adjusted}`, `${row.total}`, ...sliceCells(row)],
+        cells: [
+            row.category.name,
+            `${row.current}`,
+            `${row.base}`,
+            `${row.adjusted}`,
+            `${row.total}`,
+            ...sliceCells(row),
+        ],
     }));
     const reviewTableRows: TableRow[] = workspaceRows.map(row => ({
         key: row.key,
@@ -799,7 +919,9 @@ export function BulkAllocationWizard(props: {
         if (mode === "percent") {
             const percent = row.mode === "inherit"
                 ? workspacePercentFor(row.recipientIndex)
-                : row.base > 0 ? bulkAllocationEditValue(row.adjusted / row.base * 100) : workspacePercentFor(row.recipientIndex);
+                : row.base > 0
+                    ? bulkAllocationEditValue(row.adjusted / row.base * 100)
+                    : workspacePercentFor(row.recipientIndex);
             setRowOverride(key, mode, percent);
         } else {
             setRowOverride(key, mode, bulkAllocationEditValue(row.adjusted));
@@ -883,20 +1005,42 @@ export function BulkAllocationWizard(props: {
         } catch (failure) {
             const recipient = allocationWorkspaces[completedRef.current]?.recipient;
             const title = recipient ? bulkAllocationWorkspaceTitle(recipient, props.projectInfo) : "a workspace";
-            setError(`Could not allocate to ${title}: ${extractErrorMessage(failure as any)}. ${number(completedRef.current)} of ${number(allocationWorkspaces.length)} workspaces completed. Confirm retries only the remaining workspaces.`);
+            const completed = number(completedRef.current);
+            const total = number(allocationWorkspaces.length);
+            setError(
+                `Could not allocate to ${title}: ${extractErrorMessage(failure as any)}. `
+                + `${completed} of ${total} workspaces completed. `
+                + "Confirm retries only the remaining workspaces."
+            );
         } finally {
             submitting.current = false;
             setBusy(false);
         }
     };
     const primaryAction = () => {
+        if (busy) return;
         if (step === lastStep) {
+            if (!canConfirm) {
+                focusFirstInvalid();
+                return;
+            }
             void confirm();
             return;
         }
-        if (canGoNext && nextStep !== null) move(nextStep);
+        if (!canGoNext) {
+            focusFirstInvalid();
+            return;
+        }
+        if (nextStep !== null) move(nextStep);
     };
-    useSubmitShortcut(primaryAction, step === lastStep ? !canConfirm : !canGoNext, {allowInModal: true});
+    useSubmitShortcut(primaryAction, busy, {allowInModal: true});
+
+    const renderProviderGroupHeader = (provider: string): React.ReactNode => (
+        <span className="bulk-provider">
+            <ProviderLogo providerId={provider} size={18} />
+            {getProviderTitle(provider)}
+        </span>
+    );
 
     const renderProduct = (context: UcxTableCellRenderContext): React.ReactNode => {
         const category = categoryByKey.get(context.row.key)!;
@@ -910,12 +1054,16 @@ export function BulkAllocationWizard(props: {
                 step="any"
                 value={quotas[context.row.key] ?? ""}
                 placeholder="0"
+                data-bulk-quota-input=""
+                aria-invalid={quotaInvalid(category)}
                 aria-label={`Quota per recipient for ${category.name} (${getProviderTitle(category.provider)})`}
                 onChange={event => {
                     const key = context.row.key;
                     const value = event.target.value;
                     const previous = quotas[key] ?? "";
-                    if (allocationInputToRaw(category, Number(previous)) !== allocationInputToRaw(category, Number(value))) {
+                    const previousRaw = allocationInputToRaw(category, Number(previous));
+                    const nextRaw = allocationInputToRaw(category, Number(value));
+                    if (previousRaw !== nextRaw) {
                         clearCategoryOverrides(key);
                     }
                     setQuotas(previousQuotas => ({...previousQuotas, [key]: value}));
@@ -960,7 +1108,9 @@ export function BulkAllocationWizard(props: {
             <span className="bulk-slice-empty">—</span>
         </div>;
         return <div className="bulk-slice-values">
-            <span>{number(amount)} <span className="bulk-slice-unit">{allocationInputUnit(row.category).name}</span></span>
+            <span>{number(amount)} <span className="bulk-slice-unit">
+                {allocationInputUnit(row.category).name}
+            </span></span>
         </div>;
     };
     const renderAdjust = (context: UcxTableCellRenderContext): React.ReactNode => {
@@ -968,13 +1118,18 @@ export function BulkAllocationWizard(props: {
         if (!row) return context.cell;
         const unit = allocationInputUnit(row.category).name;
         const title = workspaceGroupTitle(row.recipientIndex);
+        const modeLabel = row.mode === "percent" ? "Percentage" : "Amount";
         if (context.column.key === "product") return <div className="bulk-product">
             <ProviderLogo providerId={row.category.provider} size={16} />
             <span>{row.category.name} ({getProviderTitle(row.category.provider)})</span>
         </div>;
         if (context.column.key === "slices") return renderSliceValues(row);
         if (context.column.key === "adjusted") return <div className="bulk-adjust-value">
-            <div className="bulk-adjust-control">
+            <div
+                className="bulk-adjust-control"
+                data-bulk-adjust-control=""
+                data-bulk-invalid={row.invalid ? "true" : undefined}
+            >
                 <Select
                     width="88px"
                     flexShrink={0}
@@ -992,6 +1147,7 @@ export function BulkAllocationWizard(props: {
                         min={0}
                         step="any"
                         value={bulkAllocationEditValue(row.adjusted)}
+                        aria-invalid={row.invalid}
                         aria-label={`Inherited amount for ${row.category.name} in ${title}`}
                         onChange={event => setRowOverride(row.key, "absolute", event.target.value)}
                     />
@@ -1002,8 +1158,13 @@ export function BulkAllocationWizard(props: {
                         min={0}
                         step="any"
                         value={row.overrideValue}
-                        aria-label={`${row.mode === "percent" ? "Percentage" : "Amount"} for ${row.category.name} in ${title}`}
-                        onChange={event => setRowOverride(row.key, row.mode === "percent" ? "percent" : "absolute", event.target.value)}
+                        aria-invalid={row.invalid}
+                        aria-label={`${modeLabel} for ${row.category.name} in ${title}`}
+                        onChange={event => setRowOverride(
+                            row.key,
+                            row.mode === "percent" ? "percent" : "absolute",
+                            event.target.value,
+                        )}
                     />
                     <span className="bulk-adjust-suffix">{row.mode === "percent" ? "%" : unit}</span>
                 </>}
@@ -1034,29 +1195,60 @@ export function BulkAllocationWizard(props: {
         isOpen
         ariaHideApp={false}
         contentLabel="Bulk allocation"
-        shouldCloseOnEsc={!busy}
         shouldCloseOnOverlayClick={!busy}
         onAfterOpen={focusCurrentStep}
         onRequestClose={close}
+        shouldCloseOnEsc={false}
         className={CardClass}
-        style={{...largeModalStyle, content: {...largeModalStyle.content, width: "1100px", padding: 0, overflow: "hidden"}}}
-        contentElement={(modalProps, children) => <div {...modalProps} onKeyDownCapture={event => {
-            if (event.currentTarget.querySelector("[data-tag='dropdown'][aria-expanded='true']")) return;
+        style={{
+            ...largeModalStyle,
+            content: {
+                ...largeModalStyle.content,
+                width: "1100px",
+                padding: 0,
+                overflow: "hidden",
+            },
+        }}
+        contentElement={(modalProps, children) => <div {...modalProps} aria-modal="true" onKeyDownCapture={event => {
+            if (event.key === "Escape") {
+                const target = event.target as HTMLElement;
+                if (target.closest("[data-tag='dropdown'][aria-expanded='true']")) return;
+                if (target.closest("[data-recipient-draft]")) return;
+                if (target.closest("[data-bulk-table-navigation]") && target.closest("input, select, textarea")) return;
+                if (target.closest("[data-recipient-search]")) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const available = contentRef.current?.querySelector<HTMLElement>(
+                        "[data-recipient-table='available'] [data-ucx-table]"
+                    );
+                    available?.focus({preventScroll: true});
+                    return;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                cancelButtonRef.current?.focus({preventScroll: true});
+                return;
+            }
             const primaryPressed = isLikelyMac ? event.metaKey : event.ctrlKey;
             if (!event.altKey || !primaryPressed || event.shiftKey || event.nativeEvent.isComposing) return;
-            if (event.code !== "KeyP" && event.code !== "KeyN") return;
+            if (event.code !== bulkAllocationBackCode && event.code !== bulkAllocationNextCode) return;
             event.preventDefault();
             event.stopPropagation();
             if (event.repeat || submitting.current) return;
-            if (event.code === "KeyP" && canGoBack && previousStep !== null) move(previousStep);
-            if (event.code === "KeyN" && nextStep !== null && canGoNext) move(nextStep);
+            if (event.code === bulkAllocationBackCode && canGoBack && previousStep !== null) move(previousStep);
+            if (event.code === bulkAllocationNextCode && step !== lastStep) primaryAction();
         }}>{children}</div>}
     >
         <KeyboardNavigation className={BulkAllocationWizardStyle}>
             <header>
                 <h3>Allocate resources</h3>
                 <nav className="bulk-steps" aria-label="Allocation steps">
-                    {names.map((name, index) => <span key={name} aria-current={index === stepIndex ? "step" : undefined}>{index + 1}. {name}</span>)}
+                    {names.map((name, index) => <span
+                        key={name}
+                        aria-current={index === stepIndex ? "step" : undefined}
+                    >
+                        {index + 1}. {name}
+                    </span>)}
                 </nav>
             </header>
             <div className="bulk-content" data-step={step} ref={contentRef} tabIndex={-1}>
@@ -1080,11 +1272,16 @@ export function BulkAllocationWizard(props: {
                             title="Period"
                             description="All selected workspaces share this period."
                             required
-                            control={<AllocationPeriodFilter value={period} onChange={setPeriod} navigationField presetButtonColor="secondaryMain" />}
+                            control={<AllocationPeriodFilter
+                                value={period}
+                                onChange={setPeriod}
+                                navigationField
+                                presetButtonColor="secondaryMain"
+                            />}
                         />
                         <FieldRow
                             title="Slices"
-                            description="Provides finer control over how consumption based allocations are split up into several slices. Quota not consumed in a given slice is not carried over to the next slice."
+                            description={bulkAllocationSliceDescription}
                             control={<div className="bulk-split">
                                 <div className="bulk-split-toggle">
                                     <Toggle
@@ -1095,10 +1292,13 @@ export function BulkAllocationWizard(props: {
                                     />
                                     <div>
                                         <strong>Divide quota into calendar slices</strong>
-                                        <span>This will cause consumption based allocations (e.g. core-hours) to be split into multiple allocations ("slices").</span>
+                                        <span>
+                                            This will cause consumption based allocations (e.g. core-hours) to be
+                                            split into multiple allocations ("slices").
+                                        </span>
                                     </div>
                                 </div>
-                                <div className="bulk-split-length">
+                                <div className="bulk-split-length" data-bulk-split-length>
                                     {!splitEnabled ? null :
                                         <div className="bulk-split-length-control">
                                             <span>Every</span>
@@ -1117,7 +1317,7 @@ export function BulkAllocationWizard(props: {
                             </div>}
                         />
                     </FieldGroup>
-                    {!periodValid ? <p className="bulk-error">Choose a valid allocation period.</p> : null}
+                    {!periodValid ? <p className="bulk-error" role="alert">Choose a valid allocation period.</p> : null}
                 </> : null}
                 {step === 1 ? <>
                     <BulkAllocationTable
@@ -1126,14 +1326,23 @@ export function BulkAllocationWizard(props: {
                         columns={bulkAllocationProductColumns}
                         rows={productRows}
                         renderCell={renderProduct}
-                        renderGroupHeader={provider => <span className="bulk-provider"><ProviderLogo providerId={provider} size={18} />{getProviderTitle(provider)}</span>}
+                        renderGroupHeader={renderProviderGroupHeader}
                         editable
+                        onNavigateEnd={() => primaryButtonRef.current?.focus({preventScroll: true})}
                     />
-                    {invalidQuota ? <p className="bulk-error">Enter a valid quota of zero or more. Positive quotas must reach at least one accounting unit.</p> : null}
+                    {invalidQuota ?
+                        <p className="bulk-error" role="alert">
+                            Enter a valid quota of zero or more. Positive quotas must reach
+                            at least one accounting unit.
+                        </p> :
+                        null}
                     {categories.length === 0 ? <p>No products are available for allocation.</p> : null}
                 </> : null}
                 {step === 2 ? <>
-                    <p>Adjust each workspace. The shared percentage applies to every product; individual rows can override it.</p>
+                    <p>
+                        Adjust each workspace. The shared percentage applies to every product;
+                        individual rows can override it.
+                    </p>
                     <BulkAllocationTable
                         id="bulk-allocation-adjust"
                         variant="adjust"
@@ -1143,9 +1352,18 @@ export function BulkAllocationWizard(props: {
                         renderGroupHeader={renderAdjustGroupHeader}
                         editable
                         hasSlices={hasSplitSchedule}
+                        onNavigateEnd={() => primaryButtonRef.current?.focus({preventScroll: true})}
                     />
-                    {adjustmentInvalid ? <p className="bulk-error">Enter a valid percentage or amount for every adjusted value.</p> : null}
-                    {allocationWorkspaces.length === 0 ? <p className="bulk-error">At least one workspace must receive a positive amount.</p> : null}
+                    {adjustmentInvalid ?
+                        <p className="bulk-error" role="alert">
+                            Enter a valid percentage or amount for every adjusted value.
+                        </p> :
+                        null}
+                    {allocationWorkspaces.length === 0 ?
+                        <p className="bulk-error" role="alert">
+                            At least one workspace must receive a positive amount.
+                        </p> :
+                        null}
                 </> : null}
                 {step === 3 ? <label className="bulk-reason">
                     <p>Describe the reason for creating these sub-allocations.</p>
@@ -1165,13 +1383,21 @@ export function BulkAllocationWizard(props: {
                         <span className="bulk-review-label">Allocation period</span>
                         <div className="bulk-review-dates">
                             <div className="bulk-review-date">
-                                <span className="bulk-review-date-value">{bounds.start !== null ? format(bounds.start, "d MMM yyyy") : "-"}</span>
-                                <span className="bulk-review-date-time">{bounds.start !== null ? format(bounds.start, "HH:mm") : ""}</span>
+                                <span className="bulk-review-date-value">
+                                    {bounds.start !== null ? format(bounds.start, "d MMM yyyy") : "-"}
+                                </span>
+                                <span className="bulk-review-date-time">
+                                    {bounds.start !== null ? format(bounds.start, "HH:mm") : ""}
+                                </span>
                             </div>
                             <Icon name="heroArrowRight" size={14} />
                             <div className="bulk-review-date">
-                                <span className="bulk-review-date-value">{bounds.end !== null ? format(bounds.end, "d MMM yyyy") : "-"}</span>
-                                <span className="bulk-review-date-time">{bounds.end !== null ? format(bounds.end, "HH:mm") : ""}</span>
+                                <span className="bulk-review-date-value">
+                                    {bounds.end !== null ? format(bounds.end, "d MMM yyyy") : "-"}
+                                </span>
+                                <span className="bulk-review-date-time">
+                                    {bounds.end !== null ? format(bounds.end, "HH:mm") : ""}
+                                </span>
                             </div>
                             {hasSplitSchedule ? <span className="bulk-review-slices">
                                 ({number(schedule.length)} slices, {sliceCadence})
@@ -1192,7 +1418,7 @@ export function BulkAllocationWizard(props: {
                             columns={bulkAllocationProductColumns}
                             rows={productRows}
                             renderCell={renderProduct}
-                            renderGroupHeader={provider => <span className="bulk-provider"><ProviderLogo providerId={provider} size={18} />{getProviderTitle(provider)}</span>}
+                            renderGroupHeader={renderProviderGroupHeader}
                         />
                     </section>
                     <section className="bulk-review-section bulk-review-totals">
@@ -1207,27 +1433,42 @@ export function BulkAllocationWizard(props: {
                             hasSlices={hasSplitSchedule}
                         />
                     </section>
-                    {completed > 0 ? <p>{number(completed)} of {number(allocationWorkspaces.length)} workspaces completed.</p> : null}
+                    {completed > 0 ?
+                        <p>
+                            {number(completed)} of {number(allocationWorkspaces.length)} workspaces completed.
+                        </p> :
+                        null}
                     {error ? <p className="bulk-error" role="alert">{error}</p> : null}
                 </> : null}
             </div>
             <footer className="bulk-actions">
-                <div className="bulk-progress"><TutorialWizardProgress step={stepIndex} stepCount={stepOrder.length} /></div>
-                <Button color="errorMain" disabled={busy} onClick={close}>Cancel</Button>
-                <Button color="secondaryMain" ariaLabel="Back" disabled={!canGoBack} onClick={() => {
-                    if (previousStep !== null) move(previousStep);
-                }}>
-                    Back<SubmitShortcut shortcut="P" />
+                <div className="bulk-progress">
+                    <TutorialWizardProgress step={stepIndex} stepCount={stepOrder.length} />
+                </div>
+                <Button color="errorMain" disabled={busy} btnRef={cancelButtonRef} onClick={close}>Cancel</Button>
+                <Button color="secondaryMain" ariaLabel="Back" disabled={!canGoBack}
+                    ariaKeyshortcuts={`Control+Alt+${bulkAllocationBackKey} Meta+Alt+${bulkAllocationBackKey}`}
+                    onClick={() => {
+                        if (previousStep !== null) move(previousStep);
+                    }}>
+                    Back<SubmitShortcut shortcut={bulkAllocationBackKey} />
                 </Button>
                 <TooltipV2 tooltip={nextDisabledReason} contentWidth={240}>
                     <Button
                         color="successMain"
                         ariaLabel={step < lastStep ? "Next" : undefined}
-                        disabled={!canGoNext}
+                        ariaDisabled={!canGoNext || busy}
+                        ariaKeyshortcuts={step < lastStep
+                            ? `Control+Alt+${bulkAllocationNextKey} Meta+Alt+${bulkAllocationNextKey}`
+                            : "Control+Alt+Enter Meta+Alt+Enter"}
+                        disabled={busy}
+                        btnRef={primaryButtonRef}
                         onClick={primaryAction}
                     >
-                        {busy ? `Allocating ${number(completed)} / ${number(allocationWorkspaces.length)}` : step === lastStep ? "Confirm" : "Next"}
-                        {step < lastStep ? <SubmitShortcut shortcut="N" /> : <SubmitShortcut />}
+                        {busy
+                            ? `Allocating ${number(completed)} / ${number(allocationWorkspaces.length)}`
+                            : step === lastStep ? "Confirm" : "Next"}
+                        {step < lastStep ? <SubmitShortcut shortcut={bulkAllocationNextKey} /> : <SubmitShortcut />}
                     </Button>
                 </TooltipV2>
             </footer>

@@ -7,7 +7,15 @@ export interface AllocationSlice {
 
 function allocationCalendarTime(timestamp: number): number {
     const date = new Date(timestamp);
-    return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds(), date.getMilliseconds());
+    return Date.UTC(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        date.getHours(),
+        date.getMinutes(),
+        date.getSeconds(),
+        date.getMilliseconds(),
+    );
 }
 
 function allocationMonthShare(start: number, end: number): number {
