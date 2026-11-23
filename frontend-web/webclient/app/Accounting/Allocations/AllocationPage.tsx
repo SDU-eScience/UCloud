@@ -88,7 +88,7 @@ export function AllocationPage(props: {
         data-shortcuts-visible={shortcutsVisible ? "true" : undefined}>
         <header>
             {providerTools ?
-                <h3>Provider tools</h3> :
+                <h3>Gifts and root allocations</h3> :
                 <h3>{received ? "Your allocations" : "Resource allocations"}</h3>}
             {props.demo ? <span className="demo-badge">Read-only checkpoint</span> : null}
             {received ?

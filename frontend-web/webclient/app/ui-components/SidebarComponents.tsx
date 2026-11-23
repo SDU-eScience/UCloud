@@ -22,6 +22,7 @@ export interface LinkInfo {
     disabled?: boolean;
     removed?: boolean;
     defaultHidden?: boolean;
+    commandDescription?: string;
     tab: SidebarTabId;
 }
 

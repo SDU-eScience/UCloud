@@ -422,7 +422,14 @@ function allSidebarCommands(state: HookStore, navigate: NavigateFunction): Comma
                 }
                 const sub = sidebarSubCommands[it.label];
                 for (const subIt of sub) {
-                    result.push(sidebarCommand(subIt.text, "", subIt.to, subIt.icon as IconName, navigate, subIt.defaultHidden));
+                    result.push(sidebarCommand(
+                        subIt.text,
+                        subIt.commandDescription ?? "",
+                        subIt.to,
+                        subIt.icon as IconName,
+                        navigate,
+                        subIt.defaultHidden,
+                    ));
                 }
             }
         }
@@ -836,16 +843,26 @@ ResourceSubLinksEntries.push({
     tab: SidebarTabId.RESOURCES,
 });
 
+interface ProjectSidebarSection {
+    title: string;
+    links: LinkInfo[];
+}
+
 function ProjectSubLinks({canApply, isPersonalWorkspace, projectId}: {
     canApply: boolean;
     isPersonalWorkspace: boolean;
     projectId?: string
 }) {
     const hasProviderTools = useProjectHasProviderTools();
-    const sublinks = React.useMemo(() =>
-            projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId, hasProviderTools).filter(it => !it.disabled),
+    const sections = React.useMemo(() =>
+            projectSidebarSections(canApply, isPersonalWorkspace, projectId, hasProviderTools)
+                .map(section => ({...section, links: section.links.filter(it => !it.disabled)}))
+                .filter(section => section.links.length > 0),
         [canApply, isPersonalWorkspace, projectId, hasProviderTools]);
-    return sublinks.map(it => <SidebarEntry key={it.text} {...it} />);
+    return sections.map(section => <React.Fragment key={section.title}>
+        <SidebarSectionHeader tab={SidebarTabId.PROJECT}>{section.title}</SidebarSectionHeader>
+        {section.links.map(it => <SidebarEntry key={it.text} {...it} />)}
+    </React.Fragment>);
 }
 
 function ComputeSubLinks(): React.ReactNode {
@@ -868,53 +885,105 @@ if (hasFeature(Feature.STACKS)) {
     });
 }
 
+function projectSidebarSections(
+    canApply: boolean,
+    isPersonalWorkspace: boolean,
+    projectId: string | undefined,
+    hasProviderTools: boolean,
+): ProjectSidebarSection[] {
+    const tab = SidebarTabId.PROJECT;
+    const {allocations, receivedAllocations, usage, providerTools} = AppRoutes.accounting;
+    const {members, settings, subprojects} = AppRoutes.project;
+    const {ingoing, outgoing} = AppRoutes.grants;
+    return [{
+        title: "Project",
+        links: [{
+            to: members(),
+            text: "Members",
+            icon: "heroUsers",
+            tab,
+            disabled: isPersonalWorkspace,
+        }, {
+            to: settings(""),
+            text: "Settings",
+            icon: "heroWrenchScrewdriver",
+            tab,
+            disabled: isPersonalWorkspace,
+            defaultHidden: true,
+        }, {
+            to: subprojects(),
+            text: "Sub-projects",
+            icon: "heroUserGroup",
+            tab,
+            disabled: isPersonalWorkspace,
+            defaultHidden: true,
+        }],
+    }, {
+        title: "Allocations",
+        links: [{
+            to: receivedAllocations(),
+            text: "Received",
+            icon: "heroArrowDownTray",
+            tab,
+            defaultHidden: true,
+            commandDescription: "Allocations",
+        }, {
+            to: allocations(),
+            text: "Granted",
+            icon: "heroArrowUpTray",
+            tab,
+            disabled: isPersonalWorkspace,
+            defaultHidden: true,
+        }, {
+            to: usage(),
+            text: "Usage history",
+            icon: "heroPresentationChartLine",
+            tab,
+        }, {
+            to: providerTools(),
+            text: "Gifts and roots",
+            icon: "heroGift",
+            tab,
+            disabled: !hasProviderTools,
+            defaultHidden: true,
+        }],
+    }, {
+        title: "Grant applications",
+        links: [{
+            to: ingoing(),
+            text: "Received",
+            icon: "heroDocumentArrowDown",
+            tab,
+            disabled: !canApply || isPersonalWorkspace,
+            defaultHidden: true,
+            commandDescription: "Grant applications",
+        }, {
+            to: outgoing(),
+            text: "Sent",
+            icon: "heroDocumentArrowUp",
+            tab,
+            defaultHidden: true,
+        }, {
+            to: !canApply || isPersonalWorkspace
+                ? AppRoutes.grants.editor()
+                : AppRoutes.grants.newApplication({projectId: projectId}),
+            text: "Apply for resources",
+            icon: "heroPencilSquare",
+            disabled: !canApply,
+            tab,
+        }],
+    }];
+}
+
 function projectSidebarSubLinks(
     canApply: boolean,
     isPersonalWorkspace: boolean,
     projectId: string | undefined,
     hasProviderTools: boolean,
 ): LinkInfo[] {
-    const tab = SidebarTabId.PROJECT;
-    const {allocations, usage, providerTools} = AppRoutes.accounting;
-    const {members, settings, subprojects} = AppRoutes.project;
-    const {outgoing} = AppRoutes.grants;
-    return [{
-        to: members(), text: "Members", icon: "heroUsers", tab, disabled: isPersonalWorkspace,
-    }, {
-        to: settings(""),
-        text: "Project settings",
-        icon: "heroWrenchScrewdriver",
-        tab,
-        disabled: isPersonalWorkspace,
-        defaultHidden: true,
-    }, {
-        to: allocations(), text: "Allocations", icon: "heroBanknotes", tab, defaultHidden: true,
-    }, {
-        to: providerTools(),
-        text: "Provider tools",
-        icon: "heroWrenchScrewdriver",
-        tab,
-        disabled: !hasProviderTools,
-        defaultHidden: true,
-    }, {
-        to: subprojects(),
-        icon: "heroUserGroup",
-        text: "Sub-projects",
-        tab,
-        disabled: isPersonalWorkspace,
-        defaultHidden: true,
-    }, {
-        to: usage(), text: "Usage", icon: "heroPresentationChartLine", tab
-    }, {
-        to: outgoing(), text: "Grant applications", icon: "heroDocumentText", tab, defaultHidden: true,
-    },
-        {
-            to: !canApply || isPersonalWorkspace ? AppRoutes.grants.editor() : AppRoutes.grants.newApplication({projectId: projectId}),
-            text: "Apply for resources",
-            icon: "heroPencilSquare",
-            disabled: !canApply,
-            tab,
-        }];
+    return projectSidebarSections(canApply, isPersonalWorkspace, projectId, hasProviderTools)
+        .flatMap(section => section.links)
+        .filter(it => !it.disabled);
 }
 
 
@@ -1097,6 +1166,7 @@ function SecondarySidebar({
     const isOpen = clicked !== "" || hovered !== "";
     const active = !isOpen ? lastHover.current : hovered ? hovered : clicked;
     const asPopOver = hovered && !clicked;
+    const activeTitle = active === SidebarTabId.PROJECT ? "Workspace" : active;
 
     lastHover.current = active;
 
@@ -1157,7 +1227,7 @@ function SecondarySidebar({
         onClick={onMenuClick}
     >
         <header>
-            <h1>{active}</h1>
+            <h1>{activeTitle}</h1>
 
             <Relative left="calc(var(--secondarySidebarWidth) - 46px)">
                 <Flex style={{position: "fixed", top: "calc(100vh - 68px)"}} alignItems="center" backgroundColor="white"
@@ -1229,7 +1299,6 @@ function SecondarySidebar({
             </>}
 
             {active !== SidebarTabId.PROJECT ? null : <>
-                <SidebarSectionEmptyHeader />
                 <ProjectSubLinks canApply={canApply} isPersonalWorkspace={isPersonalWorkspace} projectId={projectId} />
             </>}
 
