@@ -227,7 +227,7 @@ const sideBarMenuElements: SidebarMenuElements[] = [
     {
         items: [
             {icon: "heroFolder", label: SidebarTabId.FILES, to: AppRoutes.files.drives()},
-            {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.project.allocations()},
+            {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.accounting.receivedAllocations()},
             {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicLinks()},
             {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
             {icon: "heroServer", label: SidebarTabId.COMPUTE, to: AppRoutes.compute.jobs()}
@@ -892,7 +892,7 @@ function projectSidebarSections(
     hasProviderTools: boolean,
 ): ProjectSidebarSection[] {
     const tab = SidebarTabId.PROJECT;
-    const {allocations, receivedAllocations, usage, providerTools} = AppRoutes.accounting;
+    const {receivedAllocations, subAllocations, usage, providerTools} = AppRoutes.accounting;
     const {members, settings, subprojects} = AppRoutes.project;
     const {ingoing, outgoing} = AppRoutes.grants;
     return [{
@@ -928,8 +928,8 @@ function projectSidebarSections(
             defaultHidden: true,
             commandDescription: "Allocations",
         }, {
-            to: allocations(),
-            text: "Granted",
+            to: subAllocations(),
+            text: "Sub-allocated",
             icon: "heroArrowUpTray",
             tab,
             disabled: isPersonalWorkspace,

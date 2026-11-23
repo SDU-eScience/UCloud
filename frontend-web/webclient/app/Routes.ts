@@ -46,7 +46,7 @@ const project = {
     members: () => `/projects/members`,
     allocations: () => accounting.allocations(),
     settings: (page: string) => `/project/settings${page === "" ? "" : "/" + page}`,
-    subprojects: () => accounting.allocations(),
+    subprojects: () => accounting.subAllocations(),
 }
 
 const syncthing = {
@@ -153,6 +153,7 @@ const accounting = {
     usage: () => "/usage",
     allocations: () => "/allocations",
     receivedAllocations: () => "/allocations/received",
+    subAllocations: () => "/allocations/sub-allocated",
     providerTools: () => "/allocations/provider-tools",
     allocationsDemo: () => "/playground/allocations",
     providerToolsDemo: () => "/playground/allocations/provider-tools",

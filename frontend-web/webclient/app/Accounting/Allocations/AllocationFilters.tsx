@@ -219,30 +219,39 @@ export function AllocationFilters(props: {
     actions?: React.ReactNode;
     products: AllocationFilterOption[];
     providers: AllocationFilterOption[];
+    sources?: AllocationFilterOption[];
     columns: AllocationFilterOption[];
     selectedProducts: string[];
     selectedProviders: string[];
+    selectedSources?: string[];
     visibleColumns: string[];
     onProductsChange: (selected: string[]) => void;
     onProvidersChange: (selected: string[]) => void;
+    onSourcesChange?: (selected: string[]) => void;
     onColumnsChange: (selected: string[]) => void;
     state: AllocationFilterState;
     onStateChange: (state: AllocationFilterState) => void;
     counts: Record<AllocationFilterState, number>;
     workspaceCount: number;
+    groupLabel?: string;
     personalWorkspaces: boolean;
+    showPersonalWorkspaces?: boolean;
     onPersonalWorkspacesChange: () => void;
+    searchPlaceholder?: string;
     onClear: () => void;
 }): React.ReactNode {
     const states: [AllocationFilterState, string][] = [
         ["all", "All"], ["active", "Active"], ["expiring", "Expiring"],
         ["upcoming", "Upcoming allocations"], ["exhausted", "Exhausted"], ["expired", "Expired allocations"],
     ];
+    const groupLabel = props.groupLabel ?? "workspace";
+    const groupCount = `${formatNumber(props.workspaceCount)} ${groupLabel}${props.workspaceCount === 1 ? "" : "s"}`;
     const hasFilters = props.query.trim() !== ""
         || props.selectedProducts.length > 0
         || props.selectedProviders.length > 0
+        || (props.selectedSources?.length ?? 0) > 0
         || props.state !== "all"
-        || props.personalWorkspaces;
+        || (props.showPersonalWorkspaces !== false && props.personalWorkspaces);
     const onFilterRowKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
         if (event.key === "Escape") {
             event.preventDefault();
@@ -275,7 +284,7 @@ export function AllocationFilters(props: {
                         height={35}
                         inputRef={props.searchRef}
                         value={props.query}
-                        placeholder="Search workspace, PI or product…"
+                        placeholder={props.searchPlaceholder ?? "Search workspace, PI or product…"}
                         aria-label="Search allocations"
                         aria-keyshortcuts="/ Control+K Meta+K"
                         data-allocation-shortcut="search"
@@ -315,6 +324,13 @@ export function AllocationFilters(props: {
                 selected={props.selectedProviders}
                 onChange={props.onProvidersChange}
             />
+            {props.sources && props.onSourcesChange ? <AllocationFilterSelect
+                label="Sources"
+                icon="heroBuildingOffice2"
+                options={props.sources}
+                selected={props.selectedSources ?? []}
+                onChange={props.onSourcesChange}
+            /> : null}
             <AllocationFilterSelect
                 label="Columns"
                 icon="heroViewColumns"
@@ -331,7 +347,7 @@ export function AllocationFilters(props: {
                     onClick={() => props.onStateChange(state)}
                 >{label}<b>{formatNumber(props.counts[state])}</b></button>)}
             </div>
-            <div className="allocation-personal">
+            {props.showPersonalWorkspaces !== false ? <div className="allocation-personal">
                 <span>Personal workspaces</span>
                 <Toggle
                     height={18}
@@ -340,7 +356,7 @@ export function AllocationFilters(props: {
                     onChange={props.onPersonalWorkspacesChange}
                     ariaLabel="Personal workspaces"
                 />
-            </div>
+            </div> : null}
             {hasFilters ?
                 <Button color="ghost" onClick={props.onClear}>
                     <Icon name="heroXMark" size={13} />
@@ -348,7 +364,7 @@ export function AllocationFilters(props: {
                 </Button> :
                 null}
             <span className="allocation-result-count">
-                {formatNumber(props.workspaceCount)} workspaces
+                {groupCount}
                 <ShortcutHint shortcut="G" hideUntilReveal />
             </span>
         </div>

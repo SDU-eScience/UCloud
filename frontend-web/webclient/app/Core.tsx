@@ -268,6 +268,8 @@ const Core = (): React.ReactNode => {
                            element={React.createElement(requireAuth(ResourceAllocations))} />
                     <Route path={AppRoutes.accounting.receivedAllocations()}
                            element={React.createElement(requireAuth(ResourceAllocations))} />
+                    <Route path={AppRoutes.accounting.subAllocations()}
+                           element={React.createElement(requireAuth(ResourceAllocations))} />
                     <Route path={AppRoutes.accounting.providerTools()}
                            element={React.createElement(requireAuth(ResourceAllocations))} />
 

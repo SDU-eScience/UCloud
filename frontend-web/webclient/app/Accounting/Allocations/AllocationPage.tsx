@@ -1,19 +1,18 @@
 import * as React from "react";
-import {useMemo, useRef, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {useLocation} from "react-router-dom";
-import {Box, Link, MainContainer} from "@/ui-components";
+import AppRoutes from "@/Routes";
+import {Box, MainContainer} from "@/ui-components";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
-import {TreeApi} from "@/ui-components/Tree";
-import {ProductTypesByPriority} from "@/Accounting";
-import type {ProductType} from "@/Accounting";
+import {isAdminOrPI} from "@/Project";
 import {AllocationPeriodFilter} from "./AllocationPeriodFilter";
 import {AllocationOverview} from "./AllocationOverview";
-import {SubProjectList, YourAllocations} from "./CommonSections";
+import {SubProjectList} from "./CommonSections";
+import {ReceivedAllocations} from "./ReceivedAllocations";
 import {injectStyle} from "@/Unstyled";
-import AppRoutes from "@/Routes";
 import {allocationNormalize} from "./AllocationModel";
 import {focusAllocationTable, useAllocationShortcuts} from "./AllocationShortcuts";
-import {useShortcutReveal} from "@/Applications/KeyboardNavigation";
+import {ShortcutHint, useShortcutReveal} from "@/Applications/KeyboardNavigation";
 
 const AllocationPageStyle = injectStyle("allocation-page", k => `
     ${k}[data-mode="allocations"] {
@@ -66,44 +65,50 @@ export function AllocationPage(props: {
     snapshotTime?: number;
 }): React.ReactNode {
     const location = useLocation();
-    const received = location.pathname.endsWith("/received");
+    const subAllocated = location.pathname.endsWith("/sub-allocated") ||
+        location.pathname === AppRoutes.accounting.allocationsDemo();
     const providerTools = location.pathname.endsWith("/provider-tools");
-    const basePath = props.demo ? AppRoutes.accounting.allocationsDemo() : AppRoutes.accounting.allocations();
-    const allocationTree = useRef<TreeApi>(null);
+    const received = !providerTools && !subAllocated;
     const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
     const shortcutsVisible = useShortcutReveal();
     useAllocationShortcuts();
     const state = props.subProjects.state;
     const model = useMemo(() => allocationNormalize(state.remoteData.wallets ?? [], props.snapshotTime ?? Date.now()),
         [state.remoteData.wallets, props.snapshotTime]);
-    const sortedAllocations = Object.entries(state.yourAllocations).sort((a, b) => {
-        const aPriority = ProductTypesByPriority.indexOf(a[0] as ProductType);
-        const bPriority = ProductTypesByPriority.indexOf(b[0] as ProductType);
-        return (aPriority === -1 ? ProductTypesByPriority.length : aPriority) -
-            (bPriority === -1 ? ProductTypesByPriority.length : bPriority);
-    });
+    const canApply = !props.subProjects.projectId || isAdminOrPI(props.subProjects.projectRole);
+
+    useEffect(() => {
+        setSelectedCategories([]);
+    }, [received, providerTools, props.subProjects.projectId]);
 
     return <MainContainer headerSize={0} main={<div className={AllocationPageStyle}
-        data-mode={providerTools ? "provider" : received ? "received" : "allocations"}
+        data-mode={providerTools ? "provider" : "allocations"}
+        data-received={received ? "true" : undefined}
         data-shortcuts-visible={shortcutsVisible ? "true" : undefined}>
         <header>
             {providerTools ?
                 <h3>Gifts and root allocations</h3> :
-                <h3>{received ? "Your allocations" : "Resource allocations"}</h3>}
+                <h3>{received ? "Received allocations" : "Resource allocations"}</h3>}
+            {received ? <ShortcutHint shortcut="S" hideUntilReveal /> : null}
             {props.demo ? <span className="demo-badge">Read-only checkpoint</span> : null}
-            {received ?
-                <Link to={basePath}>Granted allocations</Link> : null}
             <Box flexGrow={1} />
             <ProjectSwitcher />
         </header>
         {providerTools ?
             props.providerTools :
             received ?
-                <YourAllocations
+                <ReceivedAllocations
+                    model={model}
                     state={state}
-                    allocations={sortedAllocations}
-                    allocationTree={allocationTree}
-                    indent={16}
+                    dateRange={props.dateRange}
+                    onDateRangeChange={props.onDateRangeChange}
+                    projectId={props.subProjects.projectId}
+                    canApply={canApply}
+                    projectInfo={props.subProjects.projectInfo}
+                    searchBox={props.subProjects.searchBox}
+                    demo={props.demo}
+                    onOpenGrant={props.subProjects.onOpenGrant}
+                    renderGrantLink={props.subProjects.renderGrantLink}
                 /> :
                 <>
                 <AllocationOverview

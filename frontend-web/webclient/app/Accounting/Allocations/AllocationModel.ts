@@ -19,6 +19,13 @@ export interface AllocationDateRange {
 export type AllocationStatus = "active" | "expiring" | "upcoming" | "exhausted" | "expired";
 export type AllocationAttribution = "recorded" | "pooled" | "future" | "not-applicable";
 
+export interface AllocationModelSource {
+    key: string;
+    title: string;
+    pi: string;
+    type: "project" | "user" | "root";
+}
+
 export interface AllocationAmounts {
     granted: number;
     used: number;
@@ -64,6 +71,7 @@ export interface AllocationModelProduct {
     key: string;
     workspaceKey: string;
     owner: AllocationDisplayTreeRecipient["owner"];
+    source?: AllocationModelSource;
     category: ProductCategoryV2;
     unit: string;
     maxUsable?: number;
@@ -80,6 +88,7 @@ export interface AllocationModel {
     now: number;
     products: AllocationModelProduct[];
     received: {category: ProductCategoryV2; amounts: AllocationAmounts}[];
+    receivedProducts: AllocationModelProduct[];
 }
 
 export interface AllocationModelRecipient {
@@ -183,6 +192,12 @@ function allocationGroupAmounts(group: AllocationGroup, category: ProductCategor
 
 function allocationAddAmounts(target: AllocationAmounts, source: AllocationAmounts): void {
     for (const key of Object.keys(target) as (keyof AllocationAmounts)[]) target[key] += source[key];
+}
+
+export function allocationSumAmounts(sources: ReadonlyArray<{amounts: AllocationAmounts}>): AllocationAmounts {
+    const result = allocationEmptyAmounts();
+    for (const source of sources) allocationAddAmounts(result, source.amounts);
+    return result;
 }
 
 function allocationDisplayAmounts(raw: AllocationAmounts, category: ProductCategoryV2): AllocationAmounts {
@@ -323,16 +338,117 @@ export function allocationFilterProductsByRange(
     });
 }
 
+function allocationReceivedSource(
+    parent: {projectId?: string; projectTitle: string; pi: string} | null | undefined,
+): AllocationModelSource {
+    if (!parent) {
+        return {key: "root", title: "Root allocation", pi: "", type: "root"};
+    }
+    if (parent.projectId) {
+        return {
+            key: `project:${parent.projectId}`,
+            title: parent.projectTitle,
+            pi: parent.pi,
+            type: "project",
+        };
+    }
+    return {
+        key: `user:${parent.projectTitle}`,
+        title: parent.projectTitle,
+        pi: parent.pi,
+        type: "user",
+    };
+}
+
+function allocationSourceOwner(source: AllocationModelSource): AllocationDisplayTreeRecipient["owner"] {
+    if (source.type === "project") {
+        return {
+            reference: {type: "project", projectId: source.key.replace("project:", "")},
+            title: source.title,
+            primaryUsername: source.pi,
+        };
+    }
+    return {
+        reference: {type: "user", username: source.key.replace("user:", "") || source.title},
+        title: source.title,
+        primaryUsername: source.pi,
+    };
+}
+
 export function allocationNormalize(wallets: WalletV2[], now: number): AllocationModel {
     const products = new Map<string, AllocationModelProduct>();
     const received: AllocationModel["received"] = [];
+    const receivedProducts = new Map<string, AllocationModelProduct>();
     const seenGroups = new Set<string>();
+    const seenReceivedGroups = new Set<string>();
     for (const wallet of wallets) {
         if (wallet.paysFor.freeToUse) continue;
         const category = wallet.paysFor;
         const incoming = allocationEmptyAmounts();
         for (const parent of wallet.allocationGroups) {
-            allocationAddAmounts(incoming, allocationGroupAmounts(parent.group, category, now));
+            const groupAmounts = allocationGroupAmounts(parent.group, category, now);
+            allocationAddAmounts(incoming, groupAmounts);
+
+            const source = allocationReceivedSource(parent.parent);
+            const receivedKey = `received:${source.key}/${category.provider}/${category.name}`;
+            const receivedGroupId = parent.group.id ?? parent.group.allocations
+                .map(allocation => allocation.id)
+                .sort((a, b) => a - b)
+                .join(",");
+            const receivedGroupKey = `${receivedKey}/${receivedGroupId}`;
+            if (!seenReceivedGroups.has(receivedGroupKey) && parent.group.allocations.length > 0) {
+                seenReceivedGroups.add(receivedGroupKey);
+                let receivedProduct = receivedProducts.get(receivedKey);
+                if (!receivedProduct) {
+                    receivedProduct = {
+                        key: receivedKey,
+                        workspaceKey: source.key,
+                        owner: allocationSourceOwner(source),
+                        source,
+                        category,
+                        unit: explainUnit(category).name,
+                        groupIds: [],
+                        start: Number.POSITIVE_INFINITY,
+                        end: Number.NEGATIVE_INFINITY,
+                        grants: [],
+                        raw: allocationEmptyAmounts(),
+                        amounts: allocationEmptyAmounts(),
+                        states: new Set(),
+                    };
+                    receivedProducts.set(receivedKey, receivedProduct);
+                }
+                if (parent.group.id !== undefined) receivedProduct.groupIds.push(parent.group.id);
+                allocationAddAmounts(receivedProduct.raw, groupAmounts);
+                const activeCount = parent.group.allocations.filter(allocation =>
+                    !allocation.retired && allocation.startDate <= now && allocation.endDate > now
+                ).length;
+                const estimate = category.accountingModel === "CONSUMPTION" && activeCount > 0 ?
+                    groupAmounts.activeUsed * explainUnit(category).balanceFactor / activeCount : undefined;
+                const packages = new Map<string, Allocation[]>();
+                for (const allocation of parent.group.allocations) {
+                    const grantKey = allocation.allocationPackage && allocation.grantedIn != null ?
+                        `package:${receivedGroupKey}/${allocation.grantedIn}` : `allocation:${allocation.id}`;
+                    const entries = packages.get(grantKey) ?? [];
+                    entries.push(allocation);
+                    packages.set(grantKey, entries);
+                }
+                for (const [grantKey, allocations] of packages) {
+                    const slices = allocations.map(allocation => allocationNormalizeSlice(allocation, category, now))
+                        .sort((a, b) => a.start - b.start || a.allocationId - b.allocationId);
+                    for (const slice of slices) {
+                        if (slice.attribution === "pooled" && slice.end > now) slice.estimatedUsed = estimate;
+                    }
+                    const first = allocations[0];
+                    const grant = allocationSummarizeGrant({
+                        key: `${receivedGroupKey}/${grantKey}`,
+                        grantId: first.grantedIn ?? undefined,
+                        sliced: first.allocationPackage === true,
+                    }, slices);
+                    receivedProduct.grants.push(grant);
+                    receivedProduct.start = Math.min(receivedProduct.start, grant.start);
+                    receivedProduct.end = Math.max(receivedProduct.end, grant.end);
+                }
+            }
         }
         incoming.activeUsed = wallet.activeUsage ?? incoming.activeUsed;
         incoming.activeBalance = incoming.activeQuota - incoming.activeUsed;
@@ -418,7 +534,20 @@ export function allocationNormalize(wallets: WalletV2[], now: number): Allocatio
         product.amounts = allocationDisplayAmounts(product.raw, product.category);
         product.states = allocationProductStates(product, now);
     }
-    return {now, products: [...products.values()], received};
+
+    for (const product of receivedProducts.values()) {
+        product.grants.sort((a, b) => a.start - b.start || a.allocationId - b.allocationId);
+        product.amounts = allocationDisplayAmounts(product.raw, product.category);
+        product.maxUsable = product.amounts.activeBalance;
+        product.states = allocationProductStates(product, now);
+    }
+
+    return {
+        now,
+        products: [...products.values()],
+        received,
+        receivedProducts: [...receivedProducts.values()],
+    };
 }
 
 export function allocationWorkspaceInfo(
@@ -438,13 +567,35 @@ export function allocationWorkspaceInfo(
     };
 }
 
+export function allocationProductWorkspaceInfo(
+    product: AllocationModelProduct,
+    projectInfo: Record<string, ProjectInfo | null>,
+) {
+    if (product.source) {
+        if (product.source.type === "project") {
+            return {
+                ...allocationWorkspaceInfo(product.owner, projectInfo),
+                id: product.source.key,
+            };
+        }
+        return {
+            title: product.source.title,
+            pi: product.source.pi,
+            type: product.source.type,
+            id: product.source.key,
+        };
+    }
+    return allocationWorkspaceInfo(product.owner, projectInfo);
+}
+
 export function allocationSelectProducts(
     model: AllocationModel,
     selection: AllocationProductSelection,
+    products: AllocationModelProduct[] = model.products,
 ): AllocationModelProduct[] {
     const range = allocationDateRangeBounds(selection.dateRange);
     const needle = selection.query?.trim().toLowerCase() ?? "";
-    return model.products.filter(product => {
+    return products.filter(product => {
         if (!selection.personalWorkspaces && product.owner.reference.type === "user") return false;
         const categoryKey = `${product.category.provider}/${product.category.name}`;
         if (selection.categories?.length && !selection.categories.includes(categoryKey)) return false;
@@ -454,7 +605,7 @@ export function allocationSelectProducts(
             allocationOverlapsRange(slice.start, slice.end - 1, range)
         ));
         if (!overlaps) return false;
-        const workspace = allocationWorkspaceInfo(product.owner, selection.projectInfo ?? {});
+        const workspace = allocationProductWorkspaceInfo(product, selection.projectInfo ?? {});
         const text = [
             workspace.title,
             workspace.pi,
@@ -463,8 +614,8 @@ export function allocationSelectProducts(
         ].join(" ").toLowerCase();
         return needle === "" || text.includes(needle);
     }).sort((a, b) => {
-        const aWorkspace = allocationWorkspaceInfo(a.owner, selection.projectInfo ?? {});
-        const bWorkspace = allocationWorkspaceInfo(b.owner, selection.projectInfo ?? {});
+        const aWorkspace = allocationProductWorkspaceInfo(a, selection.projectInfo ?? {});
+        const bWorkspace = allocationProductWorkspaceInfo(b, selection.projectInfo ?? {});
         return aWorkspace.title.localeCompare(bWorkspace.title) || allocationCompareProducts(a.category, b.category);
     });
 }

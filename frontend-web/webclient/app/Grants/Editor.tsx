@@ -1756,7 +1756,7 @@ export function Editor(): React.ReactNode {
                 if (result) {
                     state.allocators = []; // clearing, since we are repopulating the list
                     if (isGrantGiverInitiated) {
-                        navigate(AppRoutes.accounting.allocations());
+                        navigate(AppRoutes.accounting.subAllocations());
                         return true;
                     }
                     dispatchEvent({type: "Init", grantId: result.id});

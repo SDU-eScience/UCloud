@@ -126,7 +126,7 @@ func AccountingScenariosMain(args []string) {
 		}
 		fmt.Printf("%s: %d checkpoints passed\nProject: %s (%s)\nSnapshots and resource manifest: %s\n",
 			name, len(result.Checkpoints), result.ProjectInfo[result.ProjectId].Title, result.ProjectId, path)
-		fmt.Println("Open /app/allocations in this project.")
+		fmt.Println("Open /app/allocations/sub-allocated in this project.")
 		fmt.Println("Load the JSON on /app/playground/allocations to inspect the checkpoints.")
 		for _, checkpoint := range result.Checkpoints {
 			if len(checkpoint.ChecksByProject) > 0 {

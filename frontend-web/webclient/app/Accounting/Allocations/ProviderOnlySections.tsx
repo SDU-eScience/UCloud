@@ -551,7 +551,7 @@ export const RootAllocationSections: React.FunctionComponent<{
                 <ul>
                     <li>You can see this because you are part of a provider project</li>
                     <li>You must create a root allocation to be able to use your provider</li>
-                    <li>Once created, you can see the root allocations in the "Your allocations" panel</li>
+                    <li>Once created, you can see the root allocations on the "Received" page</li>
                 </ul>
             </div>
 

@@ -1,5 +1,7 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useReducer, useRef, useState} from "react";
+import {useLocation} from "react-router-dom";
+import AppRoutes from "@/Routes";
 import {MainContainer} from "@/ui-components";
 import {useProjectId} from "@/Project/Api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -33,8 +35,16 @@ const Allocations: React.FunctionComponent = () => {
     const project = projectState.fetch();
     const projectRole = project.status.myRole ?? OldProjectRole.USER;
     const listRef = useRef<VariableSizeList<number[]>>(null);
+    const location = useLocation();
+    const subAllocated = location.pathname.endsWith("/sub-allocated") ||
+        location.pathname === AppRoutes.accounting.allocationsDemo();
+    const providerTools = location.pathname.endsWith("/provider-tools");
+    const received = !providerTools && !subAllocated;
 
-    usePage("Allocations", SidebarTabId.PROJECT);
+    usePage(
+        providerTools ? "Gifts and root allocations" : received ? "Received allocations" : "Allocations",
+        SidebarTabId.PROJECT,
+    );
 
     useEffect(() => {
         dispatchEvent({type: "Reset"});
@@ -42,10 +52,19 @@ const Allocations: React.FunctionComponent = () => {
     }, [projectId]);
 
     const subProjectIds = useMemo(() => {
-        return state.subAllocations.recipients
-            .filter(it => it.owner.reference.type === "project")
-            .map(it => it.owner.reference["projectId"] as string)
-    }, [state.subAllocations]);
+        const ids = new Set<string>();
+        for (const recipient of state.subAllocations.recipients) {
+            if (recipient.owner.reference.type === "project") {
+                ids.add(recipient.owner.reference.projectId);
+            }
+        }
+        for (const wallet of state.remoteData.wallets ?? []) {
+            for (const group of wallet.allocationGroups) {
+                if (group.parent?.projectId) ids.add(group.parent.projectId);
+            }
+        }
+        return [...ids];
+    }, [state.subAllocations, state.remoteData.wallets]);
 
     const projectInfo = useProjectInfos(subProjectIds);
     useEffect(() => {
