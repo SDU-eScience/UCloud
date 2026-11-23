@@ -8,6 +8,10 @@
   - [Platform API Tokens](./overview/platform-api-tokens.md)
   - [Provider API Tokens](./overview/provider-api-tokens.md)
 - [Accounting](./overview/accounting.md)
+  - [Fundamentals](./overview/accounting/model.md)
+  - [Graph and flow internals](./overview/accounting/graph-flow.md)
+  - [Allocation retirement](./overview/accounting/retirement.md)
+  - [Examples and edge cases](./overview/accounting/examples.md)
 - [Orchestration](./overview/orchestration.md)
 - [Frontend](./dev/frontend-development.md)
 

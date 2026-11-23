@@ -8,15 +8,31 @@ import (
 	"ucloud.dk/shared/pkg/util/mermaid"
 )
 
-var veryLargeNumber = (&big.Int{}).Lsh(big.NewInt(1), 110)
-
+// Graph is an operation-local residual graph. Building or changing a Graph does not itself change accounting state;
+// lInternalReportUsage copies resulting flow on original allocation-group edges back into TreeUsage and ChildrenUsage.
+// Synthetic over-allocation edges are derived from unpropagated usage and are never persisted as allocation flow.
 type Graph struct {
-	VertexCount    int
-	Adjacent       [][]int64           // residual capacities
-	Cost           [][]*big.Int        // per-edge costs (signed)
-	Original       [][]bool            // marks "original" edges
-	VertexToWallet []AccWalletId       // vertex -> wallet
-	WalletToVertex map[AccWalletId]int // wallet -> vertex
+	// VertexCount includes wallet vertices and, when enabled, synthetic over-allocation vertices.
+	VertexCount int
+
+	// Adjacent contains residual capacity, not total allocation quota. For an original parent-to-child group edge, the
+	// forward value is unused contributing quota and the reverse value is current TreeUsage.
+	Adjacent [][]int64
+
+	// Cost contains signed per-edge routing preferences. Reverse edges always have the negated forward cost.
+	Cost [][]*big.Int
+
+	// Original marks parent-to-child allocation-group edges. Reverse residual and synthetic over-allocation edges are not
+	// original, even when they currently have nonzero capacity.
+	Original [][]bool
+	Floor    [][]int64
+
+	// VertexToWallet maps ordinary wallet vertices to wallet IDs. With over-allocation vertices enabled, this slice covers
+	// the ordinary half only; the synthetic half uses the corresponding ordinary-wallet position.
+	VertexToWallet []AccWalletId
+
+	// WalletToVertex maps wallet IDs, including internalGraphRoot, to their ordinary graph vertex.
+	WalletToVertex map[AccWalletId]int
 }
 
 // Graph builder
@@ -27,6 +43,7 @@ func NewGraph(vertexCount int) *Graph {
 	adj := make([][]int64, vertexCount)
 	cost := make([][]*big.Int, vertexCount)
 	orig := make([][]bool, vertexCount)
+	floor := make([][]int64, vertexCount)
 
 	for i := 0; i < vertexCount; i++ {
 		adj[i] = make([]int64, vertexCount)
@@ -37,6 +54,7 @@ func NewGraph(vertexCount int) *Graph {
 		}
 
 		orig[i] = make([]bool, vertexCount)
+		floor[i] = make([]int64, vertexCount)
 	}
 
 	return &Graph{
@@ -44,6 +62,7 @@ func NewGraph(vertexCount int) *Graph {
 		Adjacent:       adj,
 		Cost:           cost,
 		Original:       orig,
+		Floor:          floor,
 		VertexToWallet: nil,
 		WalletToVertex: make(map[AccWalletId]int),
 	}
@@ -53,11 +72,6 @@ func NewGraph(vertexCount int) *Graph {
 func (g *Graph) AddEdge(source, destination int, capacity, flow int64) {
 	g.Adjacent[source][destination] = capacity
 	g.Adjacent[destination][source] = flow
-
-	midway := g.VertexCount / 2
-	if source < midway && destination < midway {
-		g.Original[source][destination] = true
-	}
 }
 
 // AddEdgeCost sets a signed cost on the given edge and the opposite sign on the reverse edge.
@@ -144,7 +158,7 @@ func (g *Graph) notVisited(node int, path []int) bool {
 
 func (g *Graph) leastExpensivePath(source, destination int) (*big.Int, []int) {
 	parent := make([]int, g.VertexCount)
-	minCost := (&big.Int{}).Set(veryLargeNumber)
+	var minCost *big.Int
 
 	queue := [][]int{{source}}
 
@@ -161,8 +175,8 @@ func (g *Graph) leastExpensivePath(source, destination int) (*big.Int, []int) {
 			}
 			avg := (&big.Int{}).Div(sum, big.NewInt(int64(len(path)-1)))
 
-			if avg.Cmp(minCost) < 0 {
-				minCost.Set(avg)
+			if minCost == nil || avg.Cmp(minCost) < 0 {
+				minCost = (&big.Int{}).Set(avg)
 				for i := len(path) - 1; i >= 1; i-- {
 					parent[path[i]] = path[i-1]
 				}
@@ -190,7 +204,7 @@ func (g *Graph) MinCostFlow(source, destination int, desiredFlow int64) int64 {
 
 	for actualFlow < desiredFlow {
 		pathCost, parent := g.leastExpensivePath(source, destination)
-		if pathCost.Cmp(veryLargeNumber) == 0 { // no more paths
+		if pathCost == nil {
 			break
 		}
 

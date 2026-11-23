@@ -53,14 +53,21 @@ const testResource = "test"
 func initResourceTest(t *testing.T) {
 	resourceGlobals.Testing.Enabled = true
 	InitResources()
-	InitResourceType(testResource, 0, nil, nil, func(r orcapi.Resource, specification orcapi.ResourceSpecification, extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
-		d := extra.(*TestResourceData)
-		return TestResource{
-			Resource: r,
-			Status:   d.A + d.B,
-			Labels:   specification.Labels,
-		}
-	}, nil)
+	InitResourceType(
+		testResource,
+		0,
+		nil,
+		nil,
+		func(r orcapi.Resource, specification orcapi.ResourceSpecification, extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
+			d := extra.(*TestResourceData)
+			return TestResource{
+				Resource: r,
+				Status:   d.A + d.B,
+				Labels:   specification.Labels,
+			}
+		},
+		nil,
+	)
 
 	rpc.LookupActor = func(username string) (rpc.Actor, bool) {
 		actorsMutex.Lock()
@@ -520,7 +527,7 @@ func TestResourceRemovesDeletedProjectGroupFromAcl(t *testing.T) {
 
 	resource := resourceGetBucket(testResource, id).Resources[id]
 	resourceRemoveGroupFromAcls("deleted-group")
-	assert.Equal(t, 2, len(resource.Acl))
+	assert.Equal(t, 1, len(resource.Acl))
 }
 
 func TestResourceBrowseFilterLabels(t *testing.T) {

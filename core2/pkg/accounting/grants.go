@@ -349,7 +349,7 @@ func grantsReadEx(actor rpc.Actor, action grantAuthType, b *grantAppBucket, id a
 			}
 		}
 
-		for grantGiver, _ := range grantGivers {
+		for grantGiver := range grantGivers {
 			if actor.Membership[rpc.ProjectId(grantGiver)].Satisfies(rpc.ProjectRoleAdmin) {
 				roles = append(roles, grantActorRoleApprover)
 			}
@@ -782,7 +782,7 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		if len(grantGivers) != 1 {
 			err = util.HttpErr(http.StatusForbidden, "invalid allocation request")
 		} else {
-			for grantGiver, _ := range grantGivers {
+			for grantGiver := range grantGivers {
 				grantGiverInitiatedId = grantGiver
 				break
 			}
@@ -951,7 +951,7 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		app.Application.Status.OverallState = accapi.GrantApplicationStateInProgress
 
 		breakdown := []accapi.GrantGiverApprovalState{}
-		for grantGiver, _ := range grantGivers {
+		for grantGiver := range grantGivers {
 			breakdown = append(breakdown, accapi.GrantGiverApprovalState{
 				ProjectId:     grantGiver,
 				State:         accapi.GrantApplicationStateInProgress,
@@ -986,7 +986,7 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 	{
 		// Receiver indexing. Also runs for existing applications, since a revision (e.g. a transfer) can
 		// introduce grant givers which have not previously seen the application.
-		for grantGiver, _ := range grantGivers {
+		for grantGiver := range grantGivers {
 			idxB := grantGetIdxBucket(grantGiver, true)
 			idxB.Mu.Lock()
 			if !slices.Contains(idxB.ApplicationsByEntity[grantGiver], id) {
@@ -1389,7 +1389,7 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 			allApproved := true
 			anyUpdated := false
 
-			for i, _ := range app.Application.Status.StateBreakdown {
+			for i := range app.Application.Status.StateBreakdown {
 				breakdown := &app.Application.Status.StateBreakdown[i]
 
 				if breakdown.ProjectId == string(actor.Project.Value) {
@@ -1713,7 +1713,10 @@ func grantSearchFuzzily(searchTerm []string) []string {
 		comments.SetFuzziness(2)
 		comments.SetBoost(2)
 
-		searchQueries = append(searchQueries, bleve.NewDisjunctionQuery(createdByPrefixQ, createdBy, createdByQuery, recipientTitle, recipientTitleQuery, recipientId, referenceIds, comments))
+		searchQueries = append(
+			searchQueries,
+			bleve.NewDisjunctionQuery(createdByPrefixQ, createdBy, createdByQuery, recipientTitle, recipientTitleQuery, recipientId, referenceIds, comments),
+		)
 	}
 	req := bleve.NewSearchRequest(bleve.NewDisjunctionQuery(searchQueries...))
 
@@ -1913,7 +1916,8 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 	walletHasAllocationInDefaultWindow := func(wallet accapi.WalletV2) bool {
 		for _, group := range wallet.AllocationGroups {
 			for _, alloc := range group.Group.Allocations {
-				if !alloc.Retired && (alloc.StartDate.Time().Before(defaultAvailabilityHorizon) || alloc.StartDate.Time().Equal(defaultAvailabilityHorizon)) && alloc.EndDate.Time().After(now) {
+				if !alloc.Retired && (alloc.StartDate.Time().Before(defaultAvailabilityHorizon) || alloc.StartDate.Time().Equal(defaultAvailabilityHorizon)) &&
+					alloc.EndDate.Time().After(now) {
 					return true
 				}
 			}
@@ -1970,7 +1974,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 	for _, b := range grantGlobals.SettingBuckets {
 		b.Mu.RLock()
 		grantGivers := make([]string, 0, len(b.PublicGrantGivers))
-		for grantGiver, _ := range b.PublicGrantGivers {
+		for grantGiver := range b.PublicGrantGivers {
 			if _, ok := parents[grantGiver]; !ok {
 				grantGivers = append(grantGivers, grantGiver)
 			}
@@ -1982,7 +1986,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 		}
 	}
 
-	for parent, _ := range parents {
+	for parent := range parents {
 		if parent != "" {
 			lAddPotentialGrantGiver(parent)
 		}
@@ -2112,7 +2116,7 @@ func GrantsBrowseEnabledProjects(actor rpc.Actor) ([]accapi.ProjectToSetting, *u
 
 	for _, bucket := range grantGlobals.SettingBuckets {
 		bucket.Mu.Lock()
-		for project, _ := range bucket.PublicGrantGivers {
+		for project := range bucket.PublicGrantGivers {
 			settingsFromBucket, ok := bucket.Settings[project]
 			if ok && settingsFromBucket.Settings.Enabled {
 				projectSettings := settingsFromBucket.lDeepCopy()
@@ -2298,6 +2302,11 @@ func lGrantsAwardResources(app *grantApplication) {
 
 	accOwner := internalOwnerByReference(owner.Reference()).Id
 	grantedIn := app.lId()
+	type createdAllocation struct {
+		bucket *internalBucket
+		id     accAllocId
+	}
+	var createdAllocations []createdAllocation
 
 	requests := app.Application.CurrentRevision.Document.AllocationRequests
 	for _, req := range requests {
@@ -2320,12 +2329,17 @@ func lGrantsAwardResources(app *grantApplication) {
 		parentOwner := internalOwnerByReference(req.GrantGiver).Id
 		parentWallet := internalWalletByOwner(accBucket, now, parentOwner)
 
-		_, err = internalAllocateNoCommit(now, accBucket, start, end, quota, wallet, parentWallet, util.OptValue(grantedIn))
+		var allocationId accAllocId
+		allocationId, err = internalAllocateNoCommit(now, accBucket, start, end, quota, wallet, parentWallet, util.OptValue(grantedIn))
 		if err != nil {
-			// This only happens in case of bad input. It should never happen. Not doing a panic here to avoid
-			// potential infinite allocations (from the retry loop)
 			log.Warn("could not allocate resources in %s: %s", app.Application.Id, err.Error())
+			for i := len(createdAllocations) - 1; i >= 0; i-- {
+				created := createdAllocations[i]
+				internalRollbackAllocation(created.bucket, created.id)
+			}
+			return
 		}
+		createdAllocations = append(createdAllocations, createdAllocation{bucket: accBucket, id: allocationId})
 	}
 
 	app.Awarded = true
@@ -2477,10 +2491,12 @@ func initGrants() {
 			return util.Empty{}, GrantsTransfer(info.Actor, request)
 		})
 
-		accapi.RetrieveGrantGivers.Handler(func(info rpc.RequestInfo, request accapi.RetrieveGrantGiversRequest) (accapi.RetrieveGrantGiversResponse, *util.HttpError) {
-			grantGivers, err := GrantsRetrieveGrantGivers(info.Actor, request)
-			return accapi.RetrieveGrantGiversResponse{GrantGivers: grantGivers}, err
-		})
+		accapi.RetrieveGrantGivers.Handler(
+			func(info rpc.RequestInfo, request accapi.RetrieveGrantGiversRequest) (accapi.RetrieveGrantGiversResponse, *util.HttpError) {
+				grantGivers, err := GrantsRetrieveGrantGivers(info.Actor, request)
+				return accapi.RetrieveGrantGiversResponse{GrantGivers: grantGivers}, err
+			},
+		)
 
 		accapi.GrantsPostComment.Handler(func(info rpc.RequestInfo, request accapi.GrantsPostCommentRequest) (fndapi.FindByStringId, *util.HttpError) {
 			id, err := GrantsPostComment(info.Actor, request)
@@ -2499,19 +2515,21 @@ func initGrants() {
 			return GrantsRetrieveSettings(info.Actor, false, "")
 		})
 
-		accapi.GrantsRetrieveRequestSettingsAdmin.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (accapi.GrantRequestSettings, *util.HttpError) {
-			if info.Actor.Role != rpc.RoleAdmin {
-				return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "Permission denied - need to be admin to use this endpoint")
-			}
-			projectExists := false
-			db.NewTx0(func(tx *db.Transaction) {
-				_, projectExists = coreutil.ProjectRetrieveFromDatabase(tx, request.Id)
-			})
-			if !projectExists {
-				return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusBadRequest, "Project does not exist")
-			}
-			return GrantsRetrieveSettings(info.Actor, true, request.Id)
-		})
+		accapi.GrantsRetrieveRequestSettingsAdmin.Handler(
+			func(info rpc.RequestInfo, request fndapi.FindByStringId) (accapi.GrantRequestSettings, *util.HttpError) {
+				if info.Actor.Role != rpc.RoleAdmin {
+					return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "Permission denied - need to be admin to use this endpoint")
+				}
+				projectExists := false
+				db.NewTx0(func(tx *db.Transaction) {
+					_, projectExists = coreutil.ProjectRetrieveFromDatabase(tx, request.Id)
+				})
+				if !projectExists {
+					return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusBadRequest, "Project does not exist")
+				}
+				return GrantsRetrieveSettings(info.Actor, true, request.Id)
+			},
+		)
 
 		accapi.GrantsBrowseEnabledProjects.Handler(func(info rpc.RequestInfo, request util.Empty) ([]accapi.ProjectToSetting, *util.HttpError) {
 			return GrantsBrowseEnabledProjects(info.Actor)

@@ -18,6 +18,7 @@ type env struct {
 	Bucket        *internalBucket
 	diagram       *os.File
 	TimeInMinutes bool
+	Reference     *environmentReference
 }
 
 var capacityCategory = accapi.ProductCategory{
@@ -50,24 +51,21 @@ var timeCategory = accapi.ProductCategory{
 	AllowSubAllocations: true,
 }
 
-// New returns a fresh env for the given category.
-func newEnv(t *testing.T, cat accapi.ProductCategory) *env {
+// New returns a fresh env for the given category. Reference comparison is enabled
+// by default; pass false only for a documented reference limitation.
+func newEnv(t *testing.T, cat accapi.ProductCategory, compareReference ...bool) *env {
 	accGlobals.TestingEnabled = true
 	close(providerWalletNotifications)
 	providerWalletNotifications = make(chan AccWalletId, 128)
+	notifications := providerWalletNotifications
 	go func() {
-		for {
-			_, ok := <-providerWalletNotifications
-			if !ok {
-				break
-			}
+		for range notifications {
 		}
 	}()
 	t.Helper()
 
 	accGlobals.OwnersByReference = map[string]*internalOwner{}
 	accGlobals.OwnersById = map[accOwnerId]*internalOwner{}
-	accGlobals.Usage = map[string]*scopedUsage{}
 	accGlobals.BucketsByCategory = map[accapi.ProductCategoryIdV2]*internalBucket{}
 
 	internalBucketOrInit(capacityCategory)
@@ -81,7 +79,11 @@ func newEnv(t *testing.T, cat accapi.ProductCategory) *env {
 
 	f, _ := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0660)
 
-	return &env{t: t, Bucket: b, diagram: f}
+	e := &env{t: t, Bucket: b, diagram: f}
+	if len(compareReference) == 0 || compareReference[0] {
+		e.Reference = newEnvironmentReference(e)
+	}
+	return e
 }
 
 func (e *env) Tm(t int) time.Time {
@@ -124,6 +126,10 @@ func (e *env) AllocateEx(now, start, end int, quota int64, recipientRef, parentR
 	if err != nil {
 		e.t.Fatalf("allocate: %v", err)
 	}
+	internalCommitAllocation(e.Bucket, e.Tm(now), id)
+	if e.Reference != nil {
+		e.Reference.allocate(e, id, e.Tm(now))
+	}
 	return id
 }
 
@@ -148,10 +154,16 @@ func (e *env) report(at int, ownerRef string, delta bool, usage int64, scope ...
 	if _, err := internalReportUsage(e.Tm(at), req); err != nil {
 		e.t.Fatalf("report usage: %v", err)
 	}
+	if e.Reference != nil {
+		e.Reference.report(e, req, e.Tm(at))
+	}
 }
 
 func (e *env) Scan(at int) {
 	internalScanAllocations(e.Bucket, e.Tm(at))
+	if e.Reference != nil {
+		e.Reference.scan(e, e.Tm(at))
+	}
 }
 
 func (e *env) Expect(ownerRef string, wantUsage int64, wantLocked bool) {
@@ -210,7 +222,15 @@ func assertEqualMaxUsable(t *testing.T, e *env, owner string, want int64) {
 	}
 }
 
-func (e *env) UpdateAllocation(t *testing.T, owner *internalOwner, now int, allocationId accAllocId, newQuota util.Option[int64], newStart util.Option[fndapi.Timestamp], newEnd util.Option[fndapi.Timestamp]) *util.HttpError {
+func (e *env) UpdateAllocation(
+	t *testing.T,
+	owner *internalOwner,
+	now int,
+	allocationId accAllocId,
+	newQuota util.Option[int64],
+	newStart util.Option[fndapi.Timestamp],
+	newEnd util.Option[fndapi.Timestamp],
+) *util.HttpError {
 	_, _, err := internalUpdateAllocation(owner, e.Tm(now), e.Bucket, allocationId, newQuota, newStart, newEnd, "testing")
 	return err
 }
