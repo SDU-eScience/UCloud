@@ -1215,9 +1215,7 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
             <Button
                 type="button"
                 color="successMain"
-                disabled={previewMode
-                    ? anyError || isLoading || !sshValid || isMissingConnection || props.previewRendering === true
-                    : anyError}
+                disabled={anyError || isLoading || !sshValid || isMissingConnection || (previewMode && props.previewRendering === true)}
                 onClick={() => void submitJob(false)}
             >
                 {previewMode && props.previewRendering ? <UcxSpinner size={16} color="white" margin="0 8px 0 0" /> : (
