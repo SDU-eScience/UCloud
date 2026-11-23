@@ -229,6 +229,7 @@ func (app *k8sApp) UserInterface() ucx.UiNode {
 			ucx.SxFlexDirectionColumn,
 			ucx.SxGap(24),
 		).Children(
+			ucx.Warning("The Kubernetes platform is currently available in beta. Keep a separate backup of important data."),
 			app.cardMetadata(),
 			app.cardControlPlane(),
 			app.cardWorkerPools(),
@@ -689,7 +690,7 @@ func (app *k8sApp) OnMessage(msg ucx.Frame) {
 
 func k8sVersionOptions() []ucx.Option {
 	now := time.Now().UTC()
-	releases := shared.Releases(now, shared.ReleaseFlagSupported)
+	releases := shared.ReleasesNewestPatchPerMinor(shared.Releases(now, shared.ReleaseFlagSupported))
 
 	options := make([]ucx.Option, 0, len(releases))
 	for _, release := range releases {

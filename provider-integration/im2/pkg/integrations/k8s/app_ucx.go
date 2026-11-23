@@ -281,7 +281,7 @@ func ucxOnConnect(conn *ws.Conn) {
 				return ucxapi.Stack{}, err.AsError()
 			}
 			instanceFolder := filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", instanceId)
-			if err = filesystem.DoCreateFolder(instanceFolder); err != nil {
+			if err = filesystem.DoCreateFolderAs(rpc.Actor{Username: info.Owner.CreatedBy}, instanceFolder); err != nil {
 				return ucxapi.Stack{}, err.AsError()
 			}
 			var ok bool
@@ -290,12 +290,6 @@ func ucxOnConnect(conn *ws.Conn) {
 				return ucxapi.Stack{}, fmt.Errorf("internal error")
 			}
 		}
-
-		filesystem.ActivityRecord(rpc.Actor{Username: info.Owner.CreatedBy}, filesystem.ActivityEvent{
-			Kind:      filesystem.ActivityDirect,
-			Operation: filesystem.ActivityOperationCreate,
-			Targets:   []filesystem.ActivityTarget{{UCloudPath: ucloudPath}},
-		})
 
 		id, err := orcapi.StacksControlRequestDeletion.Invoke(orcapi.StacksControlRequestDeletionRequest{
 			Id:             instanceId,
@@ -571,7 +565,7 @@ func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, state
 		drive = memberDrive
 		requestedPath = filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", instanceId)
 	}
-	if err := filesystem.DoCreateFolder(requestedPath); err != nil {
+	if err := filesystem.DoCreateFolderAs(rpc.Actor{Username: owner.CreatedBy}, requestedPath); err != nil {
 		return util.Empty{}, err.AsError()
 	}
 
@@ -590,16 +584,8 @@ func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, state
 	}
 
 	parentPath := util.Parent(requestedPath)
-	if err := filesystem.DoCreateFolder(parentPath); err != nil {
+	if err := filesystem.DoCreateFolderAs(rpc.Actor{Username: owner.CreatedBy}, parentPath); err != nil {
 		return util.Empty{}, err.AsError()
-	}
-
-	if ucloudPath, ok := filesystem.InternalToUCloudWithDrive(drive, parentPath); ok {
-		filesystem.ActivityRecord(rpc.Actor{Username: owner.CreatedBy}, filesystem.ActivityEvent{
-			Kind:      filesystem.ActivityDirect,
-			Operation: filesystem.ActivityOperationCreate,
-			Targets:   []filesystem.ActivityTarget{{UCloudPath: ucloudPath}},
-		})
 	}
 
 	file, ok := filesystem.OpenFile(requestedPath, unix.O_CREAT|unix.O_WRONLY|writeFlag, perm)
@@ -612,6 +598,14 @@ func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, state
 	_, gerr := file.Write(data)
 	if gerr != nil {
 		return util.Empty{}, fmt.Errorf("unable to write data: %s", gerr)
+	}
+
+	if ucloudPath, ok := filesystem.InternalToUCloudWithDrive(drive, requestedPath); ok {
+		filesystem.ActivityRecord(rpc.Actor{Username: owner.CreatedBy}, filesystem.ActivityEvent{
+			Kind:      filesystem.ActivityDirect,
+			Operation: filesystem.ActivityOperationCreate,
+			Targets:   []filesystem.ActivityTarget{{UCloudPath: ucloudPath}},
+		})
 	}
 
 	return util.Empty{}, nil
@@ -627,16 +621,13 @@ func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Applica
 	}
 	serviceName := deploymentName
 	selector := ucxSelectorLabels(deploymentName)
-	inDevelopmentMode := ucxDevelopmentModePath(app)
 	cacheCurrentPath := util.OptNone[string]()
-	if !inDevelopmentMode.Present {
-		if app.Invocation.Ucx.Present && app.Invocation.Ucx.Value.Executable.Present {
-			path, err := ucxdelivery.ExecutablePath(app.Metadata.Name, app.Metadata.Version)
-			if err != nil {
-				return "", "", err
-			}
-			cacheCurrentPath.Set(path)
+	if app.Invocation.Ucx.Present && app.Invocation.Ucx.Value.Executable.Present {
+		path, err := ucxdelivery.ExecutablePath(app.Metadata.Name, app.Metadata.Version)
+		if err != nil {
+			return "", "", err
 		}
+		cacheCurrentPath.Set(path)
 	}
 
 	isRunning, err := ucxDeploymentRunning(ctx, namespace, deploymentName)
@@ -646,7 +637,7 @@ func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Applica
 	}
 
 	if !isRunning {
-		invocation, err := renderUcxInvocationScript(app, inDevelopmentMode.Present)
+		invocation, err := renderUcxInvocationScript(app)
 		if err != nil {
 			return "", "", err
 		}
@@ -662,7 +653,7 @@ func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Applica
 			return "", "", err
 		}
 
-		if err := ensureUcxDeployment(ctx, namespace, deploymentName, image, script, selector, inDevelopmentMode, cacheCurrentPath, app.Metadata.Name, app.Metadata.Version, authToken); err != nil {
+		if err := ensureUcxDeployment(ctx, namespace, deploymentName, image, script, selector, cacheCurrentPath, app.Metadata.Name, app.Metadata.Version, authToken); err != nil {
 			log.Warn("UCX provider: failed ensuring deployment %s/%s: %v", namespace, deploymentName, err)
 			return "", "", err
 		}
@@ -737,7 +728,6 @@ func ensureUcxDeployment(
 	image string,
 	script string,
 	selector map[string]string,
-	developmentModeSubPath util.Option[string],
 	cacheCurrentPath util.Option[string],
 	appName string,
 	appVersion string,
@@ -745,24 +735,6 @@ func ensureUcxDeployment(
 ) error {
 	volumes := []k8score.Volume{}
 	volumeMounts := []k8score.VolumeMount{}
-
-	if developmentModeSubPath.Present {
-		volumes = append(volumes, k8score.Volume{
-			Name: "ucloud-filesystem",
-			VolumeSource: k8score.VolumeSource{
-				PersistentVolumeClaim: &k8score.PersistentVolumeClaimVolumeSource{
-					ClaimName: shared.ServiceConfig.FileSystem.ClaimName,
-				},
-			},
-		})
-
-		volumeMounts = append(volumeMounts, k8score.VolumeMount{
-			Name:      "ucloud-filesystem",
-			MountPath: "/opt/ucloud",
-			SubPath:   developmentModeSubPath.Value,
-			ReadOnly:  true,
-		})
-	}
 
 	if cacheCurrentPath.Present {
 		cacheParent := filepath.Dir(cacheCurrentPath.Value)
@@ -960,7 +932,7 @@ func findReadyUcxPod(ctx context.Context, namespace string, selector map[string]
 	return pods.Items[0].Name, nil
 }
 
-func renderUcxInvocationScript(app *orcapi.Application, inDevelopmentMode bool) (string, error) {
+func renderUcxInvocationScript(app *orcapi.Application) (string, error) {
 	template := ""
 	for _, parameter := range app.Invocation.Invocation {
 		if parameter.Type == orcapi.InvocationParameterTypeJinja {
@@ -975,7 +947,6 @@ func renderUcxInvocationScript(app *orcapi.Application, inDevelopmentMode bool) 
 
 	jinjaContext := exec.NewContext(map[string]any{
 		"ucloud": map[string]any{
-			"ucxDevelopmentMode": inDevelopmentMode,
 			"application": map[string]any{
 				"name":    app.Metadata.Name,
 				"version": app.Metadata.Version,
@@ -1084,15 +1055,4 @@ func ucxSelectorLabels(deploymentName string) map[string]string {
 	return map[string]string{
 		"ucloud.dk/ucx-deployment": deploymentName,
 	}
-}
-
-func ucxDevelopmentModePath(app *orcapi.Application) util.Option[string] {
-	developmentEntries := shared.ServiceConfig.Compute.Ucx.Development
-	for _, entry := range developmentEntries {
-		if entry.Name == app.Metadata.Name && entry.Version == app.Metadata.Version {
-			return util.OptValue(entry.SubPath.GetOrDefault(shared.ExecutablesDir))
-		}
-	}
-
-	return util.OptNone[string]()
 }

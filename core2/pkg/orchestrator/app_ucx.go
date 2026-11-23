@@ -156,7 +156,12 @@ func initAppUcx() {
 				}
 			} else {
 				slices.Sort(providers)
-				reqInfo.Provider.Set(providers[0])
+				for _, provider := range providers {
+					if slices.Contains(providersToSkip, provider) {
+						continue
+					}
+					reqInfo.Provider.Set(provider)
+				}
 			}
 
 			client, ok := providerClient(reqInfo.Provider.Value)

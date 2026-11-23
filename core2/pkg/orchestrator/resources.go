@@ -522,15 +522,8 @@ func resourcesReadEx(
 	}
 
 	if ok && allowPublicRead && r.PublicRead && typeName == containerRepositoryType {
-		publicErr := coreutil.FeatureIsEnabledForOwner(
-			r.Owner.CreatedBy,
-			r.Owner.Project.GetOrDefault(""),
-			fndapi.FeatureContainerRepositories,
-		)
-		if publicErr == nil {
-			publicOnly = len(permissions) == 0
-			permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionRead)
-		}
+		publicOnly = len(permissions) == 0
+		permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionRead)
 	}
 
 	if ok && !slices.Contains(permissions, requiredPermission) {

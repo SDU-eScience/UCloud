@@ -81,7 +81,7 @@ func (app *InferencePlaygroundApp) playgroundToolDefinitions() []InferenceChatTo
 	}
 
 	tools := []InferenceChatTool{
-		playgroundToolDefinition("bash", "Run a non-interactive shell command in a sandboxed environment for calculations and deterministic analysis.", map[string]any{
+		playgroundToolDefinitionWithOptionalFields("bash", "Run a non-interactive shell command in a sandboxed environment for calculations and deterministic analysis.", map[string]any{
 			"command":    map[string]any{"type": "string", "description": "Command to run."},
 			"cwd":        map[string]any{"type": "string", "description": "Optional working directory.", "default": "/"},
 			"timeout_ms": map[string]any{"type": "integer", "description": "Optional timeout in milliseconds.", "default": 60000},
@@ -94,7 +94,7 @@ func (app *InferencePlaygroundApp) playgroundToolDefinitions() []InferenceChatTo
 		}, []string{"reason"}),
 		)
 	} else {
-		tools = append(tools, playgroundToolDefinition(playgroundInternetToolWebFetch, "Fetch a public URL or read a cached document. Returns clean content, estimated token counts and a continuation cursor. Documents expire after 10 minutes. Use query to select relevant sections without an LLM summary. Independent fetches may run concurrently.", map[string]any{
+		tools = append(tools, playgroundToolDefinitionWithOptionalFields(playgroundInternetToolWebFetch, "Fetch a public URL or read a cached document. Returns clean content, estimated token counts and a continuation cursor. Documents expire after 10 minutes. Use query to select relevant sections without an LLM summary. Independent fetches may run concurrently.", map[string]any{
 			"url":         map[string]any{"type": "string", "description": "Public http or https URL. Required unless document_id is supplied."},
 			"format":      map[string]any{"type": "string", "description": "Output format: markdown or html.", "default": "markdown", "enum": []string{"markdown", "html"}},
 			"timeout_ms":  map[string]any{"type": "integer", "description": "Optional timeout in milliseconds, capped server-side.", "default": playgroundWebFetchDefaultTimeoutMs},
@@ -115,6 +115,12 @@ func (app *InferencePlaygroundApp) playgroundToolDefinitions() []InferenceChatTo
 
 func playgroundToolDefinition(name string, description string, properties map[string]any, required []string) InferenceChatTool {
 	return InferenceChatTool{Type: "function", Function: InferenceChatToolFunction{Name: name, Description: description, Strict: util.OptValue(true), Parameters: map[string]any{"type": "object", "properties": properties, "required": required, "additionalProperties": false}}}
+}
+
+func playgroundToolDefinitionWithOptionalFields(name string, description string, properties map[string]any, required []string) InferenceChatTool {
+	tool := playgroundToolDefinition(name, description, properties, required)
+	tool.Function.Strict = util.OptValue(false)
+	return tool
 }
 
 func (app *InferencePlaygroundApp) playgroundToolDispatch(ctx context.Context, threadId string, call InferenceChatToolCall) playgroundToolResult {

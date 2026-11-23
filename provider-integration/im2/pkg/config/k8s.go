@@ -59,6 +59,7 @@ type KubernetesMetadataCatalog struct {
 	EnableIntegration bool
 	IOPS              int
 	ParallelScans     int
+	ParallelLookups   int
 	EntriesPerSSTable int
 }
 
@@ -230,15 +231,8 @@ type KubernetesInferenceAccessConfiguration struct {
 	Testers        []string
 }
 
-type KubernetesUcxDevelopmentApp struct {
-	Name    string              `json:"name" yaml:"name"`
-	Version string              `json:"version" yaml:"version"`
-	SubPath util.Option[string] `json:"subPath" yaml:"subPath"`
-}
-
 type KubernetesUcxConfiguration struct {
-	Development []KubernetesUcxDevelopmentApp `json:"development" yaml:"development"`
-	Publish     map[string][]string           `json:"publish" yaml:"publish"`
+	Publish map[string][]string `json:"publish" yaml:"publish"`
 }
 
 type KubernetesCompute struct {
@@ -455,6 +449,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		cfg.FileSystem.MetadataCatalog.EnableIntegration = util.DevelopmentModeEnabled()
 		cfg.FileSystem.MetadataCatalog.IOPS = 45_000
 		cfg.FileSystem.MetadataCatalog.ParallelScans = 8
+		cfg.FileSystem.MetadataCatalog.ParallelLookups = 32
 		cfg.FileSystem.MetadataCatalog.EntriesPerSSTable = 1024 * 16
 		if metadataNode != nil {
 			if enabled, ok := cfgutil.OptionalChildBool(filePath, metadataNode, "enabled"); ok {
@@ -469,13 +464,16 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			cfg.FileSystem.MetadataCatalog.ParallelScans = int(cfgutil.OptionalChildInt(
 				filePath, metadataNode, "parallelScans", &success,
 			).GetOrDefault(int64(cfg.FileSystem.MetadataCatalog.ParallelScans)))
+			cfg.FileSystem.MetadataCatalog.ParallelLookups = int(cfgutil.OptionalChildInt(
+				filePath, metadataNode, "parallelLookups", &success,
+			).GetOrDefault(int64(cfg.FileSystem.MetadataCatalog.ParallelLookups)))
 			cfg.FileSystem.MetadataCatalog.EntriesPerSSTable = int(cfgutil.OptionalChildInt(
 				filePath, metadataNode, "entriesPerSSTable", &success,
 			).GetOrDefault(int64(cfg.FileSystem.MetadataCatalog.EntriesPerSSTable)))
 		}
 		if cfg.FileSystem.MetadataCatalog.IOPS <= 0 || cfg.FileSystem.MetadataCatalog.ParallelScans < 2 ||
-			cfg.FileSystem.MetadataCatalog.EntriesPerSSTable < 10_000 {
-			cfgutil.ReportError(filePath, fsNode, "metadataCatalog requires positive iops, at least 2 parallelScans, and at least 10000 entriesPerSSTable")
+			cfg.FileSystem.MetadataCatalog.ParallelLookups < 1 || cfg.FileSystem.MetadataCatalog.EntriesPerSSTable < 10_000 {
+			cfgutil.ReportError(filePath, fsNode, "metadataCatalog requires positive iops and parallelLookups, at least 2 parallelScans, and at least 10000 entriesPerSSTable")
 			success = false
 		}
 	}
@@ -539,11 +537,6 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 	ucxNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "ucx")
 	if ucxNode != nil {
-		developmentNode, _ := cfgutil.GetChildOrNil(filePath, ucxNode, "development")
-		if developmentNode != nil {
-			cfgutil.Decode(filePath, developmentNode, &cfg.Compute.Ucx.Development, &success)
-		}
-
 		publishNode, _ := cfgutil.GetChildOrNil(filePath, ucxNode, "publish")
 		if publishNode != nil {
 			cfgutil.Decode(filePath, publishNode, &cfg.Compute.Ucx.Publish, &success)

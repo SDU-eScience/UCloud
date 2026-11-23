@@ -296,17 +296,20 @@ func refreshTrackedApp(ctx context.Context, providerFilesystem string, client *h
 		return refreshResult{}, err
 	}
 
-	binaryBytes, err := FetchAndVerifyBinary(ctx, client, manifest)
-	if err != nil {
-		return refreshResult{}, err
-	}
-
 	updated, err := currentNeedsUpdate(result.CurrentPath, manifest.Sha256)
 	if err != nil {
 		return refreshResult{}, err
 	}
 	result.Manifest = manifest
 	result.Updated = updated
+
+	var binaryBytes []byte
+	if updated {
+		binaryBytes, err = FetchAndVerifyBinary(ctx, client, manifest)
+		if err != nil {
+			return refreshResult{}, err
+		}
+	}
 
 	if err := os.MkdirAll(result.AppDirectory, 0755); err != nil {
 		return refreshResult{}, err

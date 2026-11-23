@@ -29,7 +29,7 @@ import {ThemeColor} from "@/ui-components/theme";
 import {Application, ApplicationParameter, NameAndVersion} from "@/Applications/AppStoreApi";
 import {BackgroundTask} from "@/Services/BackgroundTasks/BackgroundTask";
 import {openCreateApplicationVariant} from "@/Applications/Jobs/CreateApplicationVariant";
-import {Feature, hasFeature} from "@/Features";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 export interface DynamicParameters {
     parametersByProvider: Record<string, ApplicationParameter[]>;
@@ -362,9 +362,8 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
                 if (selected.length !== 1) return false;
                 const job = selected[0];
                 const support = job.status.resolvedSupport?.support as ComputeSupport | undefined;
-                return hasFeature(Feature.APPLICATION_FLAVORS) &&
-                    job.status.state === "RUNNING" &&
-                    job.owner.project != null &&
+                return job.status.state === "RUNNING" &&
+                    (job.owner.project != null || job.owner.createdBy === Client.username) &&
                     job.permissions.myself.includes("EDIT") &&
                     job.status.resolvedApplication?.invocation.tool.tool?.description.backend === "DOCKER" &&
                     support?.docker.applicationVariants === true &&
@@ -372,7 +371,10 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             },
             icon: "heroSquare3Stack3D",
             onClick: ([job], callbacks) => {
-                openCreateApplicationVariant(job, request => callbacks.invokeCommand<BackgroundTask>(this.createApplicationVariant(request)));
+                openCreateApplicationVariant(job, request => callbacks.invokeCommand<BackgroundTask>({
+                    ...this.createApplicationVariant(request),
+                    projectOverride: job.owner.project ?? "",
+                }));
             },
             text: "Save as flavor",
         });

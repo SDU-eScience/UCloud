@@ -135,8 +135,7 @@ const Core = (): React.ReactNode => {
                     <Route path={"/drives/*"} element={React.createElement(requireAuth(DrivesRouter))} />
                     <Route path={AppRoutes.files.visualize()} element={React.createElement(requireAuth(FilesVisualization))} />
                     <Route path="/files/*" element={React.createElement(requireAuth(FilesRouter))} />
-                    {hasFeature(Feature.CONTAINER_REPOSITORIES) ?
-                        <Route path={`${AppRoutes.containerRepositories.browse()}/*`} element={React.createElement(requireAuth(ContainerRepositoryBrowse))} /> : null}
+                    <Route path={`${AppRoutes.containerRepositories.browse()}/*`} element={React.createElement(requireAuth(ContainerRepositoryBrowse))} />
 
                     <Route path={AppRoutes.users.registration()} element={<Registration />} />
                     <Route path={AppRoutes.users.verifyEmail()} element={<VerifyEmail />} />

@@ -138,7 +138,7 @@ func PrivateNetworkInit() {
 
 	controller.PrivateNetworkConfigureDatabase(settings)
 
-	if err := privateNetworkRequireCrds(); err != nil {
+	if err := privateNetworkRequireCrdsWithWait(); err != nil {
 		log.Fatal("Private networks are enabled but required Kubernetes APIs are unavailable: %s", err)
 	}
 
@@ -176,6 +176,20 @@ var privateNetworkVmGvr = schema.GroupVersionResource{
 
 var privateNetworkVmiGvr = schema.GroupVersionResource{
 	Group: "kubevirt.io", Version: "v1", Resource: "virtualmachineinstances",
+}
+
+func privateNetworkRequireCrdsWithWait() error {
+	deadline := time.Now().Add(60 * time.Second)
+	for {
+		err := privateNetworkRequireCrds()
+		if err == nil {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(time.Second)
+	}
 }
 
 func privateNetworkRequireCrds() error {

@@ -229,15 +229,10 @@ const sideBarMenuElements: SidebarMenuElements[] = [
             {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.project.allocations()},
             {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicLinks()},
             {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
-            {icon: "heroServer", label: SidebarTabId.COMPUTE, to: AppRoutes.compute.jobs()}
+            {icon: "heroServer", label: SidebarTabId.COMPUTE, to: AppRoutes.compute.jobs()},
+            {icon: "heroSparkles", label: SidebarTabId.INFERENCE, to: AppRoutes.inference.models()}
         ],
         predicate: () => Client.isLoggedIn
-    },
-    {
-        items: [
-            {icon:"heroSparkles", label: SidebarTabId.INFERENCE, to: AppRoutes.inference.models()},
-        ],
-        predicate: () => Client.isLoggedIn && hasFeature(Feature.INFERENCE)
     },
     {
         items: [
@@ -444,12 +439,12 @@ function sidebarSubEntries(canApply: boolean, isPersonalWorkspace: boolean, proj
                 icon: "ftFileSystem",
                 tab: SidebarTabId.FILES
             },
-            ...(hasFeature(Feature.CONTAINER_REPOSITORIES) ? [{
+            {
                 to: AppRoutes.containerRepositories.browse(),
                 text: "Container repositories",
                 icon: "heroArchiveBox" as IconName,
                 tab: SidebarTabId.FILES,
-            }] : []),
+            },
             ...(isPersonalWorkspace ? sharesLinksInfo : [])
         ],
         [SidebarTabId.PROJECT]: projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId),
@@ -849,16 +844,12 @@ const ComputeSubLinksEntries: LinkInfo[] = [{
     text: "Jobs",
     icon: "heroServer",
     tab: SidebarTabId.COMPUTE,
+}, {
+    to: AppRoutes.compute.stacks(),
+    text: "Stacks",
+    icon: "heroServerStack",
+    tab: SidebarTabId.COMPUTE,
 }];
-
-if (hasFeature(Feature.STACKS)) {
-    ComputeSubLinksEntries.push({
-        to: AppRoutes.compute.stacks(),
-        text: "Stacks",
-        icon: "heroServerStack",
-        tab: SidebarTabId.COMPUTE,
-    });
-}
 
 function projectSidebarSubLinks(canApply: boolean, isPersonalWorkspace: boolean, projectId?: string): LinkInfo[] {
     const tab = SidebarTabId.PROJECT;
@@ -1196,15 +1187,13 @@ function SecondarySidebar({
                     tab={SidebarTabId.FILES}
                 />
 
-                {!hasFeature(Feature.CONTAINER_REPOSITORIES) ? null : <>
-                    <SidebarSectionHeader tab={SidebarTabId.FILES} to={AppRoutes.containerRepositories.browse()}>Registries</SidebarSectionHeader>
-                    <SidebarEntry
-                        to={AppRoutes.containerRepositories.browse()}
-                        text="Container registry"
-                        icon="heroArchiveBox"
-                        tab={SidebarTabId.FILES}
-                    />
-                </>}
+                <SidebarSectionHeader tab={SidebarTabId.FILES} to={AppRoutes.containerRepositories.browse()}>Registries</SidebarSectionHeader>
+                <SidebarEntry
+                    to={AppRoutes.containerRepositories.browse()}
+                    text="Container registry"
+                    icon="heroArchiveBox"
+                    tab={SidebarTabId.FILES}
+                />
 
             </>}
 

@@ -56,8 +56,9 @@ The application holds a catalog of pinned k3s releases. A release records the ex
 
 | Release | Channel | Available from | Support ends |
 |---------|---------|----------------|--------------|
-| `v1.36.4+k3s1` | stable | 22 April 2026 | 22 June 2027 |
-| `v1.35.8+k3s1` | stable | 17 December 2025 | 17 February 2027 |
+| `v1.37.2+k3s1` | stable | 26 August 2026 | 26 October 2027 |
+| `v1.36.6+k3s1` | stable | 22 April 2026 | 22 June 2027 |
+| `v1.35.10+k3s1` | stable | 17 December 2025 | 17 February 2027 |
 
 - A new cluster selects a release that is inside its support window. When no release qualifies, the application falls
   back to the stable releases.

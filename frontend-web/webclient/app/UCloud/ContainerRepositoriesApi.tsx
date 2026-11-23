@@ -23,7 +23,6 @@ import {Toggle} from "@/ui-components/Toggle";
 export interface ContainerRepositorySpecification extends ResourceSpecification {
     name: string;
     public?: boolean;
-    publicAccessEnabled?: boolean;
 }
 
 export interface UpdateContainerRepositoryPublicRequest {
@@ -175,28 +174,24 @@ const api = new ContainerRepositoriesApi();
 export function ContainerRepositoryPublicAccessControl({
     checked,
     onChange,
-    enabled = true,
     disabled = false,
 }: {
     checked: boolean;
     onChange: (checked: boolean) => void;
-    enabled?: boolean;
     disabled?: boolean;
 }): React.ReactNode {
     return <Flex alignItems={"center"} justifyContent={"space-between"} gap={"16px"}>
         <Box minWidth={0}>
             <Label>Public access</Label>
             <Text>
-                {enabled
-                    ? "Allow anyone to pull images by a known tag in the entire repository. Public access does not permit browsing or listing image tags."
-                    : "Public access is not enabled for this workspace."}
+                Allow anyone to pull images by a known tag in the entire repository. Public access does not permit browsing or listing image tags.
             </Text>
         </Box>
         <Box flexShrink={0}>
             <Toggle
                 checked={checked}
                 onChange={() => onChange(!checked)}
-                disabled={disabled || !enabled}
+                disabled={disabled}
             />
         </Box>
     </Flex>;
@@ -208,14 +203,13 @@ export function ContainerRepositoryPublicAccess({repository, reload}: {
 }): React.ReactNode {
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [publicAccess, setPublicAccess] = React.useState(repository.specification.public === true);
-    const publicAccessEnabled = repository.specification.publicAccessEnabled !== false;
 
     React.useEffect(() => {
         setPublicAccess(repository.specification.public === true);
     }, [repository]);
 
     const update = async (next: boolean) => {
-        if (commandLoading || !publicAccessEnabled) return;
+        if (commandLoading) return;
         const previous = publicAccess;
         setPublicAccess(next);
         try {
@@ -237,7 +231,6 @@ export function ContainerRepositoryPublicAccess({repository, reload}: {
         <ContainerRepositoryPublicAccessControl
             checked={publicAccess}
             onChange={update}
-            enabled={publicAccessEnabled}
             disabled={commandLoading}
         />
     </Box>;

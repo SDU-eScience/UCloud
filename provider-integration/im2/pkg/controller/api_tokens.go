@@ -212,7 +212,7 @@ func ApiTokenValidate(kind string, key string) (ApiTokenAuthentication, *util.Ht
 			Permissions json.RawMessage
 			TokenHash   []byte
 			TokenSalt   []byte
-			ExpiresAt   time.Time
+			ExpiresAt   sql.Null[time.Time]
 		}
 		row, ok := db.NewTx2(func(tx *db.Transaction) (rowType, bool) {
 			return db.Get[rowType](
@@ -256,7 +256,7 @@ func ApiTokenValidate(kind string, key string) (ApiTokenAuthentication, *util.Ht
 			Owner:       row.Owner,
 			CreatedBy:   row.CreatedBy.V,
 			Permissions: permissions,
-			ExpiresAt:   row.ExpiresAt,
+			ExpiresAt:   row.ExpiresAt.V,
 		}, nil
 	})
 
@@ -264,7 +264,7 @@ func ApiTokenValidate(kind string, key string) (ApiTokenAuthentication, *util.Ht
 		return ApiTokenAuthentication{}, util.HttpErr(http.StatusForbidden, "invalid key")
 	}
 
-	if !time.Now().Before(authentication.ExpiresAt) {
+	if !authentication.ExpiresAt.IsZero() && !time.Now().Before(authentication.ExpiresAt) {
 		apiTokensCache.Invalidate(cacheKey)
 		apiTokenIdToCacheKey.Invalidate(tokenId)
 		return ApiTokenAuthentication{}, util.HttpErr(http.StatusForbidden, "invalid key")

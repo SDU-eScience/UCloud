@@ -1,6 +1,7 @@
 package filesystem
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -99,6 +100,9 @@ func WriteFileAtomic(path string, data []byte, perm uint32) *util.HttpError {
 		return err
 	}
 
+	_, statErr := os.Stat(path)
+	created := errors.Is(statErr, os.ErrNotExist)
+
 	tmpPath := filepath.Join(filepath.Dir(path), fmt.Sprintf(".%s.tmp-%s", filepath.Base(path), util.RandomToken(16)))
 	tmpFile, ok := OpenFile(tmpPath, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL, perm)
 	if !ok {
@@ -130,6 +134,9 @@ func WriteFileAtomic(path string, data []byte, perm uint32) *util.HttpError {
 	if err := unix.Renameat(int(parent.Fd()), filepath.Base(tmpPath), int(parent.Fd()), filepath.Base(path)); err != nil {
 		deleteTemporaryFile(tmpPath)
 		return util.UserHttpError("Could not write file")
+	}
+	if created {
+		activityRecordCreatedPath(path)
 	}
 	return nil
 }

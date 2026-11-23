@@ -95,6 +95,7 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 		if err := filesystem.MetadataConfigureCatalog(filesystem.MetadataCatalogConfig{
 			IOPS:              metadataConfig.IOPS,
 			ParallelScans:     metadataConfig.ParallelScans,
+			ParallelLookups:   metadataConfig.ParallelLookups,
 			EntriesPerSSTable: metadataConfig.EntriesPerSSTable,
 		}); err != nil {
 			log.Warn("Unable to configure metadata catalog: %s", err)

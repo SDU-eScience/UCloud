@@ -95,7 +95,6 @@ import {ApplicationForkAction} from "@/Applications/Creator/ForkAction";
 import {customApplicationsEnabled, customAppsWorkspaceAdmin} from "@/Applications/AppStoreApi";
 import {ApplicationGroupLogoDialog, CustomGroupEditDialog, defaultApplicationGroupLogo} from "@/Applications/ProceduralLogo";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {Feature, hasFeature} from "@/Features";
 
 interface InsufficientFunds {
     why?: string;
@@ -125,16 +124,16 @@ const EstimatesContainerClass = injectStyle("estimates-container", k => `
     ${k} {
         margin-top: 0;
     }
-    
+
     ${k} table {
         width: 100%;
     }
-    
+
     ${k} th {
         text-align: left;
         padding-right: 10px;
     }
-    
+
     ${k} td {
         font-variant-numeric: tabular-nums;
         text-align: right;
@@ -664,6 +663,9 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
         ev.stopPropagation();
         const elem = ev.target as HTMLSelectElement;
         const value = elem.value;
+
+        const oldSettings = {...emailNotifications};
+
         switch (value) {
             case "never": {
                 emailNotifications.settings.jobStarted = false;
@@ -687,13 +689,14 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
             }
         }
 
-        setEmailNotifications(emailNotifications);
+        setEmailNotifications({...emailNotifications});
 
         const wasSuccessful = await invokeCommand(toggleEmailSettings(bulkRequestOf({
             settings: emailNotifications.settings
         }))) !== null;
 
         if (!wasSuccessful) {
+            setEmailNotifications(oldSettings);
             sendFailureNotification("Failed to update user email settings");
         } else {
             sendSuccessNotification("User email settings updated");
@@ -863,7 +866,7 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
     const doLoadParameters = useCallback(async (importedJob: Partial<JobSpecification>, initialImport?: boolean) => {
         if (application == null) return;
         const values = importedJob.parameters ?? {};
-        const importedCacheSetting = hasFeature(Feature.APPLICATION_FLAVORS) ? values.ucCacheInitScript : undefined;
+        const importedCacheSetting = values.ucCacheInitScript;
         setCacheInitScript(importedCacheSetting?.type === "boolean" && importedCacheSetting.value === true);
         const resources = importedJob.resources ?? [];
 
@@ -1438,7 +1441,7 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
                                                 setErrors={setErrors}
                                                 application={application}
                                                 bindLinkToPort={bindLinkToPort}
-                                                initScriptCache={!hasFeature(Feature.APPLICATION_FLAVORS) || param.name !== "initScript" || !cacheInitScriptParameter ? undefined : {
+                                                initScriptCache={param.name !== "initScript" || !cacheInitScriptParameter ? undefined : {
                                                     parameter: cacheInitScriptParameter,
                                                     enabled: cacheInitScript,
                                                     onChange: enabled => {

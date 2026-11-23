@@ -243,7 +243,7 @@ func repositoryOnDeleted(repository *orc.ContainerRepository) {
 }
 
 func repositoryCanRead(repository orc.ContainerRepository, owner orc.ResourceOwner) bool {
-	publicRead := repository.Specification.Public && repository.Specification.PublicAccessEnabled
+	publicRead := repository.Specification.Public
 	return publicRead ||
 		controller.ResourceCanUse(owner, repository.Owner, repository.Permissions, true)
 }

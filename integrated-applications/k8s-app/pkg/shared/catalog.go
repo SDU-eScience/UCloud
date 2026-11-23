@@ -20,16 +20,23 @@ type K3sRelease struct {
 
 var K3sCatalog = []K3sRelease{
 	{
-		Release:       "v1.36.4+k3s1",
-		Sha256Amd64:   "835873f37245fc615f547a2fe2af9402a347875f13fa64a1f136de644955ea3f",
-		Sha256Arm64:   "c920706346d5ad4e5cd3c7bf1bb09ce71ebe07fec829e513e40f1caf98aed8bb",
+		Release:       "v1.37.2+k3s1",
+		Sha256Amd64:   "265b3ee6a3198ef14033c63ef46cbb32370d83795199fb6d1b01f21575eddbda",
+		Sha256Arm64:   "a779ccf1e5e2e33a62f5a29c2f1c0bbf99431e100579d4c10f0aa0742a6aa84b",
+		SupportedFrom: time.Date(2026, 8, 26, 0, 0, 0, 0, time.UTC),
+		EolAt:         time.Date(2027, 10, 26, 0, 0, 0, 0, time.UTC),
+	},
+	{
+		Release:       "v1.36.6+k3s1",
+		Sha256Amd64:   "66ceb8e67edfa547195135d74783bfadc2ecc04a91059e90ae5f70a3dbc98c15",
+		Sha256Arm64:   "49dcecdb4f64f5e92bdc52d204d407fb39729e492f09074488125ee58b6f2895",
 		SupportedFrom: time.Date(2026, 4, 22, 0, 0, 0, 0, time.UTC),
 		EolAt:         time.Date(2027, 6, 22, 0, 0, 0, 0, time.UTC),
 	},
 	{
-		Release:       "v1.35.8+k3s1",
-		Sha256Amd64:   "12f81c9bb5b71e098a4f7a2d187e350902a9339a6c3d5e56c20a03f7a417e07f",
-		Sha256Arm64:   "898476e008704289382377ef19946f23b511cf2678042cb5c8aef991e64f840a",
+		Release:       "v1.35.10+k3s1",
+		Sha256Amd64:   "5cd49f0faca5b2ea4355d4761e7b1445b8aa05cd50e612fd9c370551db49e5e2",
+		Sha256Arm64:   "0c780ef4b6275bd27c77ed64a647fa1d859b1bd60597ad420f3243c261e5ffb6",
 		SupportedFrom: time.Date(2025, 12, 17, 0, 0, 0, 0, time.UTC),
 		EolAt:         time.Date(2027, 2, 17, 0, 0, 0, 0, time.UTC),
 	},
@@ -72,12 +79,30 @@ func Releases(now time.Time, flags ReleaseFlag) []K3sRelease {
 		}
 	}
 
-	sort.Slice(result, func(i, j int) bool {
+	sort.SliceStable(result, func(i, j int) bool {
 		left, _ := version.ParseSemantic(result[i].Release)
 		right, _ := version.ParseSemantic(result[j].Release)
 		return left.GreaterThan(right)
 	})
 
+	return result
+}
+
+func ReleasesNewestPatchPerMinor(releases []K3sRelease) []K3sRelease {
+	seen := make(map[string]bool, len(releases))
+	result := make([]K3sRelease, 0, len(releases))
+	for _, release := range releases {
+		parsed, err := version.ParseSemantic(release.Release)
+		if err != nil {
+			continue
+		}
+		minor := fmt.Sprintf("%d.%d", parsed.Major(), parsed.Minor())
+		if seen[minor] {
+			continue
+		}
+		seen[minor] = true
+		result = append(result, release)
+	}
 	return result
 }
 

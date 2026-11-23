@@ -58,7 +58,6 @@ import * as JobViz from "@/Applications/Jobs/JobViz"
 import {VirtualMachineStatus} from "@/Applications/Jobs/VirtualMachines";
 import {openCreateApplicationVariant} from "@/Applications/Jobs/CreateApplicationVariant";
 import {BackgroundTask} from "@/Services/BackgroundTasks/BackgroundTask";
-import {Feature, hasFeature} from "@/Features";
 
 export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
@@ -1680,9 +1679,9 @@ const RunningButtonGroup: React.FunctionComponent<{
     const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
     const supportTerminal = !jobAuditLogIsEnabled && isSupported(backendType, support, "terminal");
-    const supportVariants = hasFeature(Feature.APPLICATION_FLAVORS) && backendType === "DOCKER" &&
+    const supportVariants = backendType === "DOCKER" &&
         support?.docker.applicationVariants === true && support?.docker.containerSnapshots === true &&
-        job.owner.project != null && job.permissions.myself.includes("EDIT");
+        (job.owner.project != null || job.owner.createdBy === Client.username) && job.permissions.myself.includes("EDIT");
 
     let defaultInterfaceId = interfaceLinks.findIndex(link => !link.target && link.rank === 0);
 
@@ -1724,7 +1723,10 @@ const RunningButtonGroup: React.FunctionComponent<{
     return <div className={"top-buttons"}>
         {!supportVariants ? null : <Button onClick={() => openCreateApplicationVariant(
             job,
-            request => callAPI<BackgroundTask>(JobsApi.createApplicationVariant(request)),
+            request => callAPI<BackgroundTask>({
+                ...JobsApi.createApplicationVariant(request),
+                projectOverride: job.owner.project ?? "",
+            }),
         )}>
             <Icon name="heroSquare3Stack3D" />
             <div style={{minWidth: "130px", maxWidth: "164px"}}><Truncate>Save as flavor</Truncate></div>

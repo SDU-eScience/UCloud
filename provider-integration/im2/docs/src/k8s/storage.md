@@ -109,6 +109,7 @@ services:
       enableIntegration: false
       iops: 45000
       parallelScans: 8
+      parallelLookups: 32
       entriesPerSSTable: 16384
 
 ```
@@ -127,6 +128,9 @@ The metadata catalog stores one index per underlying drive. Searches and visuali
 underlying index but return paths relative to the share. Catalogs are stored in `metadata-catalog` under the configured
 mount point. Run only one provider process with access to this directory, including during deployment and workspace
 cleanup.
+
+The `parallelLookups` setting limits concurrent entry metadata lookups across all scans. The `iops` limit remains shared
+across scans.
 
 The `enabled` and `enableIntegration` settings control the following modes:
 
