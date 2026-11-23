@@ -41,15 +41,17 @@ Helper functions to create an `APICallParameters`-object exist that map to diffe
 Example usage:
 
 ```typescript
-export function usageReportRetrieve(request: {start: number; end: number;}): APICallParameters<{start: number; end: number;}> {
-    return apiRetrieve(request, "/api/usageReport");
+export function browse(req: PaginationRequestV2 & Flags & SortFlags): APICallParameters<PaginationRequestV2 & Flags, PageV2<Res>> {
+    return apiBrowse(req, this.baseContext);
 }
 
 function Component(): React.ReactNode {
     /* Code */
     
     React.useEffect(() => {
-        callAPI(usageReportRetrieve({start: 0, end: new Date().getTime()})).then(result => {
+        callAPI(browse({
+            itemsPerPage: 250
+        })).then(result => {
             /* Do stuff with result */
         });
     });
@@ -58,8 +60,23 @@ function Component(): React.ReactNode {
 }
 ```
 
-`callAPI` takes authentication into account. This also includes refreshing tokens when expired, and automically logging the user out, if the the tokens have been invalidated.
-Relevant code can be found in [Authentication/DataHook.ts](https://github.com/sdu-eScience/UCloud/tree/master/frontend-web/webclient/app/Authentication/DataHook.ts)
+The functions maps to the backend RPC-library, that has explicit handling of namespace, HTTP method, and the allowed roles. Below is a mapping to how it would be defined in the backend as an endpoint.
+
+```go
+var ResourceBrowse = rpc.Call[ResourceBrowseRequest, fnd.PageV2[Resource]]{
+	BaseContext: resourceNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Roles:       rpc.RolesEndUser,
+}
+```
+
+The `BaseContext` is the path of the resource type. For the Jobs-api, the it would be "jobs". The `Convention` is the kind of request, e.g. Create, Retrieve, Delete, Browse. The above example is `ConventionBrowse`, as it browses a list of resources, while `ConventionRetrieve` would return a single item. `Roles` denotes the role with the least privilege that can make use of the endpoint.
+
+Additional fields are omitted above, but are available for more specificity. For a full list of fields, see [here](https://github.com/SDU-eScience/UCloud/blob/master/provider-integration/shared/pkg/rpc/00_module.go#L150).
+
+`callAPI` takes authentication into account. This also includes refreshing tokens when expired, and automically logging the user out, if the the tokens have been invalidated. Relevant code can be found in [Authentication/DataHook.ts](https://github.com/sdu-eScience/UCloud/tree/master/frontend-web/webclient/app/Authentication/DataHook.ts).
+
+The `APICallParameters`
 
 ### `fetch`
 

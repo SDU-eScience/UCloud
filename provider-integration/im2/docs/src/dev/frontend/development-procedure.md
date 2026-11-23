@@ -1,5 +1,9 @@
 # Development procedure
 
+## Project structure
+
+The UCloud frontend is found in the [`frontend-web/webclient`](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/). Configuration files, tests and `node_modules` reside at the base, along with the `app` folder containing the code for the web interface. The contents of the `app` folder is subdivided into folders containing different contexts, i.e. resource types and component groupings.
+
 ## Setup and running the UI locally
 
 For a local dev environment, the `launcher`-tool, available in the root folder of the repository, can be run, which will prompt the user to initialize and start the environment.

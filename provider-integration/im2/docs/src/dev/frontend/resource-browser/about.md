@@ -48,15 +48,13 @@ The `renderTitle` or `renderStat[1-4]` methods largely share the same arguments,
 With the container width provided, the implementation of the rendering of the stat can be handled differently, swapping positions for `stat`-entries or render them differently. JobBrowse swaps the stats for smaller screens and renders "Created by" using only the avatar-image without the name, like so:
 
 ```typescript
-(entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => {
-    browser.on("renderStat1", (job, stat, row, size) => {
-        if (size <= ContainerSize.SMALL) {
-            renderCreatedBySmall(job, stat);
-        } else {
-            renderCreatedBy(job, stat);
-        }
-    });
-}
+browser.on("renderStat1", (job, stat, row, size) => {
+    if (size <= ContainerSize.SMALL) {
+        renderCreatedBySmall(job, stat);
+    } else {
+        renderCreatedBy(job, stat);
+    }
+});
 ```
 
 Instead of rendering every item in the viewed page, the Resource Browser uses a similar approach to `react-window`, that is, based on the available space, initializes as many entries that can be visible at any time, plus an additional buffer, in the container. When rendering rows, the rows are reset, and placed relative to their sorting. Each page (See [Page](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/app/UCloud/index.ts#L41)) entry is checked if it is in view, and if so, rendered using the prepared row checked.
@@ -95,7 +93,7 @@ The sort function can now be called using `this.dispatchMessage("sort", fn => fn
 
 ## Resource Browser styling
 
-The Resource Browser has many lines of CSS, which has been extracted into its own file, [ResourceBrowserStyle.ts](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/app/ui-components/ResourceBrowserStyle.ts). The styling relies on `injectStyle` mentioned in [`injectStyle`](../inject-style.md)
+The Resource Browser has many lines of CSS, which has been extracted into its own file, [ResourceBrowserStyle.ts](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/app/ui-components/ResourceBrowserStyle.ts). The styling relies on `injectStyle` described in [`injectStyle`](../inject-style.md).
 
 Changes can be done directly in the Resource Browser, if changes should not persist between components.
 
