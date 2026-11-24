@@ -86,18 +86,18 @@
 # UCloud frontend
 
 - [Frontend](./dev/frontend/frontend.md)
-- [Design system](./dev/frontend/ucloud-design-system.md)
-- [Authentication](./dev/frontend/auth.md)
 - [Architecture](./dev/frontend/frontend-architecture.md)
 - [Network calls](./dev/frontend/network-calls.md)
-- [Styling](./dev/frontend/inject-style.md)
-- [Testing](./dev/frontend/testing.md)
 - [Development procedure](./dev/frontend/development-procedure.md)
+- [Design system](./dev/frontend/ucloud-design-system.md)
+- [Styling](./dev/frontend/inject-style.md)
 
 - [Resource Browser](./dev/frontend/resource-browser/about.md)
     - [Features and operations](./dev/frontend/resource-browser/features-and-operations.md)
     - [Use](./dev/frontend/resource-browser/use.md)
 
+- [Authentication](./dev/frontend/auth.md)
+- [Testing](./dev/frontend/testing.md)
 
 # Style guidelines
 
