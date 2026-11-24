@@ -83,8 +83,10 @@ function AllocationFilterSelect(props: {
         triggerAriaLabel={props.visibility ? "Choose visible columns" : `Filter by ${props.label.toLowerCase()}`}
         width={300}
         focusable
+        isolateKeyboard
         keepOpenOnClick
         colorOnHover={false}
+        hoverColor="rowHover"
         paddingControlledByContent
         data-allocation-filter-control=""
         arrowkeyNavigationKey="data-allocation-filter-option"

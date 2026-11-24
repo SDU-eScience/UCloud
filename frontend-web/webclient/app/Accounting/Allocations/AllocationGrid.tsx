@@ -455,12 +455,6 @@ const AllocationGridClass = injectStyle("allocation-grid", k => `
         width: 14px;
     }
 
-    ${k} [data-ucx-table="allocation-grid"]:focus-visible {
-        outline: 2px solid var(--primaryMain);
-        outline-offset: -2px;
-        border-radius: 8px;
-    }
-
     ${k} [data-has-selection="true"] .streamed-table-scroll tr > :first-child {
         border-right: 0;
     }
@@ -804,16 +798,6 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         }
         return [...wallets.values()];
     }, [mode, rows]);
-
-    const knownWalletKeys = useRef<ReadonlySet<string>>(new Set());
-    useEffect(() => {
-        if (mode !== "received") return;
-        const known = knownWalletKeys.current;
-        const added = walletRows.filter(wallet => !known.has(wallet.key)).map(wallet => wallet.key);
-        knownWalletKeys.current = new Set(walletRows.map(wallet => wallet.key));
-        if (added.length === 0) return;
-        setExpanded(previous => new Set([...previous, ...added]));
-    }, [mode, walletRows]);
 
     const products = useMemo(() => {
         const options = new Map<string, ProductCategoryV2>();

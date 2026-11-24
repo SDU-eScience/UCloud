@@ -64,6 +64,7 @@ export type ClickableDropdownProps<T> = {
     closeFnRef?: React.RefObject<() => void>;
     openFnRef?: React.RefObject<(left: number, top: number) => void>;
     onKeyDown?: (ev: KeyboardEvent) => boolean | void;
+    isolateKeyboard?: boolean;
     focusable?: boolean;
     autoFocus?: boolean;
 } & DataAttributes;
@@ -173,7 +174,8 @@ function ClickableDropdown<T>({
     const counter = useRef(-1);
     const divRef = useRef<HTMLDivElement>(null);
 
-    const handleKeyPress: (ev: KeyboardEvent) => void = useCallback((event): void => {
+    const handleKeyPress = useCallback((event: KeyboardEvent | React.KeyboardEvent): void => {
+        if (props.isolateKeyboard) event.stopPropagation();
         if (props.arrowkeyNavigationKey) {
             const navigationKey = props.arrowkeyNavigationKey ?? "data-active";
             _onKeyDown(event, divRef, counter, navigationKey, props.hoverColor ?? "primaryLight", props.onSelect)
@@ -181,28 +183,29 @@ function ClickableDropdown<T>({
         }
 
         if (event.key === "Escape" && open) {
+            event.preventDefault();
             close();
             focusAfterSelect();
         } else {
-            props.onKeyDown?.(event)
+            props.onKeyDown?.(event instanceof KeyboardEvent ? event : event.nativeEvent);
         }
-    }, [open, focusAfterSelect]);
+    }, [
+        open, close, focusAfterSelect, props.isolateKeyboard, props.arrowkeyNavigationKey,
+        props.hoverColor, props.onSelect, props.onKeyDown,
+    ]);
 
     useEffect(() => {
         counter.current = -1;
     }, [open]);
 
     useEffect(() => {
-        if (open) {
-            document.addEventListener("click", handleClickOutside);
-            divRef.current?.addEventListener("keydown", handleKeyPress);
-        } else {
-            document.removeEventListener("click", handleClickOutside);
-            divRef.current?.removeEventListener("keydown", handleKeyPress);
-        }
+        if (!open) return;
+        const content = divRef.current;
+        document.addEventListener("click", handleClickOutside);
+        content?.addEventListener("keydown", handleKeyPress);
         return () => {
             document.removeEventListener("click", handleClickOutside);
-            divRef.current?.removeEventListener("keydown", handleKeyPress);
+            content?.removeEventListener("keydown", handleKeyPress);
         };
     }, [handleClickOutside, handleKeyPress, open]);
 
@@ -337,6 +340,7 @@ function ClickableDropdown<T>({
             ariaExpanded={props.focusable ? open : undefined}
             autoFocus={props.autoFocus}
             onKeyDown={event => {
+                if (open && props.isolateKeyboard) event.stopPropagation();
                 if (event.key === "Escape" && open) {
                     event.preventDefault();
                     event.stopPropagation();
@@ -345,14 +349,12 @@ function ClickableDropdown<T>({
                     return;
                 }
                 const navigationKey = props.arrowkeyNavigationKey;
-                const arrowKeyPressed = event.key === "ArrowUp" || event.key === "ArrowDown";
-                if (navigationKey && open && arrowKeyPressed && event.target === event.currentTarget) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    _onKeyDown(event, divRef, counter, navigationKey, props.hoverColor ?? "primaryLight", props.onSelect);
+                const navigationPressed = event.key === "ArrowUp" || event.key === "ArrowDown" ||
+                    event.key === "Enter" || event.key === " ";
+                if (navigationKey && open && navigationPressed && event.target === event.currentTarget) {
+                    handleKeyPress(event);
                     return;
                 }
-                if (navigationKey && open && (event.key === "Enter" || event.key === " ")) return;
                 if (!props.focusable || event.target !== event.currentTarget) return;
                 if (event.key !== "Enter" && event.key !== " ") return;
                 if (event.metaKey || event.ctrlKey || event.altKey) return;
@@ -426,7 +428,6 @@ function _onKeyDown(
     // have used the keys yet, so -1 can be the active index.
     index.current = clamp(index.current, -1, listEntries.length - 1);
     if (listEntries.length === 0) return;
-    if (listEntries.length === 1 && (isUp || isDown)) return;
 
     const oldIndex = index.current;
     if (isDown) {
