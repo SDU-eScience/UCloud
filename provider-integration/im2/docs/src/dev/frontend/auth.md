@@ -5,14 +5,16 @@ Authentication the end-user can happen in one of two ways:
 - Authentication with OIDC
 - Authentication with password
 
-A OIDC-user will go through the OIDC-system for initial authentication, while a password user will be be prompted for as username and password directly in the UCloud frontend.
+A OIDC-user will go through the OIDC-system for initial authentication, while a password user will be prompted for a username and password directly in the UCloud frontend.
 
 For a password-user, 2FA is required, and the user will be prompted to enable it on first login, with a challenge every following login. For OIDC users, 2FA is optional, but encouraged.
+
+<figure>
 
 ```mermaid
 flowchart LR
     subgraph loginprocess["UCloud/Frontend login process"]
-        A["User"]:::diagram-external-user
+        A["Unauthorized user"]:::diagram-external-user
         B["Login"]:::diagram-external-window
         C["OIDC"]:::diagram-external-cog-6-tooth
         D["2FA"]:::diagram-external-cog-6-tooth
@@ -26,6 +28,12 @@ flowchart LR
     C -->|Redirected to| E
     C -->|Has 2FA enabled| D
 ```
+
+<figcaption>
+    The login flow for the UCloud frontend.
+</figcaption>
+
+</figure>
 
 ## Sessions and Tokens
 
@@ -142,21 +150,21 @@ single API endpoint should only be accessible to users with a given role.
 
 The table below shows the possible roles for a user accessing the UCloud frontend.
 
-| **Role**   | **Description**                                                       |
-| ---------- | --------------------------------------------------------------------- |
-| `USER`     | A 'normal' end-user                                                   |
-| `ADMIN`    | An administrator of system. Has access to certain privileged actions. |
+| **Role**   | **Description**                                                           |
+| ---------- | --------------------------------------------------------------------------|
+| `USER`     | A 'normal' end-user                                                       |
+| `ADMIN`    | An administrator of the system. Has access to certain privileged actions. |
 
 #### Security Scopes
 
 A security scope in UCloud puts a limit on which calls a JWT can be used for. In order to understand security scopes in
-UCloud we must first understand some of the metadata associated with API endspoints. All API endpoints in UCloud have
+UCloud we must first understand some of the metadata associated with API endpoints. All API endpoints in UCloud have
 metadata associated with them, the table below summarizes the important metadata:
 
 | **Property**      | **Description**                                                                                                                                           |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `namespace`   | Each endpoint belongs to a collection. We refer to the collection's name as the namespace. Namespaces can be hierarchical and are separated by a `.`. |
-| `name`        | A unique name for the API endpoint within it's collection.                                                                                            |
+| `name`        | A unique name for the API endpoint within its collection.                                                                                            |
 | `accessRight` | `read` if the operation is purely read otherwise `write`.                                                                                             |
 
 A security scope is a string combining these three properties in the
@@ -194,8 +202,8 @@ Security scopes are an important part of token extension.
 | `principalType` | The type of users. (wayf/password/service) |
 | `firstNames`    | First name(s).                             |
 | `lastName`      | Last name.                                 |
-| `email`         | The user's e-mail                          |
-| `domain`        | The user's e-mail domain                   |
+| `email`         | The user's email                          |
+| `domain`        | The user's email domain                   |
 | `uid`           | Unique user ID                             |
 | `orgId`         | Organization ID (provided by WAYF)         |
 | `serviceLicenseAgreement` | Indicates if the ToS agreement has been agreed |
@@ -205,5 +213,5 @@ Security scopes are an important part of token extension.
 
 | **Property** | **Description** |
 |--------------|-----------------|
-| `membership` | An object mapping a projects the user is in to their role in the project. |
+| `membership` | An object mapping a project the user is in, to their role in the project. |
 | `groups`     | An object mapping the group-id to the project-id                          |
