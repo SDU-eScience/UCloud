@@ -1,0 +1,15 @@
+.math-display {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    margin: 1.5em 0;
+}
+
+.math-display .katex-display {
+    margin: 0.5em 0;
+}
+
+.math-display .katex,
+.math-inline .katex {
+    font-size: 1.05em;
+}

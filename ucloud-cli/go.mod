@@ -8,6 +8,7 @@ require (
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/gorilla/websocket v1.5.3
 	github.com/stretchr/testify v1.11.1
+	golang.org/x/net v0.55.0
 	gopkg.in/yaml.v3 v3.0.1
 	ucloud.dk/gonja/v2 v2.3.0
 	ucloud.dk/shared v1.0.0

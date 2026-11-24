@@ -9,17 +9,34 @@ a provider.
 
 An allocation implies:
 
-- **Scope:** It applies to a specific product category (e.g., one class of compute vs another).
-- **Validity window:** It has a start and end date; outside that window it is invalid.
+- **Target category:** It applies to a specific product category (e.g., one class of compute vs another).
+- **Validity window:** It has a start and end date. Outside that window it is invalid.
 - **Quota:** It carries a quota that bounds consumption.
 
 UCloud's role is to check that an appropriate allocation exists and to help providers stay informed about quota status.
 Enforcement is ultimately the provider's responsibility, since the provider has the most accurate view of the underlying
 resources and runtime conditions.
 
-Allocations are also hierarchical: a root allocation can be subdivided into child allocations, enabling projects (and
-sub-projects) to delegate budgets to smaller efforts. UCloud allows over-allocation in sub-allocations, but ensures the
-combined usage within an allocation tree cannot exceed the quota defined at the root.
+Allocations are also hierarchical. Projects can divide a root allocation into child allocations and delegate budgets.
+A wallet can receive allocations from several parents, so the structure is a graph rather than a single tree.
+UCloud allows over-allocation, but caps the usage charged through each allocation group at its contributing quota.
+Actual usage can exceed quota. UCloud/Core keeps the reported usage and reports when no additional usable quota remains.
+The provider must enforce the limit on the resources it controls.
+
+## Technical reading guide
+
+These pages describe the Go accounting implementation in `core2/pkg/accounting`.
+They serve both UCloud/Core developers and provider developers.
+
+| Page | Topics |
+|------|--------------|
+| [Fundamentals](./accounting/model.md) | Wallets, allocation groups, usage, quota, and the two accounting modes |
+| [Graph and flow internals](./accounting/graph-flow.md) | Residual edges, routing costs, excess usage, and the code paths |
+| [Allocation retirement](./accounting/retirement.md) | Expiration, retained consumption, capacity renewal, and transition order |
+| [Worked examples and edge cases](./accounting/examples.md) | Numerical examples, complex graphs, corrections, retries, and failure boundaries |
+
+The pages distinguish model rules from implementation behavior and limits.
+Examples use accounting units directly. They do not include product-price conversion or provider-side measurements.
 
 ## Requesting and granting allocations
 
@@ -34,7 +51,7 @@ workspace/project should receive resources, the allocation period, and which pro
 
 <figcaption>
 
-UCloud has an advanced system for managing resource allocations. This system used in combination with UCloud/IM allows
+UCloud has an advanced system for managing resource allocations. This system, used in combination with UCloud/IM, allows
 for fully automatic management of users, projects and resource allocations.
 
 </figcaption>
@@ -42,18 +59,18 @@ for fully automatic management of users, projects and resource allocations.
 
 The process is as follows:
 
-1. **A user submits a grant application.** The application describes the project and along with it a
+1. **A user submits a grant application.** The application describes the project and, along with it, a
    request for resources at one or more service providers. At this point, because the user has no resources
    at `HPC system` they cannot consume any of the resources. Not until a user has been granted a resource allocation can
    they use a service provider.
 
-2. **A grant-approver decides to accept the application.**  Who can approve application is up to the service provider. A
-   service provider can decide to manage all applications themselves, or they can delegate this responsibility to
+2. **A grant-approver decides to accept the application.** Who can approve an application is up to the service provider. A
+   service provider can decide to manage all applications itself, or it can delegate this responsibility to
    someone else.
 
 3. **The resources created from the successful application are registered in UCloud/Core.**
 
-4. **UCloud/Core notifies the service provider.** Whenever a workspace is updated with respect to their resource
+4. **UCloud/Core notifies the service provider.** Whenever a workspace is updated with respect to its resource
    allocations, a notification is sent to the service provider. The message is intercepted and
    handled by UCloud/IM (Server). A user mapping is not yet established.
 
@@ -66,7 +83,7 @@ The process is as follows:
 
 ## Products
 
-UCloud models products as the concrete resources that service providers make available through the platform. Products
+UCloud models products as the concrete resources that service providers make available through the platform. Product
 categories are the units that users request through grants, that are allocated to personal workspaces or projects, and
 that are later consumed when running applications or storing data. Each product is identified within the context of the
 provider and the category it belongs to, which allows multiple providers to offer similar kinds of resources without
@@ -79,22 +96,26 @@ accounting and policy rules stable.
 
 UCloud supports the following product types:
 
-- **Compute products** represent execution capacity. They typically describe machine resources such as processing power
-  memory and optional accelerators.
+- **Compute products** represent execution capacity. They typically describe machine resources such as processing power,
+  memory, and optional accelerators.
 - **Storage products** represent data capacity. They are usually constrained by quotas and may be allocated as a fixed
   amount or accounted for over time depending on provider policy.
 - **Public link products** represent access to DNS entries.
 - **License products** represent access to licensed software.
+- **Inference products** represent inference credits.
 - **Network IP** products represent networking resources such as public IP addresses.
+- **Private network products** represent isolated private networks.
+- **Private network IP products** represent reserved private network IP addresses.
+- **Service products** represent load-balanced services.
 
 Accounting is defined at the category level rather than per product. Each category specifies the unit used to measure
-consumption and whether usage is charged once or over time. This makes it possible to support time based resources
-capacity based resources and fixed assets within a single accounting framework.
+consumption and whether usage is charged once or over time. This makes it possible to support time-based resources,
+capacity-based resources, and fixed assets within a single accounting framework.
 
 Products are best illustrated by taking a concrete example for compute products. A product category or, as we will refer
-to them in this context, a machine type is the unit for which you can receive a resource allocation. Machine types
-bundle together machines that have similar hardware. For example, if a system have three types of nodes in the HPC
-system then at least three different machine types are required. A machine type defines several machine slices, also
+to it in this context, a machine type is the unit for which you can receive a resource allocation. Machine types
+bundle together machines that have similar hardware. For example, if a system has three types of nodes in the HPC
+system, then at least three different machine types are required. A machine type defines several machine slices, also
 known as a _product_ in the rest of UCloud. Such a slice describes the concrete specification of the slice which
 includes the number of cores, the amount of RAM and the number of GPUs connected to it.
 
@@ -105,7 +126,7 @@ includes the number of cores, the amount of RAM and the number of GPUs connected
 
 <figcaption>
 
-Machines types (`ProductCategory`) and machine slices (`Product`) define the services of a provider. 
+Machine types (`ProductCategory`) and machine slices (`Product`) define the services of a provider.
 
 </figcaption>
 </figure>
@@ -114,16 +135,16 @@ Machines types (`ProductCategory`) and machine slices (`Product`) define the ser
 
 The shared names of the platform are in the [glossary](../glossary.md).
 
-The relevant code can be found in the Core and in the shared project. We recommend you start here:
+The relevant code can be found in UCloud/Core and in the shared project. We recommend you start here:
 
 - **API and models:**
-    - **Products:** `shared/accounting/products.go`
-    - **Accounting:** `shared/accounting/accounting.go`
-    - **Grants:** `shared/accounting/grants.go`
+    - **Products:** `provider-integration/shared/pkg/accounting/products.go`
+    - **Accounting:** `provider-integration/shared/pkg/accounting/accounting.go`
+    - **Grants:** `provider-integration/shared/pkg/accounting/grants.go`
 - **Implementation:**
-    - **Products:** `core2/accounting/products.go`
-    - **Accounting:** `core2/accounting/accounting_internal.go`
-    - **Grants:** `core2/accounting/grants.go`
+    - **Products:** `core2/pkg/accounting/products.go`
+    - **Accounting:** `core2/pkg/accounting/accounting_internal.go`
+    - **Grants:** `core2/pkg/accounting/grants.go`
 
 **Glossary:**
 

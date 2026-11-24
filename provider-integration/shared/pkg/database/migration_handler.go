@@ -21,6 +21,24 @@ func Migrate() {
 	for _, migration := range scriptsToRun {
 		log.Info("Running migration: %s", migration.Id)
 		NewTx0(func(tx *Transaction) {
+			Exec(
+				tx,
+				`set transaction isolation level serializable`,
+				Params{},
+			)
+			Exec(
+				tx,
+				`select pg_advisory_xact_lock(828532017)`,
+				Params{},
+			)
+			_, completed := Get[struct{ Id string }](
+				tx,
+				`select id from completed_migrations where id = :id`,
+				Params{"id": migration.Id},
+			)
+			if completed {
+				return
+			}
 			migration.Execute(tx)
 
 			Exec(

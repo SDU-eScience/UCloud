@@ -64,4 +64,5 @@ func Init() {
 	db.AddMigration(privateNetworksV4())
 	db.AddMigration(privateNetworksV5())
 	db.AddMigration(privateNetworksV6())
+	db.AddMigration(accountingV6())
 }
