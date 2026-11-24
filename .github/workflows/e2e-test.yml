@@ -92,6 +92,12 @@ jobs:
           set -euo pipefail
           docker compose --project-name compose --project-directory "$GITHUB_WORKSPACE/.compose" logs frontend > "$GITHUB_WORKSPACE/.compose/frontend.log" || true
 
+      - name: Run CLI tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ucloud-cli
+          go test ./pkg/ucloud_cli/ -v -count=1 -timeout 30m
       - name: Collect Kubernetes debug info
         if: always()
         shell: bash
