@@ -13,7 +13,6 @@
   - [Allocation retirement](./overview/accounting/retirement.md)
   - [Examples and edge cases](./overview/accounting/examples.md)
 - [Orchestration](./overview/orchestration.md)
-- [Frontend](./dev/frontend-development.md)
 
 <!--
 # Becoming a Provider
@@ -84,6 +83,21 @@
     - [Configuration](./k8s/config-reference.md)
     - [CLI](./k8s/cli-reference.md)
 
+# UCloud frontend
+
+- [Frontend](./dev/frontend/frontend.md)
+- [Architecture](./dev/frontend/frontend-architecture.md)
+- [Network calls](./dev/frontend/network-calls.md)
+- [Development procedure](./dev/frontend/development-procedure.md)
+- [Design system](./dev/frontend/ucloud-design-system.md)
+- [Styling](./dev/frontend/inject-style.md)
+
+- [Resource Browser](./dev/frontend/resource-browser/about.md)
+    - [Features and operations](./dev/frontend/resource-browser/features-and-operations.md)
+    - [Use](./dev/frontend/resource-browser/use.md)
+
+- [Authentication](./dev/frontend/auth.md)
+- [Testing](./dev/frontend/testing.md)
 
 # Style guidelines
 

@@ -8,7 +8,6 @@ import Warning from "@/ui-components/Warning";
 import {Box, Button, Checkbox, Divider, Input} from "@/ui-components";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router-dom";
-
 import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
@@ -17,7 +16,6 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import MainContainer from "@/ui-components/MainContainer";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {
-    addProjectSwitcherInPortal,
     EmptyReasonTag,
     ResourceBrowseFeatures,
     ResourceBrowser,
@@ -27,7 +25,7 @@ import {DELETE_TAG} from "@/UCloud/ResourceApi";
 
 import * as StackApi from "./api";
 import {stackLogoUrl} from "@/Stacks/Logos";
-import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
+import {ResourceBrowserProjectSwitcher} from "@/Project/ProjectSwitcher";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 250,
@@ -48,7 +46,6 @@ export default function StacksBrowse(): React.ReactNode {
     const browserRef = React.useRef<ResourceBrowser<StackApi.Stack> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
     const projectId = useProjectId();
 
     usePage("Stacks", SidebarTabId.COMPUTE);
@@ -56,7 +53,7 @@ export default function StacksBrowse(): React.ReactNode {
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<StackApi.Stack>(mount, "Stacks", undefined).init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<StackApi.Stack>(mount, "Stacks", browserRef, FEATURES, undefined, "").init(browser => {
                 browser.setColumns([
                     {name: "ID"},
                     {name: "Type", columnWidth: 180},
@@ -160,8 +157,6 @@ export default function StacksBrowse(): React.ReactNode {
                 });
             });
         }
-
-        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
     useSetRefreshFunction(() => {
@@ -171,7 +166,7 @@ export default function StacksBrowse(): React.ReactNode {
     return <MainContainer
         main={<>
             <div ref={mountRef} />
-            {switcher}
+            <ResourceBrowserProjectSwitcher browser={browserRef.current} />
         </>}
     />;
 }

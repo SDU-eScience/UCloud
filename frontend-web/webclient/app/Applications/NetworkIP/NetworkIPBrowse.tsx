@@ -99,7 +99,7 @@ export function NetworkIPBrowse({
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<NetworkIP>(mount, "Public IPs", opts).init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<NetworkIP>(mount, "Public IPs", browserRef, FEATURES, opts, "").init(browser => {
                 browser.setColumns({[ContainerSize.LARGE]: [
                     {name: "IP address"},
                     {name: "In use with", columnWidth: 250}

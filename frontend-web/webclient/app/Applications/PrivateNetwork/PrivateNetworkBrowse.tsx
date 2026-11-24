@@ -138,7 +138,7 @@ export function PrivateNetworkBrowse({
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<PrivateNetwork>(mount, "Networks", opts).init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<PrivateNetwork>(mount, "Networks", browserRef, FEATURES, opts, "").init(browser => {
                 browser.setColumns({[ContainerSize.LARGE]: [
                     {name: "Name"},
                     {name: "Type", columnWidth: 220},

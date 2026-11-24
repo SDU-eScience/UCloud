@@ -30,8 +30,6 @@ import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal, flushSync} from "react-dom";
 import {ProjectSwitcher, projectCache, fetchProjects} from "@/Project/ProjectSwitcher";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
-import {ProductType, ProductV2} from "@/Accounting";
-import {ProductSelector} from "@/Products/Selector";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {divHtml, divText, image} from "@/Utilities/HTMLUtilities";
 import {HTMLTooltip} from "./Tooltip";
@@ -293,7 +291,6 @@ export interface RenderDimensions {
 }
 
 interface ResourceBrowserListenerMap<T> {
-    "mount": () => void;
     "unmount": () => void;
 
     "rowSelectionUpdated": () => void;
@@ -310,7 +307,6 @@ interface ResourceBrowserListenerMap<T> {
     "renderLastVisibleStat": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;
     "endRenderPage": () => void;
 
-    // skipOpen is called pre-navigation/calling "open". If it returns `true`, calling open is skipped.
     "skipOpen": (oldPath: string, path: string, resource?: T) => boolean;
     "open": (oldPath: string, path: string, resource?: T) => void;
     "refresh": () => void;
@@ -335,7 +331,6 @@ interface ResourceBrowserListenerMap<T> {
     "renderDropIndicator": (selectedEntries: T[], currentTarget: string | null) => void;
 
     "generateBreadcrumbs": (path: string) => ({title: string, absolutePath: string}[]) | "custom-rendering";
-    "locationBarVisibilityUpdated": (visible: boolean) => void;
 
     "generateTabCompletionEntries": (prompt: string, shouldFetch: boolean, lastSelectedIndex: number) => string[] | Promise<void>;
     "renderLocationBar": (prompt: string) => {rendered: string, normalized: string};
@@ -364,9 +359,6 @@ export interface ResourceBrowseFeatures {
     supportsCopy?: boolean;
     locationBar?: boolean;
     showHeaderInEmbedded?: boolean;
-    showUseButtonOnRows?: boolean;
-    showUseButtonOnDirectory?: boolean;
-    showProjectSelector?: boolean;
     showStar?: boolean;
     renderSpinnerWhenLoading?: boolean;
     breadcrumbsSeparatedBySlashes?: boolean;
@@ -529,9 +521,6 @@ export class ResourceBrowser<T> {
         supportsMove: false,
         supportsCopy: false,
         locationBar: false,
-        showUseButtonOnRows: false,
-        showUseButtonOnDirectory: false,
-        showProjectSelector: false,
         showStar: false,
         search: true,
         renderSpinnerWhenLoading: true, // automatically inserts the spinner graphic before invoking "renderEmptyPage"
@@ -576,10 +565,18 @@ export class ResourceBrowser<T> {
     private initialPath: string | undefined = "";
     private uniqueListenerId: string;
 
-    constructor(root: HTMLElement, resourceName: string, opts: ResourceBrowserOpts<T> | undefined) {
+    constructor(
+        root: HTMLElement,
+        resourceName: string,
+        ref: React.RefObject<ResourceBrowser<T> | null>,
+        features: ResourceBrowseFeatures,
+        opts: ResourceBrowserOpts<T> | undefined,
+        initialPath?: string
+    ) {
         this.root = root;
         this.uniqueListenerId = resourceName + Math.random().toString();
 
+        this.initialPath = initialPath;
         this.resourceName = resourceName;
         this.isModal = !!opts?.isModal;
         ResourceBrowser.isAnyModalOpen = ResourceBrowser.isAnyModalOpen || this.isModal;
@@ -594,6 +591,9 @@ export class ResourceBrowser<T> {
                 }]
             }
         }
+
+        ref.current = this;
+        this.features = features;
 
         if (!ResourceBrowser.undoStack[resourceName]) ResourceBrowser.undoStack[resourceName] = [];
         if (!ResourceBrowser.redoStack[resourceName]) ResourceBrowser.redoStack[resourceName] = [];
@@ -617,18 +617,10 @@ export class ResourceBrowser<T> {
         return true;
     }
 
-    public init(
-        ref: React.RefObject<ResourceBrowser<T> | null>,
-        features: ResourceBrowseFeatures,
-        initialPath: string | undefined,
-        onInit: (browser: ResourceBrowser<T>) => void,
-    ) {
-        ref.current = this;
-        this.features = features;
-        this.initialPath = initialPath;
+    public init(onInit: (browser: ResourceBrowser<T>) => void) {
         onInit(this);
         this.mount();
-        if (initialPath !== undefined) this.open(initialPath);
+        if (this.initialPath !== undefined) this.open(this.initialPath);
     }
 
     mount() {
@@ -728,7 +720,6 @@ export class ResourceBrowser<T> {
             this.scrolling.style.overflowY = "auto";
         }
 
-
         const brandingUnsubscribe = providerBrandingStore.subscribe(() => {
             this.renderRows();
         });
@@ -826,8 +817,8 @@ export class ResourceBrowser<T> {
             const div = document.createElement("div");
             div.className = "project-switcher";
             div.style.gridArea = "project-switcher";
-            const headerThing = this.header.querySelector<HTMLDivElement>(".header-first-row")!;
-            headerThing.appendChild(div);
+            const headerElement = this.header.querySelector<HTMLDivElement>(".header-first-row")!;
+            headerElement.appendChild(div);
         }
 
 
@@ -1350,7 +1341,7 @@ export class ResourceBrowser<T> {
             if (i === this.renameFieldIndex) {
                 this.renameField.style.display = "block";
                 // Note(Jonas): For future reference:
-                // i * ResourceBrowser = top of active row.
+                // i * ResourceBrowser.rowSize = top of active row.
                 // + ResourceBrowser.rowSize / 2 = middle of active row
                 // - this.renameField...height / 2 = subtract half of renameField to get wanted top position for renameField.
                 this.renameField.style.top = `${i * ResourceBrowser.rowSize + (ResourceBrowser.rowSize / 2 - this.renameField.getBoundingClientRect().height / 2)}px`;
@@ -1926,7 +1917,6 @@ export class ResourceBrowser<T> {
             this.header.classList.remove("show-location-bar");
         }
 
-        this.dispatchMessage("locationBarVisibilityUpdated", fn => fn(visible));
     }
 
     isLocationBarVisible(): boolean {
@@ -2630,7 +2620,7 @@ export class ResourceBrowser<T> {
 
                 default: {
                     if (this.reactActionMenuOpen) {
-                        return
+                        return;
                     } else {
                         // NOTE(Dan): Initiate search if the input is printable
                         const printableChar = ev.key;
@@ -2861,9 +2851,7 @@ export class ResourceBrowser<T> {
         refresh: doNothing,
         skipOpen: () => false,
         rowSelectionUpdated: doNothing,
-        mount: doNothing,
         unmount: doNothing,
-        locationBarVisibilityUpdated: doNothing,
         sort: doNothing,
         startRenderPage: doNothing,
         endRenderPage: doNothing,
@@ -3367,112 +3355,6 @@ export function createProjectSwitcherPortal(
     }
 ) {
     return createPortal(<ProjectSwitcher managed={managed} />, container);
-}
-
-export function resourceCreationWithProductSelector<T>(
-    browser: ResourceBrowser<T>,
-    products: ProductV2[],
-    dummyEntry: T,
-    onCreate: (product: ProductV2) => void,
-    type: ProductType,
-    // Note(Jonas): Used in the event that the product contains info that the browser component needs.
-    // See PublicLinks usage for an example of its usage.
-    onSelect?: (product: ProductV2) => void,
-): {startCreation: () => void, cancelCreation: () => void, portal: React.ReactPortal} {
-    const productSelector = document.createElement("div");
-    productSelector.style.display = "none";
-    productSelector.style.position = "fixed";
-    productSelector.style.zIndex = "100"; // Note(Jonas): Otherwise it won't show in modals.
-    document.body.append(productSelector);
-    const Component: React.FunctionComponent = () => {
-        return <ProductSelector
-            products={products}
-            selected={null}
-            onSelect={onProductSelected}
-            slim
-            type={type}
-        />;
-    };
-
-    let selectedProduct: ProductV2 | null = null;
-
-    const portal = createPortal(<Component />, productSelector);
-
-    browser.on("startRenderPage", () => {
-        ResourceBrowser.resetTitleComponent(productSelector);
-    });
-
-    browser.on("renderTitle", (entry, _, __, ___, dims) => {
-        if (entry !== dummyEntry) return;
-        if (selectedProduct !== null) return;
-        dims.x -= 52;
-
-        browser.placeTitleComponent(productSelector, dims);
-    });
-
-    const isSelectingProduct = () => {
-        return (browser.cachedData[browser.currentPath] ?? []).some(it => it === dummyEntry);
-    }
-
-    browser.on("beforeShortcut", ev => {
-        if (ev.code === "Escape" && isSelectingProduct()) {
-            ev.preventDefault();
-
-            browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-            browser.renderRows();
-        }
-    });
-
-    const startCreation = () => {
-        if (isSelectingProduct()) return;
-        selectedProduct = null;
-        browser.insertEntryIntoCurrentPage(dummyEntry, true);
-        browser.renderRows();
-    };
-
-    const cancelCreation = () => {
-        browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-        browser.renderRows();
-    };
-
-    const onProductSelected = (product: ProductV2 | null) => {
-        if (!product) return;
-        onSelect?.(product);
-        if (["STORAGE", "INGRESS"].includes(type)) {
-            selectedProduct = product;
-            browser.showRenameField(
-                it => it === dummyEntry,
-                () => {
-                    browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-                    onCreate(product);
-                },
-                () => {
-                    browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-                },
-                ""
-            );
-        } else if (["LICENSE", "INFERENCE", "NETWORK_IP"].includes(type)) {
-            browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-            onCreate(product);
-        } else if (type === "COMPUTE") {
-            // Not handled.
-        }
-    };
-
-    const onOutsideClick = () => {
-        if (selectedProduct === null && isSelectingProduct()) {
-            cancelCreation();
-        }
-    };
-
-    document.body.addEventListener("click", onOutsideClick);
-
-    browser.on("unmount", () => {
-        document.body.removeEventListener("click", onOutsideClick);
-    });
-
-
-    return {startCreation, cancelCreation, portal};
 }
 
 export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclaration>, providedLogo?: string): HTMLElement {

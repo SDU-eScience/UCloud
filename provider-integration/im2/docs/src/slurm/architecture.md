@@ -79,7 +79,7 @@ In the deployment above, we have several actors. We have summarised the role of 
 
 <tbody>
 <tr>
-<td>[End-user](../glossary.md#end-user)</td>
+<td><a href="../glossary.md#end-user">End-user</a></td>
 <td>
 
 The end-user is a user of the UCloud platform and of the service provider. As we have discussed in the introduction
@@ -93,7 +93,7 @@ established a mapping from a UCloud identity to a local identity with uid `41231
 </tr>
 
 <tr>
-<td>[UCloud/Core](../glossary.md#ucloudcore)</td>
+<td><a href="../glossary.md#ucloudcore">UCloud/Core</a></td>
 <td>
 
 The UCloud platform itself. This is the service hosting the user-interface and core APIs. It is not part of the
@@ -106,7 +106,7 @@ authorization.
 </tr>
 
 <tr>
-<td>[HPC frontend](../glossary.md#hpc-frontend)</td>
+<td><a href="../glossary.md#hpc-frontend">HPC frontend</a></td>
 <td>
 
 UCloud/IM is hosted on the HPC's frontend node (or a similar node). This node is capable of consuming the services of
@@ -116,7 +116,7 @@ the HPC environment.
 </tr>
 
 <tr>
-<td>[UCloud/IM (Gateway)](../glossary.md#ucloudim-gateway)</td>
+<td><a href="../glossary.md#ucloudim-gateway">UCloud/IM (Gateway)</a></td>
 <td>
 
 The gateway is a publicly accessible web-server and is part of the integration module. It accepts all traffic destined
@@ -128,7 +128,7 @@ almost always goes to a user instance matching the UID of the end-user.
 </tr>
 
 <tr>
-<td>[UCloud/IM (Server)](../glossary.md#ucloudim-server)</td>
+<td><a href="../glossary.md#ucloudim-server">UCloud/IM (Server)</a></td>
 <td>
 
 The server instance of the integration module. This server is responsible for handling server-to-server traffic which is
@@ -145,7 +145,7 @@ It is the job of the server instance to start new user instances. The server ins
 </tr>
 
 <tr>
-<td>[UCloud/IM (User)](../glossary.md#ucloudim-user)</td>
+<td><a href="../glossary.md#ucloudim-user">UCloud/IM (User)</a></td>
 <td>
 
 One of the integration module server instances. These instances are launched by the UCloud/IM server instance on demand.
@@ -160,7 +160,7 @@ would normally access your systems.
 </tr>
 
 <tr>
-<td>[HPC services](../glossary.md#hpc-services)</td>
+<td><a href="../glossary.md#hpc-services">HPC services</a></td>
 <td>
 
 The HPC services are the services that make up your actual HPC environment. This includes systems such as:
@@ -251,4 +251,3 @@ address.
 | TCP      | 80   | All        | Gateway IP  | Redirecting to HTTPS (443)                               |
 | TCP      | 443  | All        | Gateway IP  | Accepting IM traffic and interactive application traffic |
 | TCP      | 443  | Gateway IP | UCloud      | Sending messages to UCloud/Core                          |
-

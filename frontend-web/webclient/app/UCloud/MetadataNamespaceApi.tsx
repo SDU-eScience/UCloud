@@ -72,8 +72,7 @@ interface TemplateCallbacks {
 }
 
 class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Product,
-    FileMetadataTemplateNamespaceSpecification, FileMetadataTemplateNamespaceUpdate, FileMetadataTemplateFlags,
-    FileMetadataTemplateNamespaceStatus> {
+    FileMetadataTemplateNamespaceSpecification, FileMetadataTemplateFlags> {
     routingNamespace = "metadata";
     title = "Metadata Template";
     productType = undefined;

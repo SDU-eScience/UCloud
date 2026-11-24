@@ -495,7 +495,7 @@ export class HttpClient {
     }
 
     /**
-     * Updates tokens received by the auth service.
+     * Update tokens received by the auth service.
      *
      * @param accessToken the (JWT) access token.
      * @param csrfToken the csrf token

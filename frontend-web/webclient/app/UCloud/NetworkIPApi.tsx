@@ -55,8 +55,8 @@ export interface FirewallAndId {
     firewall: Firewall;
 }
 
-class NetworkIPApi extends ResourceApi<NetworkIP, ProductNetworkIP, NetworkIPSpecification, NetworkIPUpdate,
-    NetworkIPFlags, NetworkIPStatus, NetworkIPSupport> {
+class NetworkIPApi extends ResourceApi<NetworkIP, ProductNetworkIP, NetworkIPSpecification,
+    NetworkIPFlags, NetworkIPSupport> {
     routingNamespace = "public-ips";
     title = "Public IP";
     productType = "NETWORK_IP" as const;

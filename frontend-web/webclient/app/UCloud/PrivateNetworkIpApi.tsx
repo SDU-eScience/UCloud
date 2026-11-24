@@ -15,8 +15,7 @@ export interface PrivateNetworkIpStatus extends ResourceStatus {
 
 export type PrivateNetworkIp = Resource<ResourceUpdate, PrivateNetworkIpStatus, PrivateNetworkIpSpecification>;
 
-class PrivateNetworkIpApi extends ResourceApi<PrivateNetworkIp, Product, PrivateNetworkIpSpecification, ResourceUpdate,
-    ResourceIncludeFlags, PrivateNetworkIpStatus> {
+class PrivateNetworkIpApi extends ResourceApi<PrivateNetworkIp, Product, PrivateNetworkIpSpecification, ResourceIncludeFlags> {
     routingNamespace = "private-network-ips";
     title = "Network IP";
     productType = "PRIVATE_NETWORK_IP" as const;
