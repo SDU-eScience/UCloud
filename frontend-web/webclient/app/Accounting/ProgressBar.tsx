@@ -1,7 +1,6 @@
 import {UsageAndQuota} from "@/Accounting";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
 import {injectStyle} from "@/Unstyled";
-import * as React from "react";
 
 const responsiveProgressStyle = injectStyle("responsive-progress", k => `
     ${k} .progress-label-only {

@@ -13,50 +13,80 @@ import type {
     UcxTableSelection,
 } from "@/UCX/UcxBrowser";
 import {Button, Icon, Link} from "@/ui-components";
+import {TooltipV2} from "@/ui-components/Tooltip";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import type {ProjectInfo} from "@/Project/InfoCache";
 import {injectStyle} from "@/Unstyled";
 import AppRoutes from "@/Routes";
 import {format} from "date-fns";
-import {formatNumber} from "@/Utilities/NumberFormatting";
 import {copyToClipboard, isLikelyMac} from "@/UtilityFunctions";
 import {SubmitShortcut} from "@/Applications/KeyboardNavigation";
-import {focusAllocationTable} from "./AllocationShortcuts";
-import {allocationCompareProducts} from "./AllocationPresentation";
-import {AllocationFilters} from "./AllocationFilters";
-import type {AllocationFilterState} from "./AllocationFilters";
+import {Filters, focusTable} from "./Controls";
 import {
-    AllocationAmount,
-    AllocationLifecycleAmount,
-    AllocationWorkspaceLabel,
-    allocationLifecycleCells,
-    allocationLifecycleColumns,
-    allocationLifecycleMetrics,
-    allocationLifecycleWidths,
-} from "./AllocationCells";
-import {
-    allocationFilterProductsByRange,
-    allocationFilterProductsByState,
-    allocationModelRecipients,
-    allocationProductWorkspaceInfo,
-    allocationSelectProducts,
-    allocationSumAmounts,
-} from "./AllocationModel";
+    compareProducts,
+    filterByRange,
+    filterByState,
+    formatAmount,
+    productWorkspaceInfo,
+    recipientsFor,
+    selectProducts,
+    sumAmounts,
+} from "./Model";
 import type {
-    AllocationAmounts,
-    AllocationDateRange,
-    AllocationModel,
-    AllocationModelProduct,
-    AllocationModelRecipient,
-    AllocationModelSlice,
-} from "./AllocationModel";
-export {allocationDateRangeBounds, allocationOverlapsRange} from "./AllocationModel";
-export type {AllocationDateRange} from "./AllocationModel";
+    Amounts,
+    DateRange,
+    EditRequest,
+    FilterState,
+    Model,
+    ProductAllocation,
+    Recipient,
+    Slice,
+} from "./Model";
+
+const lifecycleMetrics = [
+    {key: "activeUsed", label: "Active usage", width: 102, title: "Usage that counts against active quota."},
+    {
+        key: "activeBalance",
+        label: "Active balance",
+        width: 110,
+        title: "Maximum additional usage this wallet can charge, including limits from parent wallets.",
+    },
+    {key: "activeQuota", label: "Active quota", width: 99, title: "Quota from allocations that are active now."},
+    {key: "used", label: "Total used", width: 104, title: "Total usage across active and expired allocations."},
+    {key: "expiredUnused", label: "Expired unused", width: 110, title: "Quota that expired without being used."},
+    {key: "future", label: "Upcoming quota", width: 111, title: "Granted quota that has not been released yet."},
+] as const;
+
+type LifecycleMetric = typeof lifecycleMetrics[number];
+
+const lifecycleColumns = lifecycleMetrics.map(({key, label}) => ({
+    key, label, jsonPath: key, sortType: TableColumnSortType.Number, alignment: "right" as const,
+}));
+
+const lifecycleWidths = Object.fromEntries(
+    lifecycleMetrics.map(({key, width}) => [key, width]),
+);
+
+function lifecycleCells(
+    amounts: Amounts,
+    consumption: boolean,
+    maxUsable: number | undefined,
+): Record<string, string> {
+    return Object.fromEntries(lifecycleMetrics.map(metric => {
+        if (!lifecycleApplies(metric, consumption)) return [metric.key, ""];
+        const value = metric.key === "activeBalance" ? maxUsable : amounts[metric.key];
+        return [metric.key, value === undefined ? "" : `${value}`];
+    }));
+}
+
+function lifecycleApplies(metric: LifecycleMetric, consumption: boolean): boolean {
+    return consumption || metric.key !== "expiredUnused";
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EXPIRING_WINDOW_MS = 30 * DAY_MS;
-const allocationEstimatedUsageTitle =
+const estimatedUsageTitle =
     "Estimate: remaining usage is split evenly among active allocations from the same funding parent. "
     + "Usage is not finalized until each allocation expires.";
 
@@ -71,7 +101,7 @@ const COLUMN_WIDTHS: Record<string, number> = {
     [COLUMN_KEYS.workspace]: 150,
     [COLUMN_KEYS.product]: 175,
     [COLUMN_KEYS.period]: 164,
-    ...allocationLifecycleWidths,
+    ...lifecycleWidths,
     [COLUMN_KEYS.quota]: 102,
 };
 
@@ -84,7 +114,7 @@ const RECEIVED_COLUMN_WIDTHS: Record<string, number> = {
     [COLUMN_KEYS.quota]: 112,
 };
 
-export type AllocationGridMode = "granted" | "received";
+type Mode = "granted" | "received";
 
 const GRANTED_ALL_COLUMNS: TableColumn[] = [
     {
@@ -108,8 +138,8 @@ const GRANTED_ALL_COLUMNS: TableColumn[] = [
         sortType: TableColumnSortType.Text,
         alignment: "left",
     },
-    ...allocationLifecycleColumns.filter(column => column.key.startsWith("active")),
-    ...allocationLifecycleColumns.filter(column => column.key === "used"),
+    ...lifecycleColumns.filter(column => column.key.startsWith("active")),
+    ...lifecycleColumns.filter(column => column.key === "used"),
     {
         key: COLUMN_KEYS.quota,
         label: "Total granted",
@@ -117,7 +147,7 @@ const GRANTED_ALL_COLUMNS: TableColumn[] = [
         sortType: TableColumnSortType.Number,
         alignment: "right",
     },
-    ...allocationLifecycleColumns.filter(column => column.key === "expiredUnused" || column.key === "future"),
+    ...lifecycleColumns.filter(column => column.key === "expiredUnused" || column.key === "future"),
 ];
 
 const RECEIVED_ALL_COLUMNS: TableColumn[] = [
@@ -135,12 +165,12 @@ const RECEIVED_ALL_COLUMNS: TableColumn[] = [
         sortType: TableColumnSortType.Text,
         alignment: "left",
     },
-    ...allocationLifecycleColumns.filter(column => column.key === "activeUsed"),
-    ...allocationLifecycleColumns.filter(column => column.key === "activeBalance")
+    ...lifecycleColumns.filter(column => column.key === "activeUsed"),
+    ...lifecycleColumns.filter(column => column.key === "activeBalance")
         .map(column => ({...column, label: "Active balance"})),
-    ...allocationLifecycleColumns.filter(column => column.key === "activeQuota")
+    ...lifecycleColumns.filter(column => column.key === "activeQuota")
         .map(column => ({...column, label: "Active quota"})),
-    ...allocationLifecycleColumns.filter(column => column.key === "used"),
+    ...lifecycleColumns.filter(column => column.key === "used"),
     {
         key: COLUMN_KEYS.quota,
         label: "Total received",
@@ -148,22 +178,22 @@ const RECEIVED_ALL_COLUMNS: TableColumn[] = [
         sortType: TableColumnSortType.Number,
         alignment: "right",
     },
-    ...allocationLifecycleColumns.filter(column => column.key === "expiredUnused" || column.key === "future"),
+    ...lifecycleColumns.filter(column => column.key === "expiredUnused" || column.key === "future"),
 ];
 
 const advancedColumns = new Set(["expiredUnused", "future"]);
 
-function allocationColumnOptions(columns: TableColumn[]) {
+function buildColumnOptions(columns: TableColumn[]) {
     return columns.filter(column => column.key !== COLUMN_KEYS.workspace)
         .map(({key, label}) => ({key, label, advanced: advancedColumns.has(key)}))
         .sort((a, b) => Number(a.advanced) - Number(b.advanced));
 }
 
-function allocationDefaultColumns(columns: TableColumn[]): string[] {
-    return allocationColumnOptions(columns).filter(column => !column.advanced).map(column => column.key);
+function buildDefaultColumns(columns: TableColumn[]): string[] {
+    return buildColumnOptions(columns).filter(column => !column.advanced).map(column => column.key);
 }
 
-const allocationShortcutGuide = [
+const shortcutGuide = [
     {keys: ["↑", "↓"], action: "Move"},
     {keys: ["←", "→"], action: "Expand or collapse"},
     {keys: ["Enter"], action: "Open"},
@@ -175,43 +205,31 @@ const allocationShortcutGuide = [
     {keys: isLikelyMac ? ["⌘", "⌥"] : ["Ctrl", "Alt"], action: "Jump shortcuts"},
 ];
 
-const receivedShortcutGuide = allocationShortcutGuide.filter(entry =>
+const receivedShortcutGuide = shortcutGuide.filter(entry =>
     entry.action !== "Edit" && entry.action !== "Select"
 );
 
-export interface AllocationEditRequest {
-    category: ProductCategoryV2;
-    allocationId: number;
-    start: number;
-    end: number;
-    quota: number;
-    workspaceTitle: string;
-}
-
-interface AllocationGridProps {
-    model: AllocationModel;
-    mode?: AllocationGridMode;
+interface TableProps {
+    model: Model;
+    mode?: Mode;
     projectInfo: Record<string, ProjectInfo | null>;
-    dateRange?: AllocationDateRange;
+    dateRange?: DateRange;
     selectedCategories?: string[];
     onCategoriesChange?: (categories: string[]) => void;
-    searchRef?: React.RefObject<HTMLInputElement | null>;
-    personalWorkspaces: boolean;
-    onPersonalWorkspacesChange: () => void;
+    personalWorkspaces?: boolean;
+    onPersonalWorkspacesChange?: () => void;
     onClearFilters?: () => void;
     toolbar?: React.ReactNode;
-    onAllocate?: (recipients: AllocationModelRecipient[]) => void;
-    onViewUsage?: (product: AllocationModelProduct) => void;
+    onAllocate?: (recipients: Recipient[]) => void;
+    onViewUsage?: (product: ProductAllocation) => void;
     periodControl?: React.ReactNode;
     emptyMessage?: string;
-    onEdit?: (request: AllocationEditRequest) => void;
+    onEdit?: (request: EditRequest) => void;
     onRetire?: (allocationIds: number[], workspaceTitle: string, grantId?: number) => void;
-    onOpenGrant?: (grantId: number) => void;
-    renderGrantLink?: (grantId: number) => React.ReactNode;
-    onVisibleProductsChange?: (products: AllocationModelProduct[]) => void;
+    onVisibleProductsChange?: (products: ProductAllocation[]) => void;
 }
 
-interface AllocationGridRow {
+interface Row {
     key: string;
     group: string;
     category: ProductCategoryV2;
@@ -226,32 +244,32 @@ interface AllocationGridRow {
     provider: string;
     unit: string;
     allocationQuota: number;
-    accounting: AllocationModelProduct;
-    slices: AllocationModelSlice[];
-    usage?: AllocationRowUsage;
+    accounting: ProductAllocation;
+    slices: Slice[];
+    usage?: RowUsage;
 }
 
-interface AllocationRowUsage {
+interface RowUsage {
     value: number;
     approximate: boolean;
 }
 
-function allocationSliceUsage(slice: AllocationModelSlice): AllocationRowUsage | undefined {
+function sliceUsage(slice: Slice): RowUsage | undefined {
     if (slice.estimatedUsed !== undefined) return {value: slice.estimatedUsed, approximate: true};
     if (slice.attribution === "recorded" && slice.used !== null) return {value: slice.used, approximate: false};
     return undefined;
 }
 
-type AllocationLifecycleKey = typeof allocationLifecycleMetrics[number]["key"];
+type LifecycleKey = typeof lifecycleMetrics[number]["key"];
 
-interface AllocationReceivedMetricValue {
+interface ReceivedMetricValue {
     value: number;
     approximate?: boolean;
 }
 
-type AllocationReceivedMetricValues = Partial<Record<AllocationLifecycleKey, AllocationReceivedMetricValue>>;
+type ReceivedMetricValues = Partial<Record<LifecycleKey, ReceivedMetricValue>>;
 
-const allocationReceivedMetricTitles: Record<AllocationLifecycleKey, string> = {
+const receivedMetricTitles: Record<LifecycleKey, string> = {
     activeQuota: "Quota received from funding sources that is active now.",
     activeUsed: "Usage charged against active received quota.",
     activeBalance: "Active quota minus active usage.",
@@ -260,16 +278,16 @@ const allocationReceivedMetricTitles: Record<AllocationLifecycleKey, string> = {
     future: "Received quota that has not been released yet.",
 };
 
-function allocationReceivedMetricTitle(key: AllocationLifecycleKey, consumption: boolean): string {
+function receivedMetricTitle(key: LifecycleKey, consumption: boolean): string {
     if (key === "used" && !consumption) return "Current capacity in use.";
-    return allocationReceivedMetricTitles[key];
+    return receivedMetricTitles[key];
 }
 
-function allocationGrantMetricValues(
-    grant: {slices: AllocationModelSlice[]; used: number | null},
+function grantMetricValues(
+    grant: {slices: Slice[]; used: number | null},
     now: number,
     consumption: boolean,
-): AllocationReceivedMetricValues {
+): ReceivedMetricValues {
     let activeQuota = 0;
     let activeUsed = 0;
     let activeUsageKnown = true;
@@ -279,7 +297,7 @@ function allocationGrantMetricValues(
         if (slice.start > now && !slice.retired) future += slice.quota;
         if (slice.retired || slice.start > now || slice.end <= now) continue;
         activeQuota += slice.quota;
-        const usage = allocationSliceUsage(slice);
+        const usage = sliceUsage(slice);
         if (usage) {
             activeUsed += usage.value;
             activeApproximate ||= usage.approximate;
@@ -287,7 +305,7 @@ function allocationGrantMetricValues(
             activeUsageKnown = false;
         }
     }
-    const result: AllocationReceivedMetricValues = {
+    const result: ReceivedMetricValues = {
         activeQuota: {value: activeQuota},
         activeUsed: activeUsageKnown ? {value: activeUsed, approximate: activeApproximate} : undefined,
         activeBalance: activeUsageKnown ? {value: activeQuota - activeUsed} : undefined,
@@ -302,7 +320,7 @@ function allocationGrantMetricValues(
         let expiredKnown = true;
         for (const slice of grant.slices) {
             if (!slice.retired) continue;
-            const usage = allocationSliceUsage(slice);
+            const usage = sliceUsage(slice);
             if (!usage) {
                 expiredKnown = false;
                 break;
@@ -314,12 +332,12 @@ function allocationGrantMetricValues(
     return result;
 }
 
-function allocationSliceMetricValues(
-    slice: AllocationModelSlice,
+function sliceMetricValues(
+    slice: Slice,
     now: number,
     consumption: boolean,
-): AllocationReceivedMetricValues {
-    const usage = allocationSliceUsage(slice);
+): ReceivedMetricValues {
+    const usage = sliceUsage(slice);
     const active = !slice.retired && slice.start <= now && slice.end > now;
     const expiredUnused = !consumption
         ? undefined
@@ -340,48 +358,48 @@ function allocationSliceMetricValues(
     };
 }
 
-function allocationReceivedMetricCells(values: AllocationReceivedMetricValues): Record<string, string> {
-    return Object.fromEntries(allocationLifecycleMetrics.map(metric => {
+function receivedMetricCells(values: ReceivedMetricValues): Record<string, string> {
+    return Object.fromEntries(lifecycleMetrics.map(metric => {
         const value = values[metric.key];
         return [metric.key, value === undefined ? "" : `${value.value}`];
     }));
 }
 
-interface AllocationProductRow extends AllocationGridRow {
-    allocations: AllocationGridRow[];
+interface ProductRow extends Row {
+    allocations: Row[];
 }
 
-interface AllocationReceivedWalletRow {
+interface ReceivedWalletRow {
     key: string;
     group: string;
     category: ProductCategoryV2;
     unit: string;
     start: number;
     end: number;
-    amounts: AllocationAmounts;
+    amounts: Amounts;
     maxUsable: number;
-    sources: AllocationProductRow[];
+    sources: ProductRow[];
 }
 
-type AllocationDisplayRow =
-    | {kind: "wallet"; wallet: AllocationReceivedWalletRow}
-    | {kind: "product"; product: AllocationProductRow}
-    | {kind: "grant"; grant: AllocationGridRow}
-    | {kind: "allocation"; grant: AllocationGridRow; allocation: AllocationModelSlice};
+type DisplayRow =
+    | {kind: "wallet"; wallet: ReceivedWalletRow}
+    | {kind: "product"; product: ProductRow}
+    | {kind: "grant"; grant: Row}
+    | {kind: "allocation"; grant: Row; allocation: Slice};
 
-function allocationSliceKey(allocationKey: string, slice: AllocationModelSlice): string {
+function sliceKey(allocationKey: string, slice: Slice): string {
     return `${allocationKey}/slice:${slice.allocationId}`;
 }
 
-function allocationGrantRowKey(productKey: string, grant: {key: string; grantId?: number}): string {
+function grantRowKey(productKey: string, grant: {key: string; grantId?: number}): string {
     return grant.grantId === undefined ? grant.key : `${productKey}/grant:${grant.grantId}`;
 }
 
-function allocationCanRetire(allocation: AllocationModelSlice, now: number): boolean {
+function canRetire(allocation: Slice, now: number): boolean {
     return !allocation.retired && allocation.end > now;
 }
 
-function allocationPeriodCell(
+function periodCell(
     now: number,
     start: number,
     end: number,
@@ -419,7 +437,7 @@ function allocationPeriodCell(
     </div>;
 }
 
-const AllocationGridClass = injectStyle("allocation-grid", k => `
+const TableClass = injectStyle("allocation-grid", k => `
     ${k} {
         display: flex;
         flex-direction: column;
@@ -630,12 +648,12 @@ const AllocationGridClass = injectStyle("allocation-grid", k => `
 
 `);
 
-export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
+export function Table(props: TableProps): React.ReactNode {
     const mode = props.mode ?? "granted";
     const modeColumns = mode === "received" ? RECEIVED_ALL_COLUMNS : GRANTED_ALL_COLUMNS;
     const allProducts = mode === "received" ? props.model.receivedProducts : props.model.products;
-    const columnOptions = allocationColumnOptions(modeColumns);
-    const defaultColumns = allocationDefaultColumns(modeColumns);
+    const columnOptions = buildColumnOptions(modeColumns);
+    const defaultColumns = buildDefaultColumns(modeColumns);
     const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
     const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
     const gridRef = useRef<HTMLDivElement>(null);
@@ -648,14 +666,13 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
     const [selectedProviders, setSelectedProviders] = useState<string[]>([]);
     const [selectedSources, setSelectedSources] = useState<string[]>([]);
     const [visibleColumns, setVisibleColumns] = useState<string[]>(() => defaultColumns);
-    const [filterState, setFilterState] = useState<AllocationFilterState>("all");
-    const localSearchRef = useRef<HTMLInputElement>(null);
-    const searchRef = props.searchRef ?? localSearchRef;
+    const [filterState, setFilterState] = useState<FilterState>("all");
+    const personalWorkspaces = props.personalWorkspaces ?? false;
     const productKeys = props.selectedCategories ?? selectedProducts;
     const setProductKeys = props.onCategoriesChange ?? setSelectedProducts;
 
     useLayoutEffect(() => {
-        const frame = requestAnimationFrame(() => focusAllocationTable());
+        const frame = requestAnimationFrame(() => focusTable());
         return () => cancelAnimationFrame(frame);
     }, []);
 
@@ -664,10 +681,10 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         return allProducts.filter(product => selectedSources.includes(product.workspaceKey));
     }, [allProducts, selectedSources]);
 
-    const matchingProducts = useMemo(() => allocationFilterProductsByRange(
-        allocationSelectProducts(props.model, {
+    const matchingProducts = useMemo(() => filterByRange(
+        selectProducts(props.model, {
             dateRange: props.dateRange,
-            personalWorkspaces: mode === "received" ? true : props.personalWorkspaces,
+            personalWorkspaces: mode === "received" ? true : personalWorkspaces,
             categories: productKeys,
             providers: selectedProviders,
             query,
@@ -679,7 +696,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         props.model,
         props.model.now,
         props.dateRange,
-        props.personalWorkspaces,
+        personalWorkspaces,
         mode,
         productKeys,
         selectedProviders,
@@ -690,16 +707,16 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
     ]);
 
     const visibleProducts = useMemo(
-        () => allocationFilterProductsByState(matchingProducts, filterState, props.model.now),
+        () => filterByState(matchingProducts, filterState, props.model.now),
         [matchingProducts, filterState, props.model.now],
     );
     const retireableByGrant = useMemo(() => {
-        const result = new Map<string, AllocationModelSlice[]>();
+        const result = new Map<string, Slice[]>();
         for (const product of matchingProducts) {
             for (const grant of product.grants) {
-                const allocations = grant.slices.filter(slice => allocationCanRetire(slice, props.model.now));
+                const allocations = grant.slices.filter(slice => canRetire(slice, props.model.now));
                 if (!allocations.length) continue;
-                const key = allocationGrantRowKey(product.key, grant);
+                const key = grantRowKey(product.key, grant);
                 const existing = result.get(key) ?? [];
                 existing.push(...allocations);
                 result.set(key, existing);
@@ -712,11 +729,11 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         props.onVisibleProductsChange?.(visibleProducts);
     }, [visibleProducts, props.onVisibleProductsChange]);
 
-    const rows = useMemo((): AllocationProductRow[] => visibleProducts.map(product => {
-        const workspace = allocationProductWorkspaceInfo(product, props.projectInfo);
-        const grantsByKey = new Map<string, AllocationGridRow>();
+    const rows = useMemo((): ProductRow[] => visibleProducts.map(product => {
+        const workspace = productWorkspaceInfo(product, props.projectInfo);
+        const grantsByKey = new Map<string, Row>();
         for (const grant of product.grants) {
-            const key = allocationGrantRowKey(product.key, grant);
+            const key = grantRowKey(product.key, grant);
             const existing = grantsByKey.get(key);
             if (existing) {
                 existing.start = Math.min(existing.start, grant.start);
@@ -748,7 +765,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         for (const grant of allocations) {
             grant.slices.sort((a, b) => a.start - b.start || a.allocationId - b.allocationId);
             for (const slice of grant.slices) {
-                const usage = allocationSliceUsage(slice);
+                const usage = sliceUsage(slice);
                 if (!usage) continue;
                 if (grant.usage) {
                     grant.usage.value += usage.value;
@@ -768,9 +785,9 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         };
     }), [visibleProducts, props.projectInfo]);
 
-    const walletRows = useMemo((): AllocationReceivedWalletRow[] => {
+    const walletRows = useMemo((): ReceivedWalletRow[] => {
         if (mode !== "received") return [];
-        const wallets = new Map<string, AllocationReceivedWalletRow>();
+        const wallets = new Map<string, ReceivedWalletRow>();
         for (const source of rows) {
             const key = `wallet:${source.category.provider}/${source.category.name}`;
             const existing = wallets.get(key);
@@ -787,13 +804,13 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                 unit: source.unit,
                 start: source.start,
                 end: source.end,
-                amounts: allocationSumAmounts([]),
+                amounts: sumAmounts([]),
                 maxUsable: 0,
                 sources: [source],
             });
         }
         for (const wallet of wallets.values()) {
-            wallet.amounts = allocationSumAmounts(wallet.sources.map(source => source.accounting));
+            wallet.amounts = sumAmounts(wallet.sources.map(source => source.accounting));
             wallet.maxUsable = wallet.amounts.activeBalance;
         }
         return [...wallets.values()];
@@ -804,7 +821,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         for (const product of allProducts) {
             options.set(`${product.category.provider}/${product.category.name}`, product.category);
         }
-        return [...options.values()].sort(allocationCompareProducts).map(category => ({
+        return [...options.values()].sort(compareProducts).map(category => ({
             key: `${category.provider}/${category.name}`,
             label: `${category.name} (${getShortProviderTitle(category.provider)})`,
             icon: <Icon name={productTypeToIcon(category.productType)} size={16} />,
@@ -824,7 +841,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         if (mode !== "received") return [];
         const options = new Map<string, string>();
         for (const product of allProducts) {
-            const source = allocationProductWorkspaceInfo(product, props.projectInfo);
+            const source = productWorkspaceInfo(product, props.projectInfo);
             options.set(source.id, source.title);
         }
         return [...options.entries()].map(([key, label]) => ({
@@ -834,7 +851,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         })).sort((a, b) => a.label.localeCompare(b.label));
     }, [allProducts, mode, props.projectInfo]);
     const counts = useMemo(() => {
-        const workspaces: Record<AllocationFilterState, Set<string>> = {
+        const workspaces: Record<FilterState, Set<string>> = {
             all: new Set(),
             active: new Set(),
             expiring: new Set(),
@@ -857,7 +874,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
     }, [matchingProducts]);
 
     const rowByKey = useMemo(() => {
-        const result = new Map<string, AllocationDisplayRow>();
+        const result = new Map<string, DisplayRow>();
         for (const wallet of walletRows) {
             result.set(wallet.key, {kind: "wallet", wallet});
         }
@@ -866,7 +883,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             for (const allocation of row.allocations) {
                 result.set(allocation.key, {kind: "grant", grant: allocation});
                 allocation.slices.forEach(slice => {
-                    result.set(allocationSliceKey(allocation.key, slice), {
+                    result.set(sliceKey(allocation.key, slice), {
                         kind: "allocation",
                         grant: allocation,
                         allocation: slice,
@@ -886,7 +903,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                     for (const allocation of source.allocations) {
                         result.set(allocation.key, source.key);
                         allocation.slices.forEach(slice => {
-                            result.set(allocationSliceKey(allocation.key, slice), allocation.key);
+                            result.set(sliceKey(allocation.key, slice), allocation.key);
                         });
                     }
                 }
@@ -901,7 +918,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             for (const allocation of row.allocations) {
                 result.set(allocation.key, row.key);
                 allocation.slices.forEach(slice => {
-                    result.set(allocationSliceKey(allocation.key, slice), allocation.key);
+                    result.set(sliceKey(allocation.key, slice), allocation.key);
                 });
             }
         }
@@ -935,7 +952,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                     [COLUMN_KEYS.workspace]: `${wallet.category.name} ${wallet.category.provider}`,
                     [COLUMN_KEYS.period]: `${wallet.start} ${wallet.end}`,
                     [COLUMN_KEYS.quota]: `${wallet.amounts.granted}`,
-                    ...allocationLifecycleCells(
+                    ...lifecycleCells(
                         wallet.amounts,
                         wallet.category.accountingModel === "CONSUMPTION",
                         wallet.maxUsable,
@@ -952,27 +969,27 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             const row = entry.kind === "product" ? entry.product : entry.grant;
             const allocation = entry.kind === "allocation" ? entry.allocation : undefined;
             const consumption = row.category.accountingModel === "CONSUMPTION";
-            const usage = allocation ? allocationSliceUsage(allocation) : row.usage;
+            const usage = allocation ? sliceUsage(allocation) : row.usage;
             const end = allocation ? Math.max(allocation.start, allocation.end - 1) : row.end;
             const quota = allocation?.quota ?? row.allocationQuota;
-            let lifecycleCells: Record<string, string>;
+            let metricCells: Record<string, string>;
             if (entry.kind === "product") {
-                lifecycleCells = allocationLifecycleCells(
+                metricCells = lifecycleCells(
                     row.accounting.amounts,
                     consumption,
                     row.accounting.maxUsable,
                 );
             } else if (mode === "received") {
                 const values = entry.kind === "grant"
-                    ? allocationGrantMetricValues(
+                    ? grantMetricValues(
                         {slices: entry.grant.slices, used: entry.grant.usage?.value ?? null},
                         props.model.now,
                         consumption,
                     )
-                    : allocationSliceMetricValues(entry.allocation, props.model.now, consumption);
-                lifecycleCells = allocationReceivedMetricCells(values);
+                    : sliceMetricValues(entry.allocation, props.model.now, consumption);
+                metricCells = receivedMetricCells(values);
             } else {
-                lifecycleCells = {used: usage ? `${usage.value}` : ""};
+                metricCells = {used: usage ? `${usage.value}` : ""};
             }
             const firstCell = entry.kind === "product"
                 ? mode === "received" ? row.workspaceTitle : `${row.workspaceTitle} ${row.workspacePi}`
@@ -984,7 +1001,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                 [COLUMN_KEYS.product]: row.productName,
                 [COLUMN_KEYS.period]: `${allocation?.start ?? row.start} ${end}`,
                 [COLUMN_KEYS.quota]: `${quota}`,
-                ...lifecycleCells,
+                ...metricCells,
             };
             tableByKey.set(key, {
                 key,
@@ -1007,7 +1024,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                     ...(props.onRetire && retireableByGrant.has(row.key) ?
                         [{id: "retire", enabled: true}] : []),
                 ] : [
-                    ...(allocationCanRetire(entry.allocation, props.model.now) ? [
+                    ...(canRetire(entry.allocation, props.model.now) ? [
                         ...(props.onRetire ? [{id: "retire", enabled: true}] : []),
                         ...(props.onEdit ? [{id: "edit", enabled: true}] : []),
                     ] : []),
@@ -1022,7 +1039,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                     children.set(source.key, source.allocations.map(allocation => tableByKey.get(allocation.key)!));
                     for (const allocation of source.allocations) {
                         children.set(allocation.key, allocation.slices.map(slice =>
-                            tableByKey.get(allocationSliceKey(allocation.key, slice))!
+                            tableByKey.get(sliceKey(allocation.key, slice))!
                         ));
                     }
                 }
@@ -1036,7 +1053,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             children.set(row.key, row.allocations.map(allocation => tableByKey.get(allocation.key)!));
             for (const allocation of row.allocations) {
                 children.set(allocation.key, allocation.slices.map(slice =>
-                    tableByKey.get(allocationSliceKey(allocation.key, slice))!
+                    tableByKey.get(sliceKey(allocation.key, slice))!
                 ));
             }
         }
@@ -1083,7 +1100,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         for (const row of rows) {
             if (selected.has(row.key)) workspaces.add(row.workspaceKey);
         }
-        return allocationModelRecipients(props.model, workspaces);
+        return recipientsFor(props.model, workspaces);
     }, [mode, rows, selected, props.model]);
 
     const selection: UcxTableSelection | undefined = mode === "granted"
@@ -1189,9 +1206,8 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
     }, [expanded, focusRow, mode, rowByKey, rowChildren, selectRow, toggleExpanded, treeParents]);
 
     const openGrant = useCallback((grantId: number) => {
-        if (props.onOpenGrant) props.onOpenGrant(grantId);
-        else window.open(window.origin + "/app" + AppRoutes.grants.editor(grantId), "_blank");
-    }, [props.onOpenGrant]);
+        window.open(window.origin + "/app" + AppRoutes.grants.editor(grantId), "_blank");
+    }, []);
 
     const editRow = useCallback((key: string) => {
         const entry = rowByKey.get(key);
@@ -1202,8 +1218,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         }
         const row = entry.grant;
         const slice = entry.allocation;
-        const end = slice.end - 1;
-        if (!allocationCanRetire(slice, props.model.now)) return;
+        if (!canRetire(slice, props.model.now)) return;
         props.onEdit?.({
             category: row.category,
             allocationId: slice.allocationId,
@@ -1219,7 +1234,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         if (!entry) return;
         if (event.actionId === "allocate" && entry.kind === "product" && mode === "granted") {
             props.onAllocate?.(selected.has(entry.product.key) ? selectedRecipients :
-                allocationModelRecipients(props.model, new Set([entry.product.workspaceKey])));
+                recipientsFor(props.model, new Set([entry.product.workspaceKey])));
         } else if (event.actionId === "viewUsage") {
             if (entry.kind === "wallet") {
                 const source = entry.wallet.sources[0];
@@ -1235,7 +1250,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             const grantId = entry.grant.grantId;
             if (grantId !== undefined) openGrant(grantId);
         } else if (event.actionId === "retire" && props.onRetire) {
-            if (entry.kind === "allocation" && allocationCanRetire(entry.allocation, props.model.now)) {
+            if (entry.kind === "allocation" && canRetire(entry.allocation, props.model.now)) {
                 props.onRetire([entry.allocation.allocationId], entry.grant.workspaceTitle);
             } else if (entry.kind === "grant") {
                 const allocations = retireableByGrant.get(entry.grant.key);
@@ -1279,7 +1294,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         const entry = rowByKey.get(context.row.key);
         if (!entry) return context.cell;
         if (mode === "received") {
-            const metric = allocationLifecycleMetrics.find(metric => metric.key === context.column.key);
+            const metric = lifecycleMetrics.find(metric => metric.key === context.column.key);
             const expandButton = (label: string, title?: string) => <button
                 className="allocation-expand"
                 aria-label={`${expanded.has(context.row.key) ? "Collapse" : "Expand"} ${label}`}
@@ -1311,20 +1326,20 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                     const value = metric.key === "activeBalance"
                         ? wallet.maxUsable
                         : wallet.amounts[metric.key];
-                    return <AllocationAmount
+                    return <Amount
                         value={value}
                         unit={wallet.unit}
-                        title={allocationReceivedMetricTitle(
+                        title={receivedMetricTitle(
                             metric.key,
                             wallet.category.accountingModel === "CONSUMPTION",
                         )}
                     />;
                 }
                 if (context.column.key === COLUMN_KEYS.period) {
-                    return allocationPeriodCell(props.model.now, wallet.start, wallet.end, false, false);
+                    return periodCell(props.model.now, wallet.start, wallet.end, false, false);
                 }
                 if (context.column.key === COLUMN_KEYS.quota) {
-                    return <AllocationAmount
+                    return <Amount
                         value={wallet.amounts.granted}
                         unit={wallet.unit}
                         title="Total received, including active, expired and upcoming allocations."
@@ -1342,7 +1357,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                         <span className="allocation-indent" />
                         {expandButton(`${row.workspaceTitle} grant applications`)}
                         <span className="allocation-source-name">
-                            <AllocationWorkspaceLabel
+                            <WorkspaceLabel
                                 title={row.workspaceTitle}
                                 meta={row.workspaceType === "user" ? "Personal" : undefined}
                             />
@@ -1359,15 +1374,10 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                         {expandButton(grantId === undefined ? "unlinked slices" : `grant #${grantId} slices`)}
                         <span>
                             {grantId === undefined ? "No grant" :
-                                props.renderGrantLink?.(grantId) ?? <Link
+                                <Link
                                     to={AppRoutes.grants.editor(grantId)}
                                     target="_blank"
-                                    onClick={event => {
-                                        event.stopPropagation();
-                                        if (!props.onOpenGrant) return;
-                                        event.preventDefault();
-                                        props.onOpenGrant(grantId);
-                                    }}
+                                    onClick={event => event.stopPropagation()}
                                 >{`#${grantId}`}</Link>}
                             {` (${sliceCount} ${sliceCount === 1 ? "slice" : "slices"})`}
                         </span>
@@ -1404,10 +1414,10 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                     const value = metric.key === "activeBalance"
                         ? row.accounting.maxUsable ?? row.accounting.amounts.activeBalance
                         : row.accounting.amounts[metric.key];
-                    return <AllocationAmount
+                    return <Amount
                         value={value}
                         unit={row.unit}
-                        title={allocationReceivedMetricTitle(
+                        title={receivedMetricTitle(
                             metric.key,
                             row.category.accountingModel === "CONSUMPTION",
                         )}
@@ -1415,24 +1425,24 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                 }
                 const consumption = row.category.accountingModel === "CONSUMPTION";
                 const values = entry.kind === "grant"
-                    ? allocationGrantMetricValues(
+                    ? grantMetricValues(
                         {slices: entry.grant.slices, used: entry.grant.usage?.value ?? null},
                         props.model.now,
                         consumption,
                     )
-                    : allocationSliceMetricValues(entry.allocation, props.model.now, consumption);
+                    : sliceMetricValues(entry.allocation, props.model.now, consumption);
                 const value = values[metric.key];
                 if (!value) return null;
-                return <AllocationAmount
+                return <Amount
                     value={value.value}
                     unit={row.unit}
                     approximate={value.approximate}
-                    title={allocationReceivedMetricTitle(metric.key, consumption)}
+                    title={receivedMetricTitle(metric.key, consumption)}
                 />;
             }
             if (context.column.key === COLUMN_KEYS.period) {
                 if (slice) {
-                    return allocationPeriodCell(
+                    return periodCell(
                         props.model.now,
                         slice.start,
                         Math.max(slice.start, slice.end - 1),
@@ -1440,7 +1450,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                         slice.retired,
                     );
                 }
-                return allocationPeriodCell(
+                return periodCell(
                     props.model.now,
                     row.start,
                     Math.max(row.start, row.end),
@@ -1451,7 +1461,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             if (context.column.key === COLUMN_KEYS.quota) {
                 const value = entry.kind === "product" ? row.accounting.amounts.granted :
                     entry.kind === "grant" ? row.allocationQuota : entry.allocation.quota;
-                return <AllocationAmount
+                return <Amount
                     value={value}
                     unit={row.unit}
                     title={entry.kind === "allocation"
@@ -1464,10 +1474,10 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
         if (entry.kind === "wallet") return context.cell;
         const row = entry.kind === "product" ? entry.product : entry.grant;
         const allocation = entry.kind === "allocation" ? entry.allocation : undefined;
-        const metric = allocationLifecycleMetrics.find(metric => metric.key === context.column.key);
+        const metric = lifecycleMetrics.find(metric => metric.key === context.column.key);
         const consumption = row.category.accountingModel === "CONSUMPTION";
         if (metric) {
-            if (entry.kind === "product") return <AllocationLifecycleAmount
+            if (entry.kind === "product") return <LifecycleAmount
                 metric={metric}
                 amounts={row.accounting.amounts}
                 consumption={consumption}
@@ -1475,14 +1485,14 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                 maxUsable={row.accounting.maxUsable}
             />;
             if (metric.key === "used") {
-                const usage = allocation ? allocationSliceUsage(allocation) : row.usage;
+                const usage = allocation ? sliceUsage(allocation) : row.usage;
                 if (!usage) return null;
                 const usageTitle = usage.approximate
-                    ? allocationEstimatedUsageTitle
+                    ? estimatedUsageTitle
                     : allocation
                         ? "Usage recorded when this allocation expired."
                         : "Total usage recorded on the allocations in this grant.";
-                return <AllocationAmount
+                return <Amount
                     value={usage.value}
                     unit={row.unit}
                     approximate={usage.approximate}
@@ -1511,7 +1521,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                     : "allocation-group-rail";
                 return <span className={railClass} aria-hidden="true" />;
             }
-            return <AllocationWorkspaceLabel
+            return <WorkspaceLabel
                 title={row.workspaceTitle}
                 meta={row.workspaceType === "root" ? undefined :
                     row.workspaceType === "user" ? "Personal" :
@@ -1556,15 +1566,10 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                     {expandButton(grantId === undefined ? "unlinked allocations" : `grant #${grantId} allocations`)}
                     <span>
                         {grantId === undefined ? "No grant" :
-                            props.renderGrantLink?.(grantId) ?? <Link
+                            <Link
                                 to={AppRoutes.grants.editor(grantId)}
                                 target="_blank"
-                                onClick={event => {
-                                    event.stopPropagation();
-                                    if (!props.onOpenGrant) return;
-                                    event.preventDefault();
-                                    props.onOpenGrant(grantId);
-                                }}
+                                onClick={event => event.stopPropagation()}
                             >#{grantId}</Link>}
                         {` (${sliceCount} ${sliceCount === 1 ? "slice" : "slices"})`}
                     </span>
@@ -1572,7 +1577,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             }
             case COLUMN_KEYS.period:
                 if (allocation) {
-                    return allocationPeriodCell(
+                    return periodCell(
                         props.model.now,
                         allocation.start,
                         Math.max(allocation.start, allocation.end - 1),
@@ -1580,7 +1585,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                         allocation.retired,
                     );
                 }
-                return allocationPeriodCell(
+                return periodCell(
                     props.model.now,
                     row.start,
                     Math.max(row.start, row.end),
@@ -1592,13 +1597,10 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
                     ? "Quota granted to this allocation."
                     : "Total granted, including the full release schedule.";
                 if (entry.kind === "product" && consumption) {
-                    const used = formatNumber(row.accounting.amounts.used, {
-                        precision: 2,
-                        removeTrailingZeros: true,
-                    });
+                    const used = formatAmount(row.accounting.amounts.used);
                     title += ` Total used across active and expired allocations: ${used} ${row.unit}.`;
                 }
-                return <AllocationAmount
+                return <Amount
                     value={allocation?.quota ?? row.allocationQuota}
                     unit={row.unit}
                     title={title}
@@ -1607,14 +1609,13 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             default:
                 return context.cell;
         }
-    }, [expanded, rowByKey, store, toggleExpanded, props.renderGrantLink, props.onOpenGrant, props.model.now, mode]);
+    }, [expanded, rowByKey, store, toggleExpanded, props.model.now, mode]);
 
-    return <div ref={gridRef} className={AllocationGridClass} onKeyDown={onGridKeyDown}>
-        <AllocationFilters
+    return <div ref={gridRef} className={TableClass} onKeyDown={onGridKeyDown}>
+        <Filters
             query={query}
             onQueryChange={setQuery}
-            searchRef={searchRef}
-            onSearchExit={() => focusAllocationTable()}
+            onSearchExit={() => focusTable()}
             periodControl={props.periodControl}
             actions={<div style={{display: "flex", flexWrap: "wrap", gap: 8}}>
                 {canAllocate ? <Button
@@ -1645,9 +1646,9 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             counts={counts}
             workspaceCount={mode === "received" ? walletRows.length : new Set(rows.map(row => row.group)).size}
             groupLabel={mode === "received" ? "product" : "workspace"}
-            personalWorkspaces={props.personalWorkspaces}
+            personalWorkspaces={personalWorkspaces}
             showPersonalWorkspaces={mode !== "received"}
-            onPersonalWorkspacesChange={props.onPersonalWorkspacesChange}
+            onPersonalWorkspacesChange={props.onPersonalWorkspacesChange ?? (() => void 0)}
             searchPlaceholder={mode === "received" ? "Search source, PI or product…" : undefined}
             onClear={() => {
                 setQuery("");
@@ -1663,7 +1664,7 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             store={store}
             stateKey="allocation-grid"
             viewId="allocation-grid"
-            shortcutGuide={mode === "received" ? receivedShortcutGuide : allocationShortcutGuide}
+            shortcutGuide={mode === "received" ? receivedShortcutGuide : shortcutGuide}
             emptyMessage={query || productKeys.length > 0 || selectedProviders.length > 0 ||
                 selectedSources.length > 0 || filterState !== "all"
                 ? "No allocations match the current search, filters or dates."
@@ -1685,4 +1686,106 @@ export function AllocationGrid(props: AllocationGridProps): React.ReactNode {
             onRowAction={onRowAction}
         />
     </div>;
+}
+
+const WorkspaceLabelStyle = injectStyle("allocation-workspace-label", k => `
+    ${k} {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        min-width: 0;
+        text-align: left;
+    }
+    ${k} .workspace-tooltip {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        max-width: 100%;
+    }
+    ${k} .workspace-title, ${k} .workspace-meta {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    ${k} .workspace-title {
+        color: var(--textPrimary);
+        font-size: 12.5px;
+        font-weight: 600;
+    }
+    ${k} .workspace-meta {
+        color: var(--textSecondary);
+        font-size: 9.5px;
+    }
+`);
+
+export function WorkspaceLabel(props: {title: string; meta?: string; metaTooltip?: string}): React.ReactNode {
+    return <div className={WorkspaceLabelStyle}>
+        <TooltipV2 tooltip={props.title} triggerClassName="workspace-tooltip">
+            <span className="workspace-title">{props.title}</span>
+        </TooltipV2>
+        {props.meta ? <TooltipV2 tooltip={props.metaTooltip ?? props.meta} triggerClassName="workspace-tooltip">
+            <span className="workspace-meta">{props.meta}</span>
+        </TooltipV2> : null}
+    </div>;
+}
+
+const AmountStyle = injectStyle("allocation-amount", k => `
+    ${k} {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 2px;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+    ${k} .amount-value {
+        color: var(--textPrimary);
+        font-size: 12px;
+        line-height: 14px;
+        font-weight: 400;
+    }
+    ${k} .amount-unit {
+        color: var(--textSecondary);
+        font-size: 10.5px;
+        line-height: 12px;
+    }
+    ${k}[data-approximate="true"] {
+        font-style: italic;
+    }
+    ${k}[data-negative="true"] .amount-value {
+        color: var(--errorMain);
+    }
+`);
+
+export function Amount(props: {
+    value: number;
+    unit: string;
+    title?: string;
+    negative?: boolean;
+    approximate?: boolean;
+}): React.ReactNode {
+    return <TooltipV2 tooltip={props.title}>
+        <div className={AmountStyle} data-negative={props.negative} data-approximate={props.approximate}>
+            <span className="amount-value">
+                {props.approximate ? "~" : ""}
+                {formatAmount(props.value)}
+            </span>
+            <span className="amount-unit">{props.unit}</span>
+        </div>
+    </TooltipV2>;
+}
+
+function LifecycleAmount(props: {
+    metric: LifecycleMetric;
+    amounts: Amounts;
+    consumption: boolean;
+    unit: string;
+    maxUsable?: number;
+}): React.ReactNode {
+    if (!lifecycleApplies(props.metric, props.consumption)) return null;
+    const value = props.metric.key === "activeBalance" ? props.maxUsable : props.amounts[props.metric.key];
+    if (value === undefined) return null;
+    return <Amount value={value} unit={props.unit}
+        title={props.metric.key === "used" && !props.consumption ? "Current capacity in use." : props.metric.title} />;
 }

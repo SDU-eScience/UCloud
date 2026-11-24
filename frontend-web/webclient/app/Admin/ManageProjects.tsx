@@ -2,18 +2,26 @@ import * as React from "react";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {Box, Button, Divider, Flex, Icon, Input, Label, Link, MainContainer} from "@/ui-components";
+import {Box, Button, Divider, Flex, Icon, Input, Label, MainContainer} from "@/ui-components";
 import {useCallback, useEffect, useState} from "react";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import * as Grants from "@/Grants";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {Tree, TreeNode} from "@/ui-components/Tree";
-import {yourAllocationsStyle} from "@/Accounting/Allocations/CommonSections";
 import {ProjectTitleForNewCore} from "@/Project/InfoCache";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 import {UserCriteriaEditorReadOnly} from "@/Project/ProjectSettings";
 import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
 import {DefaultTemplateRevision} from "@/Grants/Editor";
+import {injectStyle} from "@/Unstyled";
+
+const projectListStyle = injectStyle("project-list", k => `
+    ${k} .your-allocations-container {
+        border: 1px solid var(--borderColor);
+        border-radius: 5px;
+        padding: 10px 20px;
+    }
+`);
 
 const defaultSetting: Grants.RequestSettings = {
     enabled: false,
@@ -147,7 +155,7 @@ function ManageProjects(): React.ReactNode {
             <br />
             <p>Projects enabled to receive grants</p>
             <>
-                <div className={yourAllocationsStyle}>
+                <div className={projectListStyle}>
                     <div className="your-allocations-container">
                         {settings === undefined ? <>
                             <HexSpin size={64} />

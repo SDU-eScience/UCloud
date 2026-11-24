@@ -1,5 +1,5 @@
 import {Client} from "@/Authentication/HttpClientInstance";
-import {useProjectHasProviderTools} from "@/Accounting/Allocations/ProviderTools";
+import {useHasProviderTools} from "@/Accounting/Allocations/ProviderTools";
 import * as React from "react";
 import {useCallback, useEffect} from "react";
 import {useDispatch, useSelector} from "react-redux";
@@ -853,7 +853,7 @@ function ProjectSubLinks({canApply, isPersonalWorkspace, projectId}: {
     isPersonalWorkspace: boolean;
     projectId?: string
 }) {
-    const hasProviderTools = useProjectHasProviderTools();
+    const hasProviderTools = useHasProviderTools();
     const sections = React.useMemo(() =>
             projectSidebarSections(canApply, isPersonalWorkspace, projectId, hasProviderTools)
                 .map(section => ({...section, links: section.links.filter(it => !it.disabled)}))

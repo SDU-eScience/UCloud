@@ -1,5 +1,4 @@
 import * as React from "react";
-import {State, UIEvent} from "@/Accounting/Allocations/State";
 import {Box, Button, DataList, Flex, Icon, Input, Label, Select, TextArea} from "@/ui-components";
 import {bulkRequestOf, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
 import {Tree, TreeNode} from "@/ui-components/Tree";
@@ -8,13 +7,18 @@ import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {MandatoryField} from "@/UtilityComponents";
 import WAYF from "@/Grants/wayf-idps.json";
 import {injectStyle} from "@/Unstyled";
-import {useCallback, useRef} from "react";
+import {useCallback, useEffect, useReducer, useRef, useState} from "react";
 import {removePrefixFrom} from "@/Utilities/TextUtilities";
 import {callAPI} from "@/Authentication/DataHook";
-import * as Gifts from "@/Accounting/Gifts";
+import * as GiftApi from "@/Accounting/Gifts";
+import * as Grants from "@/Grants";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 import {formatNumber} from "@/Utilities/NumberFormatting";
+import {fetchAll} from "@/Utilities/PageUtilities";
+import ProvidersApi from "@/UCloud/ProvidersApi";
+import {useProjectId} from "@/Project/Api";
+import {useDidUnmount} from "@/Utilities/ReactUtilities";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -36,9 +40,9 @@ const giftClass = injectStyle("gift", k => `
     }
 `);
 
-export const GiftSection: React.FunctionComponent<{
+const Gifts: React.FunctionComponent<{
     state: State,
-    dispatchEvent: (event: UIEvent) => unknown,
+    dispatchEvent: (event: Event) => unknown,
 }> = ({state, dispatchEvent}) => {
     const onGiftInput = useCallback((ev: React.SyntheticEvent) => {
         ev.stopPropagation();
@@ -109,7 +113,7 @@ export const GiftSection: React.FunctionComponent<{
         ev.preventDefault();
         if (!state.gifts) return;
         if (creatingGift.current) return;
-        const gift: Gifts.GiftWithCriteria = {
+        const gift: GiftApi.GiftWithCriteria = {
             id: 0,
             criteria: [],
             excludeCriteria: [],
@@ -189,7 +193,7 @@ export const GiftSection: React.FunctionComponent<{
 
         try {
             creatingGift.current = true;
-            const {id} = await callAPI(Gifts.create(gift));
+            const {id} = await callAPI(GiftApi.create(gift));
             gift.id = id;
             dispatchEvent({type: "GiftCreated", gift});
             sendSuccessNotification("Gift Created");
@@ -206,7 +210,7 @@ export const GiftSection: React.FunctionComponent<{
         if (isNaN(id)) return;
 
         try {
-            await callAPI(Gifts.remove({giftId: id}));
+            await callAPI(GiftApi.remove({giftId: id}));
         } catch (e: any) {
             sendFailureNotification("Failed to delete gift: " + extractErrorMessage(e));
             return;
@@ -435,9 +439,9 @@ export const GiftSection: React.FunctionComponent<{
     </>
 }
 
-export const RootAllocationSections: React.FunctionComponent<{
+const RootAllocations: React.FunctionComponent<{
     state: State,
-    dispatchEvent: (event: UIEvent) => unknown,
+    dispatchEvent: (event: Event) => unknown,
 }> = ({state, dispatchEvent}) => {
     const onRootAllocationInput = useCallback((ev: React.SyntheticEvent) => {
         ev.stopPropagation();
@@ -654,4 +658,308 @@ function rootDateInputToTimestamp(value: string, endOfDay = false): number | und
         return undefined;
     }
     return timestamp;
+}
+
+function startOfCurrentYear(): number {
+    const now = new Date();
+    return Date.UTC(now.getUTCFullYear(), 0, 1);
+}
+
+function endOfCurrentYear(): number {
+    const now = new Date();
+    return Date.UTC(now.getUTCFullYear() + 1, 0, 1) - 1;
+}
+
+interface State {
+    remoteData: {
+        managedProviders?: string[];
+        managedProducts?: Record<string, Accounting.ProductCategoryV2[]>;
+        gifts?: GiftApi.GiftWithCriteria[];
+    };
+
+    gifts?: {
+        title: string;
+        description: string;
+        renewEvery: number;
+        domainAllow: string;
+        domainExclude: string;
+        orgAllow: string;
+        resources: Record<string, number>;
+    }
+
+    rootAllocations?: {
+        start: number;
+        end: number;
+        duration?: number | null;
+        resources: Record<string, number>;
+    }
+}
+
+type Action =
+    | {type: "Reset"}
+    | {type: "ManagedProvidersLoaded", providerIds: string[]}
+    | {type: "ManagedProductsLoaded", products: Record<string, Accounting.ProductCategoryV2[]>}
+    | {type: "GiftsLoaded", gifts: GiftApi.GiftWithCriteria[]}
+    | {type: "UpdateGift", data: Partial<State["gifts"]>}
+    | {type: "GiftCreated", gift: GiftApi.GiftWithCriteria}
+    | {type: "GiftDeleted", id: number}
+    | {type: "UpdateRootAllocations", data: Partial<State["rootAllocations"]>}
+    | {type: "ResetRootAllocation"};
+
+type Event =
+    Action
+    | {type: "Init"};
+
+function emptyGift(): NonNullable<State["gifts"]> {
+    return {
+        title: "",
+        description: "",
+        renewEvery: 0,
+        domainAllow: "",
+        domainExclude: "",
+        orgAllow: "",
+        resources: {},
+    };
+}
+
+function initialRootAllocations(): NonNullable<State["rootAllocations"]> {
+    return {
+        start: startOfCurrentYear(),
+        end: endOfCurrentYear(),
+        duration: new Date().getUTCFullYear(),
+        resources: {},
+    };
+}
+
+function stateReducer(state: State, action: Action): State {
+    switch (action.type) {
+        case "ManagedProvidersLoaded": {
+            return {
+                ...state,
+                remoteData: {
+                    ...state.remoteData,
+                    managedProviders: action.providerIds,
+                },
+                rootAllocations: initialRootAllocations(),
+            };
+        }
+
+        case "ManagedProductsLoaded": {
+            return {
+                ...state,
+                remoteData: {
+                    ...state.remoteData,
+                    managedProducts: action.products,
+                }
+            };
+        }
+
+        case "GiftsLoaded": {
+            return {
+                ...state,
+                remoteData: {
+                    ...state.remoteData,
+                    gifts: action.gifts
+                },
+                gifts: emptyGift(),
+            };
+        }
+
+        case "UpdateGift": {
+            const currentGifts = state.gifts ?? emptyGift();
+            return {
+                ...state,
+                gifts: {
+                    ...currentGifts,
+                    ...action.data,
+                    resources: {
+                        ...currentGifts.resources,
+                        ...(action.data?.resources ?? {}),
+                    },
+                }
+            };
+        }
+
+        case "GiftCreated": {
+            return {
+                ...state,
+                remoteData: {
+                    ...state.remoteData,
+                    gifts: [...(state.remoteData.gifts ?? []), action.gift]
+                },
+                gifts: emptyGift(),
+            }
+        }
+
+        case "GiftDeleted": {
+            return {
+                ...state,
+                remoteData: {
+                    ...state.remoteData,
+                    gifts: (state.remoteData.gifts ?? []).filter(it => it.id !== action.id)
+                }
+            };
+        }
+
+        case "UpdateRootAllocations": {
+            const currentRoot = state.rootAllocations ?? initialRootAllocations();
+            return {
+                ...state,
+                rootAllocations: {
+                    ...currentRoot,
+                    ...action.data,
+                    resources: {
+                        ...currentRoot.resources,
+                        ...(action.data?.resources ?? {}),
+                    },
+                }
+            };
+        }
+
+        case "ResetRootAllocation": {
+            return {
+                ...state,
+                rootAllocations: initialRootAllocations(),
+            };
+        }
+
+        case "Reset": {
+            return initialState();
+        }
+
+        default: {
+            return state;
+        }
+    }
+}
+
+export function useProviderToolsState(): [
+    State,
+    (event: Event) => unknown,
+] {
+    const projectId = useProjectId();
+    const didCancel = useDidUnmount();
+    const [state, rawDispatch] = useReducer(stateReducer, undefined, initialState);
+
+    const dispatchEvent = useCallback(async (event: Event) => {
+        function dispatch(ev: Action) {
+            if (didCancel.current === true) return;
+            rawDispatch(ev);
+        }
+
+        switch (event.type) {
+            case "Init": {
+                const providers = await fetchManagedProviders();
+                dispatch({type: "ManagedProvidersLoaded", providerIds: providers});
+
+                void Promise.all(
+                    providers.map(provider =>
+                        fetchAll(next => callAPI(Accounting.browseProductsV2({
+                            filterProvider: provider,
+                            next,
+                            itemsPerPage: 250,
+                        }))).then(it => [provider, it]) as Promise<[string, Accounting.ProductV2[]]>
+                    )
+                ).then(results => {
+                    const merged: Record<string, Accounting.ProductCategoryV2[]> = {};
+                    for (const [providerId, page] of results) {
+                        const categories: Accounting.ProductCategoryV2[] = [];
+                        for (const product of page) {
+                            if (product.category.freeToUse) continue;
+                            if (categories.some(it => Accounting.categoryComparator(it, product.category) === 0)) {
+                                continue;
+                            }
+
+                            categories.push(product.category);
+                        }
+
+                        merged[providerId] = categories;
+                    }
+
+                    dispatch({type: "ManagedProductsLoaded", products: merged});
+                });
+
+                void fetchAll(next => callAPI(GiftApi.browse({itemsPerPage: 250, next}))).then(gifts => {
+                    dispatch({type: "GiftsLoaded", gifts});
+                });
+                break;
+            }
+
+            default: {
+                dispatch(event);
+                break;
+            }
+        }
+    }, [rawDispatch, didCancel]);
+
+    useEffect(() => {
+        dispatchEvent({type: "Reset"});
+        void dispatchEvent({type: "Init"});
+    }, [projectId, dispatchEvent]);
+
+    return [state, dispatchEvent];
+}
+
+async function fetchManagedProviders(): Promise<string[]> {
+    let list: string[] = [];
+
+    try {
+        const items = await fetchAll(next => callAPI(ProvidersApi.browse({itemsPerPage: 250, next})));
+        list = items.map(it => it.specification.id)
+    } catch (e) {}
+
+    const providerProjects = Client.userInfo?.providerProjects ?? {};
+    for (const [provider, project] of Object.entries(providerProjects)) {
+        if (project === Client.projectId) {
+            list.push(provider);
+        }
+    }
+    return list;
+}
+
+function initialState(): State {
+    return {
+        remoteData: {},
+    };
+}
+
+export function useHasProviderTools(): boolean {
+    const projectId = useProjectId();
+    const didUnmount = useDidUnmount();
+    const [giftRequestsEnabled, setGiftRequestsEnabled] = useState(false);
+
+    useEffect(() => {
+        setGiftRequestsEnabled(false);
+        if (!projectId) return;
+
+        (async () => {
+            try {
+                const settings = await callAPI<Grants.RequestSettings>({
+                    ...Grants.retrieveRequestSettings(),
+                    projectOverride: projectId,
+                });
+                if (!didUnmount.current) setGiftRequestsEnabled(settings.enabled);
+            } catch (e) {
+                // Ignoring failure (the project does not support gift requests)
+            }
+        })();
+    }, [projectId]);
+
+    const managedProviders = Client.userInfo?.providerProjects ?? {};
+    const managesAnyProvider = Object.values(managedProviders).includes(projectId ?? "");
+    return managesAnyProvider || giftRequestsEnabled;
+}
+
+export function ProviderTools(props: {
+    state: State;
+    dispatchEvent: (event: Event) => unknown;
+    hasManagedProviders: boolean;
+}): React.ReactNode {
+    return <>
+        {props.hasManagedProviders ? <RootAllocations
+            state={props.state}
+            dispatchEvent={props.dispatchEvent}
+        /> : null}
+        <Gifts state={props.state} dispatchEvent={props.dispatchEvent} />
+    </>;
 }

@@ -155,8 +155,6 @@ const accounting = {
     receivedAllocations: () => "/allocations/received",
     subAllocations: () => "/allocations/sub-allocated",
     providerTools: () => "/allocations/provider-tools",
-    allocationsDemo: () => "/playground/allocations",
-    providerToolsDemo: () => "/playground/allocations/provider-tools",
 }
 
 const files = {

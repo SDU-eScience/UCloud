@@ -7,27 +7,27 @@ import {SubmitShortcut} from "@/Applications/KeyboardNavigation";
 import type {ProjectInfo} from "@/Project/InfoCache";
 import {Button, Checkbox, Icon, Input, Label} from "@/ui-components";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {classConcat, injectStyle} from "@/Unstyled";
-import {UcxStreamedTable, UcxTableControlsClass, UcxTableIconButtonClass, UcxTableStore} from "@/UCX/UcxBrowser";
+import {injectStyle} from "@/Unstyled";
+import {UcxStreamedTable, UcxTableIconButtonClass, UcxTableStore} from "@/UCX/UcxBrowser";
 import type {UcxTableShortcutGuideItem} from "@/UCX/UcxBrowser";
 import {TableColumnSortType} from "@/UCX/protocol";
 import type {TableColumn, TableRow} from "@/UCX/protocol";
-import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
 import {isLikelyMac} from "@/UtilityFunctions";
-import {AllocationWorkspaceLabel} from "./AllocationCells";
-import {allocationWorkspaceInfo} from "./AllocationModel";
-import type {AllocationModelRecipient} from "./AllocationModel";
+import {Search} from "./Controls";
+import {WorkspaceLabel} from "./Table";
+import {workspaceInfo} from "./Model";
+import type {Recipient} from "./Model";
 
-export type BulkAllocationRecipient = AllocationModelRecipient & {
+export type BulkRecipient = Recipient & {
     newProject?: {title: string; subAllocator: boolean};
 };
 
-interface BulkAllocationRecipientSearch {
+interface RecipientSearch {
     items: (ProjectInfo & {type: "project" | "user"})[];
     canSearchCatalog: boolean;
 }
 
-const BulkAllocationRecipientsStyle = injectStyle("bulk-allocation-recipients", k => `
+const RecipientPickerStyle = injectStyle("bulk-allocation-recipients", k => `
     ${k} {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -119,7 +119,7 @@ const BulkAllocationRecipientsStyle = injectStyle("bulk-allocation-recipients", 
     }
 `);
 
-function bulkAllocationRecipientKey(recipient: AllocationModelRecipient): string {
+function recipientKey(recipient: Recipient): string {
     const ref = recipient.owner.reference;
     return ref.type === "project" ? `project:${ref.projectId}` : `user:${ref.username}`;
 }
@@ -144,12 +144,12 @@ const recipientShortcutGuide: UcxTableShortcutGuideItem[] = [
     {keys: ["/"], action: "Search"},
 ];
 
-function BulkAllocationRecipientTable(props: {
+function RecipientTable(props: {
     pane: "selected" | "available";
-    recipients: BulkAllocationRecipient[];
+    recipients: BulkRecipient[];
     projectInfo: Record<string, ProjectInfo | null>;
     emptyMessage: string;
-    onAction: (recipient: BulkAllocationRecipient) => void;
+    onAction: (recipient: BulkRecipient) => void;
     draft?: {content: React.ReactNode; formId: string; canSubmit: boolean};
 }): React.ReactNode {
     const tableId = props.pane === "available"
@@ -157,8 +157,8 @@ function BulkAllocationRecipientTable(props: {
         : "bulk-allocation-selected-recipients";
     const store = useMemo(() => new UcxTableStore(), []);
     const entries = useMemo(() => new Map(props.recipients.map(recipient => [
-        bulkAllocationRecipientKey(recipient),
-        {recipient, workspace: allocationWorkspaceInfo(recipient.owner, props.projectInfo)},
+        recipientKey(recipient),
+        {recipient, workspace: workspaceInfo(recipient.owner, props.projectInfo)},
     ])), [props.projectInfo, props.recipients]);
     const hasDraft = props.draft !== undefined;
     useLayoutEffect(() => {
@@ -261,23 +261,22 @@ function BulkAllocationRecipientTable(props: {
                 const metaTooltip = workspace.type === "user"
                     ? recipient.owner.title
                     : recipient.newProject ? undefined : workspace.pi;
-                return <AllocationWorkspaceLabel title={workspace.title} meta={meta} metaTooltip={metaTooltip} />;
+                return <WorkspaceLabel title={workspace.title} meta={meta} metaTooltip={metaTooltip} />;
             }}
         />
     </div>;
 }
 
-export function BulkAllocationRecipients(props: {
+export function RecipientPicker(props: {
     projectId: string;
-    recipients: BulkAllocationRecipient[];
-    existing: AllocationModelRecipient[];
+    recipients: BulkRecipient[];
+    existing: Recipient[];
     projectInfo: Record<string, ProjectInfo | null>;
     canCreateSubAllocator: boolean;
-    demo?: boolean;
     onDraftPendingChange: (pending: boolean) => void;
-    onChange: (recipients: BulkAllocationRecipient[]) => void;
+    onChange: (recipients: BulkRecipient[]) => void;
 }): React.ReactNode {
-    const [result, setResult] = useState<BulkAllocationRecipientSearch>();
+    const [result, setResult] = useState<RecipientSearch>();
     const [searchStatus, setSearchStatus] = useState<"loading" | "ready" | "failed">("loading");
     const [retry, setRetry] = useState(0);
     const [query, setQuery] = useState("");
@@ -293,12 +292,11 @@ export function BulkAllocationRecipients(props: {
     const draftFormId = useId();
     const search = query.trim();
     useEffect(() => {
-        if (props.demo) return;
         let current = true;
         setSearchStatus("loading");
         const timer = window.setTimeout(() => {
             const request = {...retrieveAllocationRecipients(search), projectOverride: props.projectId};
-            void callAPI<BulkAllocationRecipientSearch>(request).then(result => {
+            void callAPI<RecipientSearch>(request).then(result => {
                 if (!current) return;
                 setResult(result);
                 setSearchStatus("ready");
@@ -310,34 +308,27 @@ export function BulkAllocationRecipients(props: {
             current = false;
             window.clearTimeout(timer);
         };
-    }, [props.demo, props.projectId, retry, search]);
+    }, [props.projectId, retry, search]);
     useLayoutEffect(() => {
         if (!showDraftForm) return;
         selectedSection.current?.querySelector(".streamed-table-scroll")?.scrollTo({top: 0});
         draftInput.current?.focus();
     }, [showDraftForm]);
 
-    const existing = new Map(props.existing.map(recipient => [bulkAllocationRecipientKey(recipient), recipient]));
-    const selected = new Set(props.recipients.map(bulkAllocationRecipientKey));
-    const available: BulkAllocationRecipient[] = props.demo
-        ? props.existing.filter(recipient => recipient.owner.reference.type === "project")
-        : (result?.items ?? []).map(item => ({
-            owner: {
-                reference: item.type === "project"
-                    ? {type: "project", projectId: item.id}
-                    : {type: "user", username: item.id},
-                title: item.title,
-                primaryUsername: item.piUsername,
-            },
-            products: existing.get(`${item.type}:${item.id}`)?.products ?? [],
-        }));
-    const addable = available.filter(recipient => {
-        if (selected.has(bulkAllocationRecipientKey(recipient))) return false;
-        if (!props.demo) return true;
-        const info = allocationWorkspaceInfo(recipient.owner, props.projectInfo);
-        return `${info.title} ${info.pi}`.toLowerCase().includes(search.toLowerCase());
-    });
-    const availableEmptyMessage = !props.demo && searchStatus === "loading"
+    const existing = new Map(props.existing.map(recipient => [recipientKey(recipient), recipient]));
+    const selected = new Set(props.recipients.map(recipientKey));
+    const available: BulkRecipient[] = (result?.items ?? []).map(item => ({
+        owner: {
+            reference: item.type === "project"
+                ? {type: "project", projectId: item.id}
+                : {type: "user", username: item.id},
+            title: item.title,
+            primaryUsername: item.piUsername,
+        },
+        products: existing.get(`${item.type}:${item.id}`)?.products ?? [],
+    }));
+    const addable = available.filter(recipient => !selected.has(recipientKey(recipient)));
+    const availableEmptyMessage = searchStatus === "loading"
         ? "Searching…"
         : search.length >= 2
             ? "No available recipients match."
@@ -363,19 +354,19 @@ export function BulkAllocationRecipients(props: {
             searchRef.current?.focus({preventScroll: true});
         }
     };
-    const addRecipient = (recipient: BulkAllocationRecipient) => {
+    const addRecipient = (recipient: BulkRecipient) => {
         const index = addable.findIndex(current =>
-            bulkAllocationRecipientKey(current) === bulkAllocationRecipientKey(recipient)
+            recipientKey(current) === recipientKey(recipient)
         );
         const next = addable[index + 1] ?? addable[index - 1];
-        pendingFocusRef.current = {pane: "available", key: next ? bulkAllocationRecipientKey(next) : undefined};
+        pendingFocusRef.current = {pane: "available", key: next ? recipientKey(next) : undefined};
         props.onChange([...props.recipients, recipient]);
     };
-    const removeRecipient = (recipient: BulkAllocationRecipient) => {
-        const key = bulkAllocationRecipientKey(recipient);
-        const index = props.recipients.findIndex(current => bulkAllocationRecipientKey(current) === key);
+    const removeRecipient = (recipient: BulkRecipient) => {
+        const key = recipientKey(recipient);
+        const index = props.recipients.findIndex(current => recipientKey(current) === key);
         const next = props.recipients[index + 1] ?? props.recipients[index - 1];
-        pendingFocusRef.current = {pane: "selected", key: next ? bulkAllocationRecipientKey(next) : undefined};
+        pendingFocusRef.current = {pane: "selected", key: next ? recipientKey(next) : undefined};
         props.onChange(props.recipients.filter(current => current !== recipient));
     };
     const closeDraft = (restoreFocus = true) => {
@@ -416,7 +407,7 @@ export function BulkAllocationRecipients(props: {
             event.preventDefault();
             event.stopPropagation();
             if (!validTitle) return;
-            const draftRecipient: BulkAllocationRecipient = {
+            const draftRecipient: BulkRecipient = {
                 owner: {
                     reference: {type: "project", projectId: `draft:${crypto.randomUUID()}`},
                     title,
@@ -425,7 +416,7 @@ export function BulkAllocationRecipients(props: {
                 products: [],
                 newProject: {title, subAllocator: props.canCreateSubAllocator && draftSubAllocator},
             };
-            pendingFocusRef.current = {pane: "selected", key: bulkAllocationRecipientKey(draftRecipient)};
+            pendingFocusRef.current = {pane: "selected", key: recipientKey(draftRecipient)};
             props.onChange([...props.recipients, draftRecipient]);
             closeDraft(false);
         }}
@@ -467,7 +458,7 @@ export function BulkAllocationRecipients(props: {
         </Label> : null}
     </form>;
 
-    return <div ref={rootRef} className={BulkAllocationRecipientsStyle}
+    return <div ref={rootRef} className={RecipientPickerStyle}
         onKeyDown={event => {
             const target = event.target as HTMLElement;
             const editable = target.closest("input, textarea, select, [contenteditable='true']") != null;
@@ -519,7 +510,7 @@ export function BulkAllocationRecipients(props: {
                     </Button> :
                     null}
             </div>
-            <BulkAllocationRecipientTable
+            <RecipientTable
                 pane="selected"
                 recipients={props.recipients}
                 projectInfo={props.projectInfo}
@@ -530,42 +521,34 @@ export function BulkAllocationRecipients(props: {
         </section>
         <section>
             <div className="recipient-heading"><h4>Available recipients</h4></div>
-            <div className={classConcat("recipient-search", UcxTableControlsClass)}>
-                <div className="table-filter">
-                    <Input
-                        inputRef={searchRef}
-                        value={query}
-                        maxLength={64}
-                        onChange={event => setQuery(event.currentTarget.value)}
-                        aria-label="Search available recipients"
-                        aria-keyshortcuts="/"
-                        data-recipient-search=""
-                        onKeyDown={event => {
-                            const moveToTable = event.key === "ArrowUp" || event.key === "ArrowDown";
-                            if (!moveToTable && event.key !== "Escape" && event.key !== "Enter") return;
-                            const modifierPressed = event.altKey || event.ctrlKey || event.metaKey || event.shiftKey;
-                            if (moveToTable && modifierPressed) return;
-                            event.preventDefault();
-                            event.stopPropagation();
-                            focusPane("available");
-                        }}
-                        placeholder={result?.canSearchCatalog ? "Search projects or people…" : "Search projects…"}
-                    />
-                    {query === "" ?
-                        <span className="table-filter-shortcut">
-                            <div className={ShortcutClass}>/</div>
-                        </span> :
-                        null}
-                </div>
-            </div>
-            {!props.demo && searchStatus === "failed" ?
+            <Search
+                className="recipient-search"
+                inputRef={searchRef}
+                query={query}
+                onQueryChange={setQuery}
+                maxLength={64}
+                ariaLabel="Search available recipients"
+                ariaKeyshortcuts="/"
+                dataAttributes={{"data-recipient-search": ""}}
+                onKeyDown={event => {
+                    const moveToTable = event.key === "ArrowUp" || event.key === "ArrowDown";
+                    if (!moveToTable && event.key !== "Escape" && event.key !== "Enter") return;
+                    const modifierPressed = event.altKey || event.ctrlKey || event.metaKey || event.shiftKey;
+                    if (moveToTable && modifierPressed) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    focusPane("available");
+                }}
+                placeholder={result?.canSearchCatalog ? "Search projects or people…" : "Search projects…"}
+            />
+            {searchStatus === "failed" ?
                 <div role="alert">
                     Could not search for recipients.{" "}
                     <Button color="secondaryMain" onClick={() => setRetry(value => value + 1)}>Retry</Button>
                 </div> :
-                <BulkAllocationRecipientTable
+                <RecipientTable
                     pane="available"
-                    recipients={props.demo || searchStatus === "ready" ? addable : []}
+                    recipients={searchStatus === "ready" ? addable : []}
                     projectInfo={props.projectInfo}
                     emptyMessage={availableEmptyMessage}
                     onAction={addRecipient}

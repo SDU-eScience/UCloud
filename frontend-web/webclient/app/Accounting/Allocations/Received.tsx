@@ -8,14 +8,11 @@ import type {ProjectInfo} from "@/Project/InfoCache";
 import AppRoutes from "@/Routes";
 import {injectStyle} from "@/Unstyled";
 import {SubmitShortcut} from "@/Applications/KeyboardNavigation";
-import {AllocationGrid} from "./AllocationGrid";
-import type {AllocationDateRange, AllocationModel, AllocationModelProduct} from "./AllocationModel";
-import {allocationProductWorkspaceInfo} from "./AllocationModel";
-import {AllocationPeriodFilter} from "./AllocationPeriodFilter";
-import {focusAllocationTable} from "./AllocationShortcuts";
-import type {State} from "./State";
+import {Table} from "./Table";
+import type {DateRange, Model, ProductAllocation} from "./Model";
+import {productWorkspaceInfo} from "./Model";
 
-const ReceivedAllocationsStyle = injectStyle("received-allocations", k => `
+const ReceivedStyle = injectStyle("received-allocations", k => `
     ${k} {
         display: flex;
         flex-direction: column;
@@ -42,21 +39,17 @@ const ReceivedAllocationsStyle = injectStyle("received-allocations", k => `
     }
 `);
 
-export function ReceivedAllocations(props: {
-    model: AllocationModel;
-    state: State;
-    dateRange: AllocationDateRange;
-    onDateRangeChange: (range: AllocationDateRange) => void;
+export function Received(props: {
+    model: Model;
+    loading: boolean;
+    dateRange: DateRange;
+    periodControl: React.ReactNode;
     projectId?: string;
     canApply: boolean;
     projectInfo?: Record<string, ProjectInfo | null>;
-    searchBox: React.RefObject<HTMLInputElement | null>;
-    demo?: boolean;
-    onOpenGrant?: (grantId: number) => void;
-    renderGrantLink?: (grantId: number) => React.ReactNode;
 }): React.ReactNode {
     const navigate = useNavigate();
-    const [exportProducts, setExportProducts] = useState<AllocationModelProduct[]>([]);
+    const [exportProducts, setExportProducts] = useState<ProductAllocation[]>([]);
 
     const onViewUsage = useCallback(() => {
         navigate(AppRoutes.accounting.usage());
@@ -76,7 +69,7 @@ export function ReceivedAllocations(props: {
         }
 
         const rows: Row[] = exportProducts.map(product => {
-            const source = allocationProductWorkspaceInfo(product, props.projectInfo ?? {});
+            const source = productWorkspaceInfo(product, props.projectInfo ?? {});
             return {
                 source: source.title,
                 product: product.category.name,
@@ -108,39 +101,25 @@ export function ReceivedAllocations(props: {
         );
     }, [exportProducts, props.projectInfo]);
 
-    const periodControl = <AllocationPeriodFilter
-        now={props.model.now}
-        value={props.dateRange}
-        onChange={props.onDateRangeChange}
-        shortcut="K"
-        onReturnFocus={focusAllocationTable}
-    />;
-
     const applyTo = props.projectId && props.canApply
         ? AppRoutes.grants.newApplication({projectId: props.projectId})
         : AppRoutes.grants.editor();
-    const showApply = !props.demo && props.canApply;
 
-    return <div className={ReceivedAllocationsStyle}>
-        {props.state.remoteData.wallets === undefined ?
+    return <div className={ReceivedStyle}>
+        {props.loading ?
             <div className="received-allocations-loading"><HexSpin size={64} /></div> :
             <div className="received-allocations-grid">
-                <AllocationGrid
+                <Table
                     key={props.projectId}
                     mode="received"
                     model={props.model}
                     projectInfo={props.projectInfo ?? {}}
                     dateRange={props.dateRange}
-                    searchRef={props.searchBox}
-                    personalWorkspaces={!props.state.viewOnlyProjects}
-                    onPersonalWorkspacesChange={() => void 0}
-                    periodControl={periodControl}
-                    onViewUsage={props.demo ? undefined : onViewUsage}
-                    onOpenGrant={props.onOpenGrant}
-                    renderGrantLink={props.renderGrantLink}
+                    periodControl={props.periodControl}
+                    onViewUsage={onViewUsage}
                     onVisibleProductsChange={setExportProducts}
                     toolbar={<Flex gap="8px">
-                        {showApply ? <Link to={applyTo}>
+                        {props.canApply ? <Link to={applyTo}>
                             <Button
                                 height={35}
                                 data-allocation-shortcut="allocate"
