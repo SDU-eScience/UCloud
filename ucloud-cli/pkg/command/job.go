@@ -153,7 +153,7 @@ func printJobs(jobsMap map[string][]orcapi.Job) error {
 	t.AppendHeader("Name")
 	t.AppendHeader("Status")
 	t.AppendHeader("Owner")
-	t.AppendHeader("CreateTime")
+	t.AppendHeader("SubmissionTime")
 
 	for _, jobMap := range jobsMap {
 		for _, job := range jobMap {

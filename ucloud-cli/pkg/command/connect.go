@@ -16,7 +16,7 @@ import (
 
 const (
 	Port          = ":59421"
-	UCloudCliPath = "/app/login/external?service=ucloud-cli"
+	UCloudCliPath = "/login/external?service=ucloud-cli"
 )
 
 type ConnectCommand struct {
