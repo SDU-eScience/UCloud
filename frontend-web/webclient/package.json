@@ -68,6 +68,7 @@
         "remark-math": "^3.0.1",
         "rusha": "0.8.14",
         "ua-parser-js": "1.0.41",
+        "write-excel-file": "4.1.1",
         "yaml": "2.9.1"
     },
     "overrides": {

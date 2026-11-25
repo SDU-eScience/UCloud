@@ -1335,7 +1335,7 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 	}
 
 	now = time.Now()
-	if reportGlobals.Ready.Load() {
+	if filter == nil && reportGlobals.Ready.Load() {
 		if now.After(accountingScanUsageReportCanResumeAt) || forceUsageReport {
 			if slices.Contains(usageReportSamplingHours, now.Hour()) && now.Minute() < 10 || forceUsageReport {
 				accountingScanUsageReportCanResumeAt = time.Now().Add(15 * time.Minute)

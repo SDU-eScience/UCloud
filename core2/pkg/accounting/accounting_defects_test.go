@@ -117,33 +117,6 @@ func TestFindAllProvidersIncludesPaidAndOptionalFreeProviders(t *testing.T) {
 	}
 }
 
-func TestUsageCollapsePreservesZeroUsageQuota(t *testing.T) {
-	timestamp := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
-	reports := []internalUsageReport{
-		{ValidFrom: timestamp, UsageOverTime: internalUsageOverTime{Absolute: []internalUsageOverTimeAbsoluteDataPoint{{
-			Timestamp: timestamp, Usage: 10, Quota: 10,
-		}}}},
-		{ValidFrom: timestamp, UsageOverTime: internalUsageOverTime{Absolute: []internalUsageOverTimeAbsoluteDataPoint{{
-			Timestamp: timestamp, Usage: 0, Quota: 100,
-		}}}},
-	}
-
-	first, second := timeCategory, timeCategory
-	first.Name, second.Name = "first", "second"
-	collapsed := usageCollapseReports([]internalUsageReportWithProduct{
-		{Product: first, Report: reports[0]},
-		{Product: second, Report: reports[1]},
-	})
-	if len(collapsed.UsageOverTime.Absolute) != 1 {
-		t.Fatalf("absolute point count = %d, want 1", len(collapsed.UsageOverTime.Absolute))
-	}
-	got := collapsed.UsageOverTime.Absolute[0].ToApi().UtilizationPercent100
-	want := float64(10) / 110 * 100
-	if diff := got - want; diff < -0.000001 || diff > 0.000001 {
-		t.Fatalf("utilization = %f, want %f", got, want)
-	}
-}
-
 func TestOverAllocationEscapePreservesChildAllocation(t *testing.T) {
 	runTable(t, []accapi.ProductCategory{capacityCategory, timeCategory}, func(e *env) {
 		e.AllocateEx(0, 0, 100, 100, "parent", "")

@@ -52,9 +52,11 @@ type accountingScenarioResult struct {
 	ProjectInfo   map[string]accountingScenarioProject `json:"projectInfo"`
 	Projects      map[string]string                    `json:"projects"`
 	Category      accapi.ProductCategoryIdV2           `json:"category"`
+	Categories    []accapi.ProductCategoryIdV2         `json:"categories,omitempty"`
 	AllocationIds []int64                              `json:"allocationIds"`
 	GrantIds      []int64                              `json:"grantIds"`
 	Checkpoints   []accountingScenarioCheckpoint       `json:"checkpoints"`
+	UsageSamples  int                                  `json:"usageSamples"`
 	Failure       string                               `json:"failure,omitempty"`
 }
 
@@ -79,12 +81,81 @@ func accountingScenarioInit() {
 			}
 			piUsername = "user"
 		}
-		if request.Scenario == accountingScenarioPortfolioName {
+		isLongRunning := request.Scenario == accountingScenarioPortfolioName || request.Scenario == accountingScenarioUsageAllocatorName
+		if isLongRunning {
 			controller := http.NewResponseController(info.HttpWriter)
 			_ = controller.SetWriteDeadline(time.Now().Add(accountingScenarioPortfolioTimeout))
 		}
 		return accountingScenarioRun(piUsername, request.Scenario, launcherRun)
 	})
+}
+
+func accountingScenarioBuildProducts(runId string, definition accountingScenarioDefinition) ([]string, map[string]accapi.ProductV2, map[string]int64) {
+	if len(definition.Products) == 0 {
+		product := usageGenTimeBasedCPUOne
+		if definition.Capacity {
+			product = usageGenCapacityBased
+		}
+		product.Category.Name = runId
+		product.Name = runId
+		product.Description = definition.Description
+		product.Category.AccountingFrequency = accapi.AccountingFrequencyPeriodicHour
+		if definition.MinuteUnits {
+			product.Category.AccountingFrequency = accapi.AccountingFrequencyPeriodicMinute
+		}
+		if definition.Capacity {
+			product.Category.AccountingFrequency = accapi.AccountingFrequencyOnce
+		}
+		rootQuota := definition.RootQuota
+		if rootQuota == 0 {
+			rootQuota = 1000000
+		}
+		return []string{""},
+			map[string]accapi.ProductV2{"": product},
+			map[string]int64{"": rootQuota}
+	}
+
+	keys := make([]string, 0, len(definition.Products))
+	products := make(map[string]accapi.ProductV2, len(definition.Products))
+	rootQuotas := make(map[string]int64, len(definition.Products))
+
+	for _, spec := range definition.Products {
+		name := runId + "-" + spec.Slug
+		product := accapi.ProductV2{
+			Type: accapi.ProductTypeCCreate(spec.ProductType),
+			Category: accapi.ProductCategory{
+				Name:                name,
+				Provider:            "usagegen",
+				ProductType:         spec.ProductType,
+				AccountingUnit:      spec.Unit,
+				AccountingFrequency: spec.Frequency,
+				AccountingModel:     spec.AccountingModel,
+				FreeToUse:           false,
+				AllowSubAllocations: true,
+			},
+			Name:                      name,
+			Description:               definition.Description,
+			ProductType:               spec.ProductType,
+			Price:                     1,
+			HiddenInGrantApplications: true,
+		}
+		if spec.ProductType == accapi.ProductTypeCompute {
+			product.Cpu = 1
+			product.MemoryInGigs = 1
+		}
+		rootQuota := spec.RootQuota
+		if rootQuota == 0 {
+			rootQuota = definition.RootQuota
+		}
+		if rootQuota == 0 {
+			rootQuota = 1000000
+		}
+		keys = append(keys, spec.Key)
+		products[spec.Key] = product
+		rootQuotas[spec.Key] = rootQuota
+	}
+
+	return keys, products, rootQuotas
 }
 
 func accountingScenarioRun(piUsername string, name string, launcherRun bool) (accountingScenarioResult, *util.HttpError) {
@@ -137,13 +208,22 @@ func accountingScenarioRun(piUsername string, name string, launcherRun bool) (ac
 		}
 		title := fmt.Sprintf("AS-%s-%s-%s", definition.Code, shortId, subCode)
 		projectPi := piUsername
-		if launcherRun && name == accountingScenarioPortfolioName && role != "root" {
+		if launcherRun && len(definition.UserOwnedRoles) > 0 {
+			if !slices.Contains(definition.UserOwnedRoles, role) {
+				projectPi = rpc.ActorSystem.Username
+			}
+		} else if launcherRun && (name == accountingScenarioPortfolioName || name == accountingScenarioUsageAllocatorName) && role != "root" {
 			projectPi = rpc.ActorSystem.Username
 		}
+		subAllocatorOpt := util.OptNone[bool]()
+		if slices.Contains(definition.SubAllocatorRoles, role) {
+			subAllocatorOpt.Set(true)
+		}
 		project, err := fndapi.ProjectInternalCreate.Invoke(fndapi.ProjectInternalCreateRequest{
-			Title:      title,
-			BackendId:  "accounting-scenario-" + runId + "-" + role,
-			PiUsername: projectPi,
+			Title:        title,
+			BackendId:    "accounting-scenario-" + runId + "-" + role,
+			PiUsername:   projectPi,
+			SubAllocator: subAllocatorOpt,
 		})
 		if err != nil {
 			result.Failure = err.Error()
@@ -156,129 +236,219 @@ func accountingScenarioRun(piUsername string, name string, launcherRun bool) (ac
 			PiUsername: projectPi,
 		}
 	}
-	result.ProjectId = result.Projects["root"]
-	product := usageGenTimeBasedCPUOne
-	if definition.Capacity {
-		product = usageGenCapacityBased
+	primaryRole := definition.PrimaryProjectRole
+	if primaryRole == "" {
+		primaryRole = "root"
 	}
-	product.Category.Name = runId
-	product.Name = runId
-	product.Description = definition.Description
-	product.Category.AccountingFrequency = accapi.AccountingFrequencyPeriodicHour
-	if definition.MinuteUnits {
-		product.Category.AccountingFrequency = accapi.AccountingFrequencyPeriodicMinute
+	result.ProjectId = result.Projects[primaryRole]
+
+	productKeys, productsByKey, rootQuotasByKey := accountingScenarioBuildProducts(runId, definition)
+	productsToCreate := make([]accapi.ProductV2, 0, len(productKeys))
+	for _, key := range productKeys {
+		productsToCreate = append(productsToCreate, productsByKey[key])
 	}
-	if definition.Capacity {
-		product.Category.AccountingFrequency = accapi.AccountingFrequencyOnce
-	}
-	err := ProductCreate(rpc.ActorSystem, []accapi.ProductV2{product})
+	err := ProductCreate(rpc.ActorSystem, productsToCreate)
 	if err != nil {
 		result.Failure = err.Error()
 		return result, nil
 	}
-	category := product.Category
-	result.Category = category.ToId()
-	bucket := internalBucketOrInit(category)
+
+	primaryKey := productKeys[0]
+	bucketsByKey := make(map[string]*internalBucket, len(productKeys))
+	allBuckets := make([]*internalBucket, 0, len(productKeys))
+	categorySet := make(map[accapi.ProductCategoryIdV2]util.Empty, len(productKeys))
+	for _, key := range productKeys {
+		cat := productsByKey[key].Category
+		catId := cat.ToId()
+		result.Categories = append(result.Categories, catId)
+		categorySet[catId] = util.Empty{}
+		b := internalBucketOrInit(cat)
+		bucketsByKey[key] = b
+		allBuckets = append(allBuckets, b)
+	}
+	primaryCat := productsByKey[primaryKey].Category
+	result.Category = primaryCat.ToId()
+
+	resolveProductKey := func(stepProduct string) string {
+		if stepProduct == "" {
+			return primaryKey
+		}
+		return stepProduct
+	}
+
 	at := func(day int) time.Time {
 		return now.AddDate(0, 0, day)
 	}
 
+	bucketFilter := func(cat accapi.ProductCategory) bool {
+		_, ok := categorySet[cat.ToId()]
+		return ok
+	}
+
+	bucketPtrFilter := func(b *internalBucket) bool {
+		return bucketFilter(b.Category)
+	}
+
+	accountingScansDisabled.Store(true)
+	defer accountingScansDisabled.Store(false)
+
+	walletsByProduct := make(map[string]map[string]AccWalletId, len(productKeys))
+	initErr := func() *util.HttpError {
+		accountingProcessMutex.Lock()
+		defer accountingProcessMutex.Unlock()
+
+		for _, pKey := range productKeys {
+			b := bucketsByKey[pKey]
+			wMap := make(map[string]AccWalletId, len(roles))
+			for _, role := range roles {
+				owner := internalOwnerByReference(result.Projects[role])
+				wMap[role] = internalWalletByOwner(b, at(firstDay), owner.Id)
+			}
+			walletsByProduct[pKey] = wMap
+
+			rootAllocation, allocErr := internalAllocateNoCommit(
+				at(firstDay),
+				b,
+				at(firstDay),
+				at(365),
+				rootQuotasByKey[pKey],
+				wMap["root"],
+				internalGraphRoot,
+				util.OptNone[accGrantId](),
+			)
+			if allocErr != nil {
+				return allocErr
+			}
+			internalCommitAllocation(b, at(firstDay), rootAllocation)
+			result.AllocationIds = append(result.AllocationIds, int64(rootAllocation))
+		}
+		return nil
+	}()
+	if initErr != nil {
+		result.Failure = initErr.Error()
+		return result, nil
+	}
+
+	accountingProcessTasksNow(at(firstDay), bucketPtrFilter)
+
 	accountingProcessMutex.Lock()
 	replayErr := func() *util.HttpError {
 		defer accountingProcessMutex.Unlock()
-		wallets := map[string]AccWalletId{}
-		for _, role := range roles {
-			owner := internalOwnerByReference(result.Projects[role])
-			wallets[role] = internalWalletByOwner(bucket, at(firstDay), owner.Id)
-		}
-		rootQuota := definition.RootQuota
-		if rootQuota == 0 {
-			rootQuota = 1000000
-		}
-		rootAllocation, allocErr := internalAllocateNoCommit(
-			at(firstDay),
-			bucket,
-			at(firstDay),
-			at(365),
-			rootQuota,
-			wallets["root"],
-			internalGraphRoot,
-			util.OptNone[accGrantId](),
-		)
-		if allocErr != nil {
-			return allocErr
-		}
-		internalCommitAllocation(bucket, at(firstDay), rootAllocation)
-		result.AllocationIds = append(result.AllocationIds, int64(rootAllocation))
 
 		grantByStep := map[int]accGrantId{}
-		for stepIndex, step := range definition.Steps {
-			if step.Kind != "allocate" {
-				continue
-			}
-			if _, exists := grantByStep[stepIndex]; exists {
-				continue
-			}
-			groupedSteps := []int{stepIndex}
-			if step.Package != "" {
-				for next := stepIndex + 1; next < len(definition.Steps); next++ {
-					candidate := definition.Steps[next]
-					samePackage := candidate.Kind == "allocate" && candidate.Package == step.Package
-					sameRelationship := candidate.Parent == step.Parent && candidate.Owner == step.Owner
-					if samePackage && sameRelationship {
-						groupedSteps = append(groupedSteps, next)
+		if !definition.SkipGrantRecords {
+			for stepIndex, step := range definition.Steps {
+				if step.Kind != "allocate" {
+					continue
+				}
+				if _, exists := grantByStep[stepIndex]; exists {
+					continue
+				}
+				pKey := resolveProductKey(step.Product)
+				category := productsByKey[pKey].Category
+
+				groupedSteps := []int{stepIndex}
+				if step.Package != "" {
+					for next := stepIndex + 1; next < len(definition.Steps); next++ {
+						candidate := definition.Steps[next]
+						samePackage := candidate.Kind == "allocate" && candidate.Package == step.Package
+						sameProduct := resolveProductKey(candidate.Product) == pKey
+						sameRelationship := candidate.Parent == step.Parent && candidate.Owner == step.Owner
+						if samePackage && sameProduct && sameRelationship {
+							groupedSteps = append(groupedSteps, next)
+						}
 					}
 				}
-			}
-			parent := step.Parent
-			if parent == "" {
-				parent = "root"
-			}
-			owner := step.Owner
-			if owner == "" {
-				owner = "workspace"
-			}
-			requests := make([]accapi.AllocationRequest, 0, len(groupedSteps))
-			start, end := at(step.Start), at(step.End)
-			for _, groupedIndex := range groupedSteps {
-				slice := definition.Steps[groupedIndex]
-				sliceStart, sliceEnd := at(slice.Start), at(slice.End)
-				if sliceStart.Before(start) {
-					start = sliceStart
+				parent := step.Parent
+				if parent == "" {
+					parent = "root"
 				}
-				if sliceEnd.After(end) {
-					end = sliceEnd
+				owner := step.Owner
+				if owner == "" {
+					owner = "workspace"
 				}
-				requests = append(requests, accapi.AllocationRequest{
-					Category:         category.Name,
-					Provider:         category.Provider,
-					GrantGiver:       result.Projects[parent],
-					BalanceRequested: util.OptValue(slice.Quota),
-					Period: accapi.Period{
-						Start: util.OptValue(fndapi.Timestamp(at(slice.Start))),
-						End:   util.OptValue(fndapi.Timestamp(at(slice.End))),
-					},
-					AllocationPackage: slice.Package != "",
-				})
-			}
-			grantId := accountingScenarioGrant(
-				piUsername,
-				result.ProjectInfo[result.Projects[owner]].PiUsername,
-				result.Projects[owner],
-				result.Projects[parent],
-				at(step.At),
-				start,
-				end,
-				requests,
-			)
-			result.GrantIds = append(result.GrantIds, int64(grantId))
-			for _, groupedIndex := range groupedSteps {
-				grantByStep[groupedIndex] = grantId
+				requests := make([]accapi.AllocationRequest, 0, len(groupedSteps))
+				start, end := at(step.Start), at(step.End)
+				for _, groupedIndex := range groupedSteps {
+					slice := definition.Steps[groupedIndex]
+					sliceStart, sliceEnd := at(slice.Start), at(slice.End)
+					if sliceStart.Before(start) {
+						start = sliceStart
+					}
+					if sliceEnd.After(end) {
+						end = sliceEnd
+					}
+					requests = append(requests, accapi.AllocationRequest{
+						Category:         category.Name,
+						Provider:         category.Provider,
+						GrantGiver:       result.Projects[parent],
+						BalanceRequested: util.OptValue(slice.Quota),
+						Period: accapi.Period{
+							Start: util.OptValue(fndapi.Timestamp(at(slice.Start))),
+							End:   util.OptValue(fndapi.Timestamp(at(slice.End))),
+						},
+						AllocationPackage: slice.Package != "",
+					})
+				}
+				grantId := accountingScenarioGrant(
+					piUsername,
+					result.ProjectInfo[result.Projects[owner]].PiUsername,
+					result.Projects[owner],
+					result.Projects[parent],
+					at(step.At),
+					start,
+					end,
+					requests,
+				)
+				result.GrantIds = append(result.GrantIds, int64(grantId))
+				for _, groupedIndex := range groupedSteps {
+					grantByStep[groupedIndex] = grantId
+				}
 			}
 		}
+
+		var lastSample time.Time
+		sampleInterval := time.Duration(definition.SampleIntervalHours) * time.Hour
+
+		sampleAt := func(ts time.Time) {
+			if !lastSample.IsZero() && !ts.After(lastSample) {
+				return
+			}
+			for _, b := range allBuckets {
+				internalScanAllocations(b, ts)
+			}
+			usageSampleEx(ts, bucketFilter)
+			lastSample = ts
+			result.UsageSamples++
+		}
+
+		fillSamplesBefore := func(target time.Time) {
+			if sampleInterval <= 0 || lastSample.IsZero() {
+				return
+			}
+			cursor := lastSample.Add(sampleInterval)
+			for cursor.Before(target) {
+				sampleAt(cursor)
+				cursor = cursor.Add(sampleInterval)
+			}
+		}
+
+		var pendingSampleTime time.Time
+		hasPendingSample := false
 
 		for stepIndex, step := range definition.Steps {
 			when := at(step.At).Add(time.Duration(step.AtMillis) * time.Millisecond)
+			if hasPendingSample && when.After(pendingSampleTime) {
+				sampleAt(pendingSampleTime)
+				hasPendingSample = false
+			}
+			fillSamplesBefore(when)
+
+			pKey := resolveProductKey(step.Product)
+			bucket := bucketsByKey[pKey]
+			category := productsByKey[pKey].Category
+			wallets := walletsByProduct[pKey]
+
 			owner := step.Owner
 			if owner == "" {
 				owner = "workspace"
@@ -287,8 +457,13 @@ func accountingScenarioRun(piUsername string, name string, launcherRun bool) (ac
 			if parent == "" {
 				parent = "root"
 			}
+
 			switch step.Kind {
 			case "allocate":
+				grantOpt := util.OptNone[accGrantId]()
+				if grantId, ok := grantByStep[stepIndex]; ok {
+					grantOpt.Set(grantId)
+				}
 				allocationId, allocErr := internalAllocateNoCommit(
 					when,
 					bucket,
@@ -297,7 +472,7 @@ func accountingScenarioRun(piUsername string, name string, launcherRun bool) (ac
 					step.Quota,
 					wallets[owner],
 					wallets[parent],
-					util.OptValue(grantByStep[stepIndex]),
+					grantOpt,
 				)
 				if allocErr != nil {
 					return allocErr
@@ -307,6 +482,8 @@ func accountingScenarioRun(piUsername string, name string, launcherRun bool) (ac
 				bucket.Mu.Unlock()
 				internalCommitAllocation(bucket, when, allocationId)
 				result.AllocationIds = append(result.AllocationIds, int64(allocationId))
+				pendingSampleTime = when
+				hasPendingSample = true
 			case "charge":
 				_, reportErr := internalReportUsage(when, accapi.ReportUsageRequest{
 					IsDeltaCharge: true,
@@ -318,19 +495,29 @@ func accountingScenarioRun(piUsername string, name string, launcherRun bool) (ac
 				if reportErr != nil {
 					return reportErr
 				}
+				pendingSampleTime = when
+				hasPendingSample = true
+			case "sample":
+				sampleAt(when)
+				hasPendingSample = false
 			case "checkpoint":
-				internalScanAllocations(bucket, when)
-				invariantErr := internalValidateAccountingTree(bucket, when)
-				if invariantErr != nil {
-					return util.HttpErr(http.StatusInternalServerError, "%s: %s", step.Label, invariantErr)
+				for _, b := range allBuckets {
+					internalScanAllocations(b, when)
+					invariantErr := internalValidateAccountingTree(b, when)
+					if invariantErr != nil {
+						return util.HttpErr(http.StatusInternalServerError, "%s: %s", step.Label, invariantErr)
+					}
 				}
+				isCapacity := category.AccountingModel == accapi.AccountingModelCapacity
 				checkpoint := accountingScenarioCheckpoint{
 					Label:            step.Label,
 					Now:              when.UnixMilli(),
 					WalletsByProject: map[string][]accapi.WalletV2{},
-					Expected:         *step.Expected,
 					ChildProjectId:   result.Projects[owner],
 					Category:         category.ToId(),
+				}
+				if step.Expected != nil {
+					checkpoint.Expected = *step.Expected
 				}
 				for _, role := range roles {
 					wallet, ok := internalRetrieveWallet(when, wallets[role], true)
@@ -339,8 +526,8 @@ func accountingScenarioRun(piUsername string, name string, launcherRun bool) (ac
 					}
 					checkpoint.WalletsByProject[result.Projects[role]] = []accapi.WalletV2{wallet}
 				}
-				checkpoint.Wallets = checkpoint.WalletsByProject[result.ProjectId]
-				actual := accountingScenarioReadAmounts(checkpoint.Wallets[0], checkpoint.ChildProjectId, definition.Capacity, when)
+				checkpoint.Wallets = checkpoint.WalletsByProject[result.Projects["root"]]
+				actual := accountingScenarioReadAmounts(checkpoint.Wallets[0], checkpoint.ChildProjectId, isCapacity, when)
 				checkpoint.Actual = actual
 				var mismatch *util.HttpError
 				if len(step.ExpectedByOwner) > 0 {
@@ -351,8 +538,11 @@ func accountingScenarioRun(piUsername string, name string, launcherRun bool) (ac
 							continue
 						}
 						projectId := result.Projects[role]
-						amounts := accountingScenarioReadAmounts(checkpoint.Wallets[0], projectId, definition.Capacity, when)
-						checkpoint.ChecksByProject[projectId] = accountingScenarioCheck{Expected: expected, Actual: amounts}
+						amounts := accountingScenarioReadAmounts(checkpoint.Wallets[0], projectId, isCapacity, when)
+						checkpoint.ChecksByProject[projectId] = accountingScenarioCheck{
+							Expected: expected,
+							Actual:   amounts,
+						}
 						if amounts != expected && mismatch == nil {
 							mismatch = util.HttpErr(http.StatusInternalServerError, "%s (%s): expected %+v; got %+v", step.Label, role, expected, amounts)
 						}
@@ -362,11 +552,20 @@ func accountingScenarioRun(piUsername string, name string, launcherRun bool) (ac
 				if mismatch != nil {
 					return mismatch
 				}
-				if actual != *step.Expected {
+				if step.Expected != nil && actual != *step.Expected {
 					return util.HttpErr(http.StatusInternalServerError, "%s: expected %+v; got %+v", step.Label, *step.Expected, actual)
 				}
+				pendingSampleTime = when
+				hasPendingSample = true
 			}
 		}
+
+		if hasPendingSample {
+			sampleAt(pendingSampleTime)
+		}
+		fillSamplesBefore(now)
+		sampleAt(now)
+
 		return nil
 	}()
 	accountingProcessTasksNow(time.Now(), nil)
@@ -374,7 +573,11 @@ func accountingScenarioRun(piUsername string, name string, launcherRun bool) (ac
 		for _, id := range result.GrantIds {
 			db.Exec(
 				tx,
-				`update "grant".applications set synchronized = true where id = :id`,
+				`
+					update "grant".applications
+					set synchronized = true
+					where id = :id
+				`,
 				db.Params{
 					"id": id,
 				},

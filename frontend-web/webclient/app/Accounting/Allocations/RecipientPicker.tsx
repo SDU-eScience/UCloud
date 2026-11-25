@@ -141,7 +141,6 @@ const recipientShortcutGuide: UcxTableShortcutGuideItem[] = [
     {keys: ["↑", "↓"], action: "Move"},
     {keys: ["Enter"], action: "Add"},
     {keys: [isLikelyMac ? "⌫" : "Del"], action: "Remove"},
-    {keys: ["/"], action: "Search"},
 ];
 
 function RecipientTable(props: {

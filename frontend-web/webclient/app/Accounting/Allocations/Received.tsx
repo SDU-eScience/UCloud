@@ -3,14 +3,13 @@ import {useCallback, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {Button, Flex, Icon, Link} from "@/ui-components";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
-import {exportUsage, header} from "@/Accounting/Usage";
 import type {ProjectInfo} from "@/Project/InfoCache";
 import AppRoutes from "@/Routes";
 import {injectStyle} from "@/Unstyled";
 import {SubmitShortcut} from "@/Applications/KeyboardNavigation";
 import {Table} from "./Table";
 import type {DateRange, Model, ProductAllocation} from "./Model";
-import {productWorkspaceInfo} from "./Model";
+import {openExportDialog} from "./Export";
 
 const ReceivedStyle = injectStyle("received-allocations", k => `
     ${k} {
@@ -56,50 +55,15 @@ export function Received(props: {
     }, [navigate]);
 
     const onExport = useCallback(() => {
-        interface Row {
-            source: string;
-            product: string;
-            provider: string;
-            activeUsage: number;
-            activeBalance: number;
-            activeQuota: number;
-            totalUsed: number;
-            totalReceived: number;
-            unit: string;
-        }
-
-        const rows: Row[] = exportProducts.map(product => {
-            const source = productWorkspaceInfo(product, props.projectInfo ?? {});
-            return {
-                source: source.title,
-                product: product.category.name,
-                provider: product.category.provider,
-                activeUsage: product.amounts.activeUsed,
-                activeBalance: product.amounts.activeBalance,
-                activeQuota: product.amounts.activeQuota,
-                totalUsed: product.amounts.used,
-                totalReceived: product.amounts.granted,
-                unit: product.unit,
-            };
+        openExportDialog({
+            kind: "received",
+            model: props.model,
+            visibleProducts: exportProducts,
+            projectInfo: props.projectInfo ?? {},
+            dateRange: props.dateRange,
+            personalWorkspaces: true,
         });
-
-        exportUsage(
-            rows,
-            [
-                header<Row>("source", "Source", true),
-                header<Row>("product", "Product", true),
-                header<Row>("provider", "Provider", true),
-                header<Row>("activeUsage", "Active usage", true),
-                header<Row>("activeBalance", "Active balance", true),
-                header<Row>("activeQuota", "Active quota", true),
-                header<Row>("totalUsed", "Total used", true),
-                header<Row>("totalReceived", "Total received", true),
-                header<Row>("unit", "Unit", true),
-            ],
-            undefined,
-            {fileName: "received-allocations"},
-        );
-    }, [exportProducts, props.projectInfo]);
+    }, [exportProducts, props.model, props.projectInfo, props.dateRange]);
 
     const applyTo = props.projectId && props.canApply
         ? AppRoutes.grants.newApplication({projectId: props.projectId})

@@ -5,12 +5,25 @@ import (
 	"fmt"
 	"slices"
 	"time"
+
+	accapi "ucloud.dk/shared/pkg/accounting"
 )
 
 const (
-	accountingScenarioPortfolioName    = "portfolio-500"
-	accountingScenarioPortfolioTimeout = 5 * time.Minute
+	accountingScenarioPortfolioName      = "portfolio-500"
+	accountingScenarioUsageAllocatorName = "usage-grant-allocator"
+	accountingScenarioPortfolioTimeout   = 5 * time.Minute
 )
+
+type accountingScenarioProductSpec struct {
+	Key             string
+	Slug            string
+	ProductType     accapi.ProductType
+	AccountingModel accapi.AccountingModel
+	Unit            accapi.AccountingUnit
+	Frequency       accapi.AccountingFrequency
+	RootQuota       int64
+}
 
 type accountingScenarioExpected struct {
 	Granted       int64 `json:"granted"`
@@ -32,6 +45,7 @@ type accountingScenarioStep struct {
 	Quota           int64
 	Parent          string
 	Owner           string
+	Product         string
 	Package         string
 	Label           string
 	Expected        *accountingScenarioExpected
@@ -39,18 +53,25 @@ type accountingScenarioStep struct {
 }
 
 type accountingScenarioDefinition struct {
-	Name        string
-	Code        string
-	Description string
-	Capacity    bool
-	MinuteUnits bool
-	RootQuota   int64
-	ExplicitRun bool
-	Steps       []accountingScenarioStep
+	Name                string
+	Code                string
+	Description         string
+	Capacity            bool
+	MinuteUnits         bool
+	RootQuota           int64
+	ExplicitRun         bool
+	ExtendedTimeout     bool
+	SkipGrantRecords    bool
+	SampleIntervalHours int
+	PrimaryProjectRole  string
+	Products            []accountingScenarioProductSpec
+	SubAllocatorRoles   []string
+	UserOwnedRoles      []string
+	Steps               []accountingScenarioStep
 }
 
 func accountingScenarioDefinitions() []accountingScenarioDefinition {
-	return []accountingScenarioDefinition{
+	definitions := []accountingScenarioDefinition{
 		{
 			Name:        "single-grant",
 			Code:        "SING",
@@ -486,6 +507,8 @@ func accountingScenarioDefinitions() []accountingScenarioDefinition {
 		},
 		accountingScenarioPortfolioDefinition(),
 	}
+	definitions = append(definitions, accountingScenarioUsageDefinitions()...)
+	return definitions
 }
 
 func accountingScenarioPortfolioDefinition() accountingScenarioDefinition {

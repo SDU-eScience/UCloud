@@ -30,10 +30,10 @@ import {OldProjectRole} from "@/Project";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
-import {ExportHeader, exportUsage} from "@/Accounting/Usage";
 import type {ProjectInfo} from "@/Project/InfoCache";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {Amount, Table} from "./Table";
+import {openExportDialog} from "./Export";
 import {BulkAllocation} from "./BulkAllocation";
 import {focusAction, focusTable} from "./Controls";
 import {
@@ -43,7 +43,6 @@ import {
     formatAmount,
     recipientsFor,
     selectProducts,
-    workspaceInfo,
 } from "./Model";
 import type {
     DateRange,
@@ -125,11 +124,13 @@ const overviewWidths: Record<string, number> = {
     "overview.workspaces": 100,
 };
 
+const overviewRowHeight = 45;
+const overviewMaxRows = 4.5;
+
 const OverviewStyle = injectStyle("allocation-overview", k => `
     ${k} {
         padding-bottom: 16px;
         margin-bottom: 20px;
-        border-bottom: 1px solid var(--borderColor);
         flex: 0 0 auto;
         min-height: 0;
     }
@@ -366,8 +367,8 @@ function Overview(props: {
         return <Amount value={value} unit={unit} title={title} />;
     };
 
-    const naturalHeight = (Math.max(1, rows.length) + providerCount) * 45 + 42;
-    const tableHeight = Math.min(4 * 45 + 42, naturalHeight);
+    const naturalHeight = (Math.max(1, rows.length) + providerCount) * overviewRowHeight + 42;
+    const tableHeight = Math.min(overviewMaxRows * overviewRowHeight + 42, naturalHeight);
 
     return <section className={OverviewStyle} aria-label="Allocation overview" data-allocation-overview
         onKeyDown={event => {
@@ -390,7 +391,7 @@ function Overview(props: {
                 preserveRowOrder
                 showControls={false}
                 density="compact"
-                rowHeight={45}
+                rowHeight={overviewRowHeight}
                 activateOnSpace
                 renderGroupHeader={provider => <span className="overview-provider">
                     <ProviderLogo providerId={provider} size={18} />
@@ -616,140 +617,15 @@ function SubProjects(props: {
     }, [props.model]);
 
     const onExportData = useCallback(() => {
-        interface Allocation {
-            id: number;
-            grantApplication?: number;
-            start: number;
-            end: number;
-            quota: number;
-            used: number | null;
-            attribution: string;
-        }
-
-        interface Row {
-            workspace: string;
-            pi: string;
-            category: string;
-            provider: string;
-            usage: number;
-            quota: number;
-            unit: string;
-            activeBalance: number | null;
-            expiredUnused: number;
-            future: number;
-            allocations: Allocation[];
-        }
-
-        type AllocationField = keyof Allocation;
-
-        type AllocationFlatColumns = {
-            [K in `allocation${number}_${AllocationField}`]?: number | string | null;
-        };
-
-        type FlattenedRow = Omit<Row, "allocations"> & AllocationFlatColumns;
-
-        function flattenAllocations(row: Row, maxAllocations?: number): FlattenedRow {
-            const {allocations, ...rest} = row;
-
-            const limit = maxAllocations ?? allocations.length;
-
-            const flattenedAllocations = allocations.slice(0, limit).reduce((acc, allocation, index) => {
-                const n = index + 1;
-
-                acc[`allocation${n}_id`] = allocation.id;
-                acc[`allocation${n}_grantApplication`] = allocation.grantApplication;
-                acc[`allocation${n}_start`] = allocation.start;
-                acc[`allocation${n}_end`] = allocation.end;
-                acc[`allocation${n}_quota`] = allocation.quota;
-                acc[`allocation${n}_used`] = allocation.used;
-                acc[`allocation${n}_attribution`] = allocation.attribution;
-
-                return acc;
-            }, {} as AllocationFlatColumns);
-
-            return {
-                ...rest,
-                ...flattenedAllocations,
-            };
-        }
-
-        const rows: Row[] = [];
-        let maxAllocations = 0;
-
-        for (const product of exportProducts) {
-            const workspace = workspaceInfo(product.owner, props.projectInfo);
-            const allocations = product.grants.map(grant => ({
-                id: grant.allocationId,
-                grantApplication: grant.grantId,
-                start: grant.start,
-                end: grant.end,
-                quota: grant.quota,
-                used: grant.used,
-                attribution: grant.attribution,
-            }));
-            maxAllocations = Math.max(maxAllocations, allocations.length);
-            rows.push({
-                workspace: workspace.title,
-                pi: workspace.pi,
-                category: product.category.name,
-                provider: product.category.provider,
-                usage: product.amounts.used,
-                quota: product.amounts.granted,
-                unit: product.unit,
-                activeBalance: product.maxUsable ?? null,
-                expiredUnused: product.amounts.expiredUnused,
-                future: product.amounts.future,
-                allocations,
-            });
-        }
-
-        function buildExportColumns(maxAllocations: number): ExportHeader<Row>[] {
-            const base = [
-                {key: "workspace", value: "Workspace", defaultChecked: true},
-                {key: "pi", value: "PI", defaultChecked: true},
-                {key: "category", value: "Category", defaultChecked: true},
-                {key: "provider", value: "Provider", defaultChecked: true},
-                {key: "usage", value: "Used", defaultChecked: true},
-                {key: "quota", value: "Total granted", defaultChecked: true},
-                {key: "unit", value: "Unit", defaultChecked: true},
-                {key: "activeBalance", value: "Active balance", defaultChecked: true},
-                {key: "expiredUnused", value: "Expired unused", defaultChecked: true},
-                {key: "future", value: "Future quota", defaultChecked: true},
-            ] as const;
-
-            const allocationFields: readonly AllocationField[] = [
-                "id",
-                "grantApplication",
-                "start",
-                "end",
-                "quota",
-                "used",
-                "attribution",
-            ] as const;
-
-            const allocationCols = Array.from({length: maxAllocations}).flatMap((_, i) => {
-                const n = i + 1;
-                return allocationFields.map((field) => ({
-                    key: `allocation${n}_${field}` as const,
-                    value: `Allocation ${n} ${field}`,
-                    defaultChecked: true,
-                    hidden: true,
-                }));
-            });
-
-            return [...base, ...allocationCols] as ExportHeader<Row>[];
-        }
-
-        exportUsage(
-            rows,
-            buildExportColumns(maxAllocations),
-            undefined,
-            {
-                fileName: "sub-projects-export",
-                csvData: rows.map((r) => flattenAllocations(r, maxAllocations)),
-            }
-        );
-    }, [exportProducts, props.projectInfo]);
+        openExportDialog({
+            kind: "granted",
+            model: props.model,
+            visibleProducts: exportProducts,
+            projectInfo: props.projectInfo,
+            dateRange: props.dateRange,
+            personalWorkspaces: props.personalWorkspaces,
+        });
+    }, [exportProducts, props.model, props.projectInfo, props.dateRange, props.personalWorkspaces]);
 
     const clearFilters = useCallback(() => {
         if (props.personalWorkspaces) props.onPersonalWorkspacesChange();

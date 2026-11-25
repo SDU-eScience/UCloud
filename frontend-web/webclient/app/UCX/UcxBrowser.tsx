@@ -2562,8 +2562,8 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
     }
     
     html.dark ${k} {
-        --browserActiveRow: var(--blue-90);
-        --browserHoverRow: var(--blue-80);
+        --browserActiveRow: var(--gray-90);
+        --browserHoverRow: #31363D;
         --tableBackground: #282c34;
     }
 
@@ -2839,6 +2839,11 @@ export const UcxTableIconButtonClass = injectStyle("ucx-table-icon-button", k =>
     ${k} { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--textSecondary); cursor: pointer; }
     ${k}:hover { background: var(--gray-20); color: var(--textPrimary); }
     html.dark ${k}:hover { background: var(--gray-100); }
+    ${k}[aria-pressed="true"], ${k}[aria-pressed="true"]:hover { color: var(--linkColor); }
+    ${k}:disabled { cursor: default; opacity: 0.45; }
+    ${k}:disabled:hover { background: transparent; color: var(--textSecondary); }
+    ${k}[aria-pressed="true"]:disabled { opacity: 1; }
+    ${k}[aria-pressed="true"]:disabled:hover { background: transparent; color: var(--linkColor); }
 `);
 
 export const UcxTableControlsClass = injectStyle("ucx-table-controls", key => `

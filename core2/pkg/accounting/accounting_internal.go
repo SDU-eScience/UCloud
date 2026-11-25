@@ -2382,6 +2382,11 @@ func lUsageActiveChildrenInWindow(from time.Time, until time.Time, parentWallet 
 				result[item.Child.Value] = util.Empty{}
 			}
 		}
+		for _, item := range report.UsageOverTime.ChildEvents {
+			if item.Child.Present && (item.UsageChange != 0 || item.FlowShift != 0) {
+				result[item.Child.Value] = util.Empty{}
+			}
+		}
 	}
 
 	return result

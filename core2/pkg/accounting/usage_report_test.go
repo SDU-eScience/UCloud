@@ -1,13 +1,8 @@
 package accounting
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"sort"
 	"testing"
-	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/log"
@@ -26,8 +21,6 @@ func TestUsageGenSimulation(t *testing.T) {
 
 	var roots []string
 
-	reported := int64(0)
-
 	allocateCalls := 0
 	reportCalls := 0
 	checkpointCalls := 0
@@ -42,7 +35,6 @@ func TestUsageGenSimulation(t *testing.T) {
 		},
 		ReportDelta: func(product UsageGenProduct, now int, ownerRef string, usage int64) {
 			reportCalls++
-			reported += usage
 			e.ReportDelta(now, ownerRef, usage)
 		},
 		Checkpoint: func(now int) {
@@ -66,7 +58,6 @@ func TestUsageGenSimulation(t *testing.T) {
 	}
 	reportGlobals.HistoricCache = make([]reportCacheEntry, 1024*1024*32) // set a very large cache for testing
 	rootProject := UsageGenGenerate(api, config)
-	timeAtEnd := e.Tm(1440 * config.Days)
 
 	e.Snapshot(rootProject.Title, rootProject.Title, false)
 
@@ -80,79 +71,5 @@ func TestUsageGenSimulation(t *testing.T) {
 		}
 	}
 
-	{
-		owner := e.Owner("UGTest_0_0")
-		w := e.Wallet(owner, timeAtEnd)
-		dashboards := usageRetrieveHistoricReports(e.Tm(0), timeAtEnd, w)
-
-		reportsWithProduct := make([]internalUsageReportWithProduct, 0, len(dashboards))
-		for _, re := range dashboards {
-			reportsWithProduct = append(reportsWithProduct, internalUsageReportWithProduct{e.Bucket.Category, re})
-		}
-
-		tempDir, _ := os.MkdirTemp("", "")
-		for _, dashboard := range dashboards {
-			pretty, _ := json.MarshalIndent(dashboard, "", "    ")
-			_ = os.WriteFile(filepath.Join(tempDir, fmt.Sprintf("daily-%v.json", dashboard.ValidFrom.Format(time.DateOnly))), pretty, 0660)
-		}
-
-		log.Info("-----------------------")
-
-		collapsed := usageCollapseReports(reportsWithProduct)
-		{
-			pretty, _ := json.MarshalIndent(collapsed, "", "    ")
-			_ = os.WriteFile(filepath.Join(tempDir, "combined.json"), pretty, 0660)
-		}
-		log.Info("Reports in: %v", tempDir)
-
-		log.Info("-----------------------")
-
-		for _, point := range collapsed.UsageOverTime.Absolute {
-			fmt.Printf("%v,%v,%v\n", point.Timestamp.Format(time.DateTime), point.Usage, point.Quota)
-		}
-
-		fmt.Printf("\n\n")
-
-		{
-			data := make(map[string]map[string]int64) // timestamp -> child -> value
-			childSet := make(map[string]bool)
-			var timestamps []string
-
-			for _, point := range collapsed.UsageOverTime.Delta {
-				ts := point.Timestamp.Format(time.DateTime)
-				child := fmt.Sprintf("%v", point.Child.GetOrDefault(-2))
-				value := point.Change
-
-				if _, ok := data[ts]; !ok {
-					data[ts] = make(map[string]int64)
-					timestamps = append(timestamps, ts)
-				}
-				data[ts][child] = data[ts][child] + value
-				childSet[child] = true
-			}
-
-			sort.Strings(timestamps)
-			var children []string
-			for c := range childSet {
-				children = append(children, c)
-			}
-			sort.Strings(children)
-
-			fmt.Printf("timestamp")
-			for _, c := range children {
-				fmt.Printf(",%s", c)
-			}
-			fmt.Println()
-
-			for _, ts := range timestamps {
-				fmt.Printf("%s", ts)
-				for _, c := range children {
-					fmt.Printf(",%v", data[ts][c])
-				}
-				fmt.Println()
-			}
-		}
-
-		log.Info("Allocate = %v, Report = %v, Checkpoint = %v", allocateCalls, reportCalls, checkpointCalls)
-	}
+	log.Info("Allocate = %v, Report = %v, Checkpoint = %v", allocateCalls, reportCalls, checkpointCalls)
 }

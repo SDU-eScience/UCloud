@@ -68,7 +68,7 @@ func AccountingScenariosMain(args []string) {
 			}
 		}
 	}
-	if args[1] == accountingScenarioPortfolioName {
+	if args[1] == accountingScenarioPortfolioName || args[1] == accountingScenarioUsageAllocatorName {
 		client.Timeout = accountingScenarioPortfolioTimeout + 10*time.Second
 	}
 	for _, name := range names {
@@ -124,9 +124,9 @@ func AccountingScenariosMain(args []string) {
 			fmt.Fprintf(os.Stderr, "%s failed: %s\nPartial resource manifest: %s\n", name, result.Failure, path)
 			os.Exit(1)
 		}
-		fmt.Printf("%s: %d checkpoints passed\nProject: %s (%s)\nSnapshots and resource manifest: %s\n",
-			name, len(result.Checkpoints), result.ProjectInfo[result.ProjectId].Title, result.ProjectId, path)
-		fmt.Println("Open /app/allocations/sub-allocated in this project.")
+		fmt.Printf("%s: %d checkpoints passed, %d usage samples recorded\nProject: %s (%s)\nSnapshots and resource manifest: %s\n",
+			name, len(result.Checkpoints), result.UsageSamples, result.ProjectInfo[result.ProjectId].Title, result.ProjectId, path)
+		fmt.Println("Open /app/allocations/sub-allocated or /app/usage in this project.")
 		fmt.Println("Load the JSON on /app/playground/allocations to inspect the checkpoints.")
 		for _, checkpoint := range result.Checkpoints {
 			if len(checkpoint.ChecksByProject) > 0 {

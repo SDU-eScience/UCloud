@@ -51,7 +51,7 @@ const LogoWrapper = injectStyle("logo-wrapper", k => `
         display: flex;
         align-items: center;
         justify-content: center;
-        color: white;
+        color: black;
         font-size: calc(var(--wrapper-size) - 8px);
         
         border-radius: var(--border-radius);

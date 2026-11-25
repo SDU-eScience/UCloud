@@ -1,17 +1,18 @@
 import * as React from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {
-    AccountingFrequency,
-    AccountingModel,
-    AccountingUnit,
-    balanceToStringFromUnit,
-    explainUnitEx,
-    ProductCategoryId
+    ProductCategoryId,
+    productTypeToIcon,
 } from "@/Accounting/index";
-import {apiRetrieve, callAPI} from "@/Authentication/DataHook";
-import {useCallback, useEffect, useMemo} from "react";
+import {callAPI} from "@/Authentication/DataHook";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {Box, Button, Card, Flex, Icon, Input, MainContainer} from "@/ui-components";
-import {doNothing, errorMessageOrDefault, looksLikeUUID, shortUUID, stopPropagation} from "@/UtilityFunctions";
+import {Box, Button, Flex, Icon, MainContainer} from "@/ui-components";
+import {Toggle} from "@/ui-components/Toggle";
+import {TooltipV2} from "@/ui-components/Tooltip";
+import Warning from "@/ui-components/Warning";
+import {ProviderLogo} from "@/Providers/ProviderLogo";
+import {getShortProviderTitle} from "@/Providers/ProviderTitle";
+import {errorMessageOrDefault, looksLikeUUID, shortUUID} from "@/UtilityFunctions";
 import {injectStyle} from "@/Unstyled";
 import {useProject} from "@/Project/cache";
 import {useProjectId} from "@/Project/Api";
@@ -19,187 +20,339 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import * as Heading from "@/ui-components/Heading";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
-import {useImmerState} from "@/Utilities/Immer";
-import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {useMaxContentWidth} from "@/Utilities/StylingUtilities";
-import {useProjectInfos} from "@/Project/InfoCache";
-import {useDeltaOverTimeChart} from "@/Accounting/Diagrams/DeltaOverTime";
-import {useBreakdownChart} from "@/Accounting/Diagrams/UsageBreakdown";
-import {useUtilizationOverTimeChart} from "@/Accounting/Diagrams/UtilizationOverTime";
-import {TooltipV2} from "@/ui-components/Tooltip";
+import {projectInfoTitle, useProjectInfos} from "@/Project/InfoCache";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {exportUsage} from "@/Accounting/Usage";
-import {useUsageOverTimeChart} from "@/Accounting/Diagrams/UsageOverTime";
-import {useAbsoluteOverTimeChart} from "@/Accounting/Diagrams/AbsoluteOverTime";
-import {makeColorMap} from "@/Accounting/Diagrams";
+import {PeriodFilter} from "@/Accounting/Allocations/Controls";
+import {rangeBounds} from "@/Accounting/Allocations/Model";
+import type {DateRange} from "@/Accounting/Allocations/Model";
+import {formatNumber} from "@/Utilities/NumberFormatting";
+import {
+    UsageDetailResponse,
+    UsageUnitGroup,
+    usageDaysUntil,
+    usageDetailRetrieve,
+    usageDropRiskDays,
+    usageExplainUnit,
+    usageFormatNumber,
+    usageFormatShortDate,
+    usageFormatValue,
+    usageOverviewRetrieve,
+    usageProductKey,
+} from "@/Accounting/UsageV2/Api";
+import {UcxTableIconButtonClass} from "@/UCX/UcxBrowser";
+import {UsagePortfolioOverview} from "@/Accounting/UsageV2/PortfolioOverview";
+import {
+    ConsumptionSeriesMode,
+    UsageCalendarHeatmap,
+    UsageCapacityOccupancyChart,
+    UsageConsumptionBurnupChart,
+    UsageConsumptionRateChart,
+    openUsageChartDialog,
+} from "@/Accounting/UsageV2/Charts";
+import {UsageSubProjectTable} from "@/Accounting/UsageV2/SubProjectTable";
 
-export interface UsageRetrieveRequest {
-    start: number;
-    end: number;
-}
-
-export interface UsageRetrieveResponse {
-    reports: UsageReport[];
-}
-
-export interface UsageReport {
-    accountingModel: AccountingModel;
-    title: string;
-    productsCovered: ProductCategoryId[];
-    unitAndFrequency: {
-        unit: AccountingUnit;
-        frequency: AccountingFrequency;
-    };
-
-    validFrom: number;
-    validUntil: number;
-
-    kpis: {
-        quotaAtStart: number;
-        quotaAtEnd: number;
-
-        activeQuotaAtStart: number;
-        activeQuotaAtEnd: number;
-
-        maxUsableAtStart: number;
-        maxUsableAtEnd: number;
-
-        localUsageAtStart: number;
-        localUsageAtEnd: number;
-
-        totalUsageAtStart: number;
-        totalUsageAtEnd: number;
-
-        totalAllocatedAtStart: number;
-        totalAllocatedAtEnd: number;
-
-        nextMeaningfulExpiration?: number | null;
-    };
-
-    subProjectHealth: {
-        subProjectCount: number;
-
-        ok: number;
-        underUtilized: number;
-        atRisk: number;
-
-        idle: number;
-    };
-
-    usageOverTime: {
-        delta: {
-            timestamp: number;
-            change: number;
-            child: string | null;
-        }[];
-
-        absolute: {
-            timestamp: number;
-            usage: number;
-            utilizationPercent100: number;
-        }[];
-
-        childrenAbsolute: {
-            timestamp: number;
-            usage: number;
-            child: string | null;
-        }[];
+function defaultUsageDateRange(now = Date.now()): DateRange {
+    const current = new Date(now);
+    return {
+        start: new Date(current.getFullYear(), current.getMonth() - 2, 1),
+        end: new Date(current.getFullYear(), current.getMonth() + 1, 0),
     };
 }
 
-export type UsageReportKpis = UsageReport["kpis"];
-export type UsageReportSubProjectHealth = UsageReport["subProjectHealth"];
-export type UsageReportOverTime = UsageReport["usageOverTime"];
-export type UsageReportDeltaDataPoint = UsageReport["usageOverTime"]["delta"][0];
-export type UsageReportAbsoluteDataPoint = UsageReport["usageOverTime"]["absolute"][0];
-
-export function usageReportRetrieve(request: UsageRetrieveRequest): APICallParameters<UsageRetrieveRequest, UsageRetrieveResponse> {
-    return apiRetrieve(request, "/api/accounting/v2/usage");
-}
-
-type Period =
-    | {type: "relative", distance: number, unit: "day" | "month"}
-    | {type: "absolute", start: number, end: number}
-    ;
-
-interface UsagePageState {
-    period: Period;
-    reports: UsageReport[];
-    openReport?: UsageReport;
-    error: string | null;
-    loading: boolean;
-}
-
-const defaultState: UsagePageState = {
-    period: {type: "relative", distance: 7, unit: "day"},
-    reports: [],
-    error: null,
-    loading: false,
-}
-
-const TableStyle = injectStyle("usage-table", k => `
-    ${k} {
-        flex-grow: 1;
-        overflow-y: scroll;
-        min-height: 200px;
-        max-height: 400px;
-    }
-    
-    ${k}::before {
-        display: block;
-        content: " ";
-        width: 100%;
-        height: 1px;
-        position: sticky;
-        top: 24px;
-    }
-    
-    ${k} table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-        border-color: var(--borderColor);
-    }
-    
-    ${k} tr:nth-child(even) {
-        background-color: var(--rowActive);
+const PageStyle = injectStyle("usage-v2-page", k => `
+    ${k} .usage-controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px 16px;
     }
 
-    ${k} tr:hover {
-        background-color: var(--rowHover);
-    }
-    
-    ${k} tr > td:first-child,
-    ${k} tr > th:first-child {
-        border-left: 1px solid var(--borderColor);
-    }
-
-    ${k} td, 
-    ${k} th {
-        padding: 0 8px;
-        border-right: 1px solid var(--borderColor);
+    ${k} .usage-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--textPrimary);
     }
 
-    ${k} tbody > tr:last-child > td {
+    ${k} .usage-toggle-label {
+        border: 0;
+        padding: 0;
+        background: transparent;
+        color: var(--textSecondary);
+        font-size: 13px;
+        cursor: pointer;
+    }
+
+    ${k} .usage-toggle-label[data-active="true"] {
+        color: var(--textPrimary);
+    }
+
+    ${k} .usage-toggle[data-disabled="true"] {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    ${k} .usage-toggle[data-disabled="true"] .usage-toggle-label {
+        cursor: not-allowed;
+    }
+
+    ${k} .usage-nav-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px 20px;
         border-bottom: 1px solid var(--borderColor);
     }
 
-    ${k} tr > th:first-child {
-        border-radius: 6px 0 0 0;
+    ${k} .usage-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
     }
 
-    ${k} tr > th:last-child {
-        border-radius: 0 6px 0 0;
+    ${k} .usage-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+        background: transparent;
+        color: var(--textSecondary);
+        font-size: 13.5px;
+        font-weight: 500;
+        cursor: pointer;
     }
 
-    ${k} th {
-        text-align: left;
-        border-top: 1px solid var(--borderColor);
-        border-bottom: 2px solid var(--borderColor);
-        position: sticky;
-        top: 0;
-        background: var(--backgroundCard); /* matches card background */
+    ${k} .usage-tab:hover {
+        color: var(--textPrimary);
+    }
+
+    ${k} .usage-tab[data-active="true"] {
+        border-bottom-color: var(--primaryMain);
+        color: var(--textPrimary);
+        font-weight: 600;
+    }
+
+    ${k} .usage-product-trigger {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        padding: 0 12px;
+        border: 1px solid var(--borderColor);
+        border-radius: 8px;
+        background: transparent;
+        color: var(--textPrimary);
+        font-size: 13px;
+        user-select: none;
+    }
+
+    ${k} .usage-product-trigger:hover {
+        background: var(--rowHover);
+    }
+
+    ${k} .usage-kpi-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px 0;
+        padding: 4px 0;
+    }
+
+    ${k} .usage-kpi-strip > * {
+        padding: 2px 18px;
+        border-right: 1px solid var(--borderColor);
+        min-width: 0;
+    }
+
+    ${k} .usage-kpi-strip > *:nth-child(4n + 1) {
+        padding-left: 0;
+    }
+
+    ${k} .usage-kpi-strip > *:nth-child(4n) {
+        padding-right: 0;
+        border-right: 0;
+    }
+
+    ${k} .usage-kpi-strip > *:last-child {
+        border-right: 0;
+    }
+
+    @media (max-width: 720px) {
+        ${k} .usage-kpi-strip {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        ${k} .usage-kpi-strip > *:nth-child(4n + 1) {
+            padding-left: 18px;
+        }
+        ${k} .usage-kpi-strip > *:nth-child(4n) {
+            padding-right: 18px;
+            border-right: 1px solid var(--borderColor);
+        }
+        ${k} .usage-kpi-strip > *:nth-child(2n + 1) {
+            padding-left: 0;
+        }
+        ${k} .usage-kpi-strip > *:nth-child(2n) {
+            padding-right: 0;
+            border-right: 0;
+        }
+        ${k} .usage-kpi-strip > *:last-child {
+            border-right: 0;
+        }
+    }
+
+    ${k} .usage-kpi-item {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        min-width: 0;
+    }
+
+    ${k} .usage-kpi-title {
+        font-size: 11.5px;
+        color: var(--textSecondary);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    ${k} .usage-kpi-value-row {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+        flex-wrap: wrap;
+        line-height: 1.2;
+    }
+
+    ${k} .usage-kpi-primary {
+        font-size: 19px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+    }
+
+    ${k} .usage-kpi-unit {
+        font-size: 12px;
+        color: var(--textSecondary);
+    }
+
+    ${k} .usage-kpi-bar {
+        height: 4px;
+        border-radius: 999px;
+        background: var(--borderColor);
+        overflow: hidden;
+        margin: 2px 0;
+    }
+
+    ${k} .usage-kpi-fill {
+        height: 100%;
+        border-radius: 999px;
+    }
+
+    ${k} .usage-kpi-detail {
+        font-size: 11.5px;
+        color: var(--textSecondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    ${k} .usage-chart-grid {
+        display: grid;
+        gap: 24px;
+        align-items: start;
+    }
+
+    ${k} .usage-chart-col {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    ${k} .usage-section {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding-bottom: 20px;
+    }
+
+    ${k} .usage-section-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px 12px;
+    }
+
+    ${k} .usage-section-head h3 {
+        margin: 0;
+        font-size: 15px;
+    }
+
+    ${k} .usage-mode-row {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+    }
+
+    ${k} .usage-mode-button {
+        border: 0;
+        border-radius: 8px;
+        padding: 5px 9px;
+        background: transparent;
+        color: var(--textSecondary);
+        font-size: 12px;
+        cursor: pointer;
+    }
+
+    ${k} .usage-mode-button:hover {
+        background: var(--rowHover);
+    }
+
+    ${k} .usage-mode-button[aria-pressed="true"] {
+        background: color-mix(in srgb, var(--textPrimary) 8%, transparent);
+        color: var(--textPrimary);
+    }
+`);
+
+const ProductMenuStyle = injectStyle("usage-v2-product-menu", k => `
+    ${k} {
+        padding: 8px;
+        max-height: 320px;
+        overflow-y: auto;
+    }
+
+    ${k} .prod-option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        border-radius: 4px;
+    }
+
+    ${k} .prod-option:hover {
+        background: var(--rowHover);
+    }
+
+    ${k} .prod-option-label {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        line-height: 1.25;
+    }
+
+    ${k} .prod-option-sub {
+        font-size: 11px;
+        color: var(--textSecondary);
     }
 `);
 
@@ -208,1042 +361,1078 @@ const UsagePage: React.FunctionComponent = () => {
     const projectId = useProjectId();
     const maxContentWidth = useMaxContentWidth();
 
-    // TODO Empty page behavior
-
     usePage("Usage", SidebarTabId.PROJECT);
 
-    const [state, updateState] = useImmerState<UsagePageState>(defaultState);
+    const [dateRange, setDateRange] = useState<DateRange>(defaultUsageDateRange);
+    const [includeRetired, setIncludeRetired] = useState(false);
 
-    const reload = useCallback(async () => {
-        updateState(s => s.loading = true);
+    const [overviewGroups, setOverviewGroups] = useState<UsageUnitGroup[]>([]);
+    const [overviewHasData, setOverviewHasData] = useState(false);
+    const [overviewLoading, setOverviewLoading] = useState(true);
+    const [overviewError, setOverviewError] = useState<string | null>(null);
 
-        try {
-            const result = await callAPI(usageReportRetrieve(normalizePeriod(state.period)));
-            updateState(s => {
-                s.reports = result.reports;
-                s.loading = false;
+    const [selectedUnitKey, setSelectedUnitKey] = useState<string | null>(null);
+    const [selectedProductKeys, setSelectedProductKeys] = useState<string[]>([]);
+    const [pinnedChildren, setPinnedChildren] = useState<string[]>([]);
 
-                let foundOldReport = false;
-                if (s.openReport !== undefined) {
-                    for (const r of s.reports) {
-                        if (s.openReport.title === r.title && s.openReport.accountingModel === r.accountingModel) {
-                            foundOldReport = true;
-                            s.openReport = r;
-                            break;
-                        }
-                    }
-                }
+    const [detail, setDetail] = useState<UsageDetailResponse | null>(null);
+    const [detailLoading, setDetailLoading] = useState(false);
+    const [detailError, setDetailError] = useState<string | null>(null);
+    const [detailFetchedKey, setDetailFetchedKey] = useState<string | null>(null);
 
-                if (!foundOldReport) {
-                    if (s.reports.length > 0) {
-                        s.openReport = s.reports[0];
-                    } else {
-                        s.openReport = undefined;
-                    }
-                }
-            });
-        } catch (e) {
-            updateState(s => {
-                s.error = errorMessageOrDefault(e, "Could not load usage data");
-                s.reports = [];
-                s.openReport = undefined;
-                s.loading = false;
-            });
-        }
-    }, [state.period]);
+    const [seriesModeOverride, setSeriesModeOverride] = useState<ConsumptionSeriesMode | null>(null);
+    const [highlightedKey, setHighlightedKey] = useState<string | null>(null);
+    const [bucketFilter, setBucketFilter] = useState<string | null>(null);
+
+    const normalizedPeriod = useMemo(() => {
+        const bounds = rangeBounds(dateRange);
+        const now = Date.now();
+        const start = bounds.start ?? (now - 90 * 24 * 60 * 60 * 1000);
+        const end = Math.min(now, bounds.end ?? now);
+        return {start, end: Math.max(start, end)};
+    }, [dateRange]);
+
+    const detailSignature = useCallback((
+        pId: string | undefined,
+        start: number,
+        end: number,
+        unitKey: string,
+        products: string[],
+        pinned: string[],
+    ): string => {
+        return `${pId ?? ""}|${start}|${end}|${unitKey}|${products.join(",")}|${pinned.join(",")}`;
+    }, []);
 
     useEffect(() => {
-        reload().then(doNothing);
-    }, [projectId, state.period]);
+        let cancelled = false;
+        setOverviewLoading(true);
+        setOverviewError(null);
 
-    const setPeriod = useCallback((newPeriod: Period) => {
-        updateState(s => {
-            s.period = newPeriod;
-        });
-    }, []);
+        callAPI(usageOverviewRetrieve({
+            start: normalizedPeriod.start,
+            end: normalizedPeriod.end,
+            initialUnitGroupKey: selectedUnitKey ?? undefined,
+        }))
+            .then(res => {
+                if (cancelled) return;
+                const groups = res.unitGroups ?? [];
+                setOverviewGroups(groups);
+                setOverviewHasData(res.hasData ?? false);
+                setOverviewLoading(false);
 
-    const setSelectedReport = useCallback((report: UsageReport) => {
-        updateState(s => {
-            s.openReport = report;
-        });
-    }, []);
+                const nextUnitKey = (selectedUnitKey && groups.some(g => g.key === selectedUnitKey))
+                    ? selectedUnitKey
+                    : (groups.length > 0 ? groups[0].key : null);
+                setSelectedUnitKey(nextUnitKey);
 
-    const fullChartWidth = maxContentWidth - 40; // compensate for padding in <Card>
-    const chartHeight = (width: number, chartAspectRatio: number = 16 / 5): number => {
-        return width * (1 / chartAspectRatio);
-    };
+                if (res.initialDetail && nextUnitKey && res.initialDetail.unitGroupKey === nextUnitKey) {
+                    setDetail(res.initialDetail);
+                    setDetailError(null);
+                    setDetailLoading(false);
+                    setSelectedProductKeys([]);
+                    setPinnedChildren([]);
+                    setDetailFetchedKey(detailSignature(
+                        projectId,
+                        normalizedPeriod.start,
+                        normalizedPeriod.end,
+                        nextUnitKey,
+                        [],
+                        [],
+                    ));
+                } else if (!nextUnitKey) {
+                    setDetail(null);
+                    setDetailFetchedKey(null);
+                }
+            })
+            .catch(err => {
+                if (cancelled) return;
+                setOverviewError(errorMessageOrDefault(err, "Could not load usage overview"));
+                setOverviewGroups([]);
+                setOverviewHasData(false);
+                setSelectedUnitKey(null);
+                setDetail(null);
+                setDetailFetchedKey(null);
+                setOverviewLoading(false);
+            });
 
-    const deltaChartWidth = fullChartWidth;
-    let breakdownOnSingleRow = fullChartWidth > 900;
-    let breakdownChartWidth = breakdownOnSingleRow ? Math.min(fullChartWidth - 550, 600) : fullChartWidth;
-    const breakdownChartHeight = Math.max(300, chartHeight(breakdownChartWidth, 1.8));
-
-    let utilizationOnSingleRow = fullChartWidth > 1100;
-    let utilizationChartWidth = utilizationOnSingleRow ? fullChartWidth - 400 : fullChartWidth;
-    const utilizationChartHeight = chartHeight(utilizationChartWidth, 16 / 6);
-
-    const usageChartWidth = fullChartWidth;
-    const usageChartHeight = chartHeight(usageChartWidth, 16 / 6);
-
-    const childProjectIds: string[] = useMemo(() => {
-        const r = state.openReport;
-        if (r === undefined) return [];
-
-        const projectIds: Record<string, true> = {};
-
-        const addProjectId = (child: string | null) => {
-            if (child !== null && looksLikeUUID(child)) {
-                projectIds[child] = true;
-            }
+        return () => {
+            cancelled = true;
         };
+    }, [projectId, normalizedPeriod]);
 
-        for (const dataPoint of r.usageOverTime.delta) {
-            addProjectId(dataPoint.child);
+    useEffect(() => {
+        setSelectedProductKeys([]);
+        setPinnedChildren([]);
+        setSeriesModeOverride(null);
+        setHighlightedKey(null);
+        setBucketFilter(null);
+    }, [projectId]);
+
+    useEffect(() => {
+        setPinnedChildren([]);
+        setSeriesModeOverride(null);
+        setHighlightedKey(null);
+        setBucketFilter(null);
+    }, [selectedUnitKey]);
+
+    const activeGroup = useMemo(
+        () => overviewGroups.find(g => g.key === selectedUnitKey) ?? null,
+        [overviewGroups, selectedUnitKey],
+    );
+
+    useEffect(() => {
+        if (!activeGroup) {
+            setDetail(null);
+            return;
         }
 
-        for (const dataPoint of r.usageOverTime.childrenAbsolute) {
-            addProjectId(dataPoint.child);
+        const sig = detailSignature(
+            projectId,
+            normalizedPeriod.start,
+            normalizedPeriod.end,
+            activeGroup.key,
+            selectedProductKeys,
+            pinnedChildren,
+        );
+        if (detailFetchedKey === sig) {
+            return;
         }
 
-        return Object.keys(projectIds);
-    }, [state.openReport]);
+        let cancelled = false;
+        setDetailLoading(true);
+        setDetailError(null);
 
-    const childProjectInfo = useProjectInfos(childProjectIds);
+        const productFilters: ProductCategoryId[] = selectedProductKeys.map(key => {
+            const separator = key.indexOf("/");
+            return {
+                provider: key.slice(0, separator),
+                name: key.slice(separator + 1),
+            };
+        });
 
-    const childToLabel = useCallback((child: string | null): string => {
-        child = child ?? "";
-        if (child === "") child = "Local";
+        callAPI(usageDetailRetrieve({
+            start: normalizedPeriod.start,
+            end: normalizedPeriod.end,
+            unitGroupKey: activeGroup.key,
+            products: productFilters,
+            pinnedChildren,
+        }))
+            .then(res => {
+                if (cancelled) return;
+                setDetail(res);
+                setDetailFetchedKey(sig);
+                setDetailLoading(false);
+            })
+            .catch(err => {
+                if (cancelled) return;
+                setDetailError(errorMessageOrDefault(err, "Could not load usage details"));
+                setDetail(null);
+                setDetailLoading(false);
+            });
 
-        if (child != null && looksLikeUUID(child)) {
-            const pinfo = childProjectInfo.data[child];
-            if (pinfo != null) {
-                return pinfo.title;
-            } else {
-                return shortUUID(child);
+        return () => {
+            cancelled = true;
+        };
+    }, [projectId, normalizedPeriod, activeGroup, selectedProductKeys, pinnedChildren, detailFetchedKey, detailSignature]);
+
+    const chartChildProjectIds = useMemo(() => {
+        if (!detail) return [];
+        const ids = new Set<string>();
+        for (const pt of detail.timeline) {
+            for (const c of pt.byChild) {
+                if (looksLikeUUID(c.key)) ids.add(c.key);
             }
         }
+        return [...ids];
+    }, [detail]);
 
-        return child;
-    }, [childProjectInfo]);
-
-    const childToExportValue = useCallback((child: string | null): string => {
-        if (child == null) return "Local";
-
-        if (looksLikeUUID(child)) {
-            const pinfo = childProjectInfo.data[child];
-            if (pinfo != null) return pinfo.title;
-            return child;
-        }
-
-        return child;
-    }, [childProjectInfo]);
-
-    const childColors = useMemo(() => {
-        const r = state.openReport;
-        if (r == null) return new Map<string, string>();
-
-        const children = new Set<string>();
-
-        for (const p of r.usageOverTime.delta) {
-            if (p.child != null) {
-                children.add(p.child);
-            }
-        }
-
-        for (const p of r.usageOverTime.childrenAbsolute) {
-            if (p.child != null) {
-                children.add(p.child);
-            }
-        }
-
-        return makeColorMap([...children]);
-    }, [state.openReport]);
+    const chartProjectInfo = useProjectInfos(chartChildProjectIds).data;
 
     const unit = useMemo(() => {
-        const r = state.openReport;
-        if (r) {
-            return explainUnitEx(r.unitAndFrequency.unit, r.unitAndFrequency.frequency, null);
-        } else {
-            return null;
+        if (!detail) return null;
+        return usageExplainUnit(detail.unitAndFrequency, detail.productType);
+    }, [detail]);
+
+    const productLabelMap = useMemo(() => {
+        const map = new Map<string, string>();
+        if (!detail) return map;
+        for (const cat of detail.productsCovered) {
+            const key = usageProductKey(cat);
+            map.set(key, `${cat.name} (${getShortProviderTitle(cat.provider)})`);
         }
-    }, [state.openReport]);
+        return map;
+    }, [detail]);
 
-    const valueFormatter = useCallback((value: number) => {
-        const r = state.openReport;
-        if (r == null) return value.toString();
-
-        const unit = explainUnitEx(r.unitAndFrequency.unit, r.unitAndFrequency.frequency, null);
-        const defaultReference = unit.productType === "STORAGE" ? undefined : 1000;
-        const balanceToString = (balance: number): string => {
-            const normalizedBalance = balance * unit.balanceFactor;
-            return balanceToStringFromUnit(null,
-                unit.name,
-                normalizedBalance,
-                {referenceBalance: defaultReference, removeUnitIfPossible: true});
-        };
-
-        return balanceToString(value);
-    }, [state.openReport]);
-
-    const utilizationOverTime = useUtilizationOverTimeChart(state.openReport, utilizationChartWidth, utilizationChartHeight, unit);
-    const deltaOverTime = useDeltaOverTimeChart(state.openReport, deltaChartWidth, chartHeight(deltaChartWidth), unit, childToLabel, childColors);
-    const absoluteOverTime = useAbsoluteOverTimeChart(state.openReport, deltaChartWidth, chartHeight(deltaChartWidth), unit, childToLabel, childColors);
-
-    const breakdownChart = useBreakdownChart(state.openReport, breakdownChartWidth,
-        breakdownChartHeight, childToLabel, valueFormatter, childColors);
-
-    const usageOverTime = useUsageOverTimeChart(state.openReport, usageChartWidth, usageChartHeight, unit, childToLabel);
-
-    const childConsumption = useMemo(() => {
-        const r = state.openReport;
-        if (r == null) {
-            return 0;
-        } else {
-            return r.usageOverTime.delta.reduce((prev, next) => prev + (next.child != null ? next.change : 0), 0);
+    const labelForKey = useCallback((key: string, mode: ConsumptionSeriesMode): string => {
+        if (key === "__total__") return "Total";
+        if (key === "Other") return "Other";
+        if (mode === "product") {
+            return productLabelMap.get(key) ?? key;
         }
-    }, [state.openReport]);
+        if (key === "") return "Local (this project)";
+        if (looksLikeUUID(key)) {
+            return projectInfoTitle(chartProjectInfo[key]) ?? shortUUID(key);
+        }
+        return key;
+    }, [productLabelMap, chartProjectInfo]);
 
-    const exportAbsoluteChildrenUsageOverTime = useCallback(() => {
-        if (!state.openReport) return;
+    const handleSelectUnit = useCallback((unitKey: string) => {
+        setSelectedUnitKey(unitKey);
+        setSelectedProductKeys([]);
+    }, []);
 
-        let workspaceName = project.fetch().specification.title;
-        if (workspaceName === "") workspaceName = "My workspace";
-        workspaceName = workspaceName.toLowerCase().replace(" ", "-");
-
-        const abs = state.openReport.usageOverTime.childrenAbsolute;
-        exportUsage(
-            abs,
-            [
-                {
-                    key: "timestamp",
-                    value: "Timestamp",
-                    defaultChecked: true,
-                },
-                {
-                    key: "usage",
-                    value: "Usage",
-                    defaultChecked: true,
-                },
-                {
-                    key: "child",
-                    value: "Sub-project",
-                    defaultChecked: true,
-                },
-            ],
-            project.fetch().specification.title,
-            {
-                fileName: `usage-children-absolute-over-time-${state.openReport.title.toLowerCase()}-${workspaceName}`,
+    const handleToggleOverviewProduct = useCallback((unitKey: string, productKey: string) => {
+        setHighlightedKey(null);
+        if (selectedUnitKey !== unitKey) {
+            setSelectedUnitKey(unitKey);
+            setSelectedProductKeys([productKey]);
+            return;
+        }
+        setSelectedProductKeys(prev => {
+            if (prev.includes(productKey)) {
+                return prev.filter(k => k !== productKey);
             }
-        )
-    }, [state.openReport]);
+            return [...prev, productKey];
+        });
+    }, [selectedUnitKey]);
 
-    const exportAbsoluteUsageOverTime = useCallback(() => {
-        if (!state.openReport) return;
-
-        let workspaceName = project.fetch().specification.title;
-        if (workspaceName === "") workspaceName = "My workspace";
-        workspaceName = workspaceName.toLowerCase().replace(" ", "-");
-
-        const abs = state.openReport.usageOverTime.absolute;
-        exportUsage(
-            abs,
-            [
-                {
-                    key: "timestamp",
-                    value: "Timestamp",
-                    defaultChecked: true,
-                },
-                {
-                    key: "usage",
-                    value: "Usage",
-                    defaultChecked: true,
-                },
-                {
-                    key: "utilizationPercent100",
-                    value: "Utilization (0-100%)",
-                    defaultChecked: true,
-                },
-            ],
-            project.fetch().specification.title,
-            {
-                fileName: `usage-absolute-over-time-${state.openReport.title.toLowerCase()}-${workspaceName}`,
+    const handleToggleProduct = useCallback((productKey: string) => {
+        setHighlightedKey(null);
+        setSelectedProductKeys(prev => {
+            if (prev.includes(productKey)) {
+                return prev.filter(k => k !== productKey);
             }
-        )
-    }, [state.openReport]);
+            return [...prev, productKey];
+        });
+    }, []);
 
-    const exportDeltaOverTime = useCallback(() => {
-        if (!state.openReport) return;
-
-        let workspaceName = project.fetch().specification.title;
-        if (workspaceName === "") workspaceName = "My workspace";
-        workspaceName = workspaceName.toLowerCase().replace(" ", "-");
-
-        const delta = state.openReport.usageOverTime.delta;
-        exportUsage(
-            delta,
-            [
-                {
-                    key: "timestamp",
-                    value: "Timestamp",
-                    defaultChecked: true,
-                },
-                {
-                    key: "change",
-                    value: "Change (since last sample)",
-                    defaultChecked: true,
-                },
-                {
-                    key: "child",
-                    value: "Child workspace",
-                    defaultChecked: true,
-                },
-            ],
-            project.fetch().specification.title,
-            {
-                fileName: `usage-delta-over-time-${state.openReport.title.toLowerCase()}-${workspaceName}`,
+    const handleTogglePin = useCallback((child: string) => {
+        setHighlightedKey(null);
+        setPinnedChildren(prev => {
+            if (prev.includes(child)) {
+                return prev.filter(c => c !== child);
             }
-        )
-    }, [state.openReport]);
+            if (prev.length >= 5) return prev;
+            return [...prev, child];
+        });
+    }, []);
 
     const exportAll = useCallback(() => {
         let workspaceName = project.fetch().specification.title;
         if (workspaceName === "") workspaceName = "My workspace";
-        workspaceName = workspaceName.toLowerCase().replace(" ", "-");
-
+        const slug = workspaceName.toLowerCase().replace(/\s+/g, "-");
         exportUsage(
-            [{reports: state.reports, period: state.period}],
+            [{period: normalizedPeriod, overview: overviewGroups, detail}],
             [
                 {key: "period", value: "Period", defaultChecked: true},
-                {key: "reports", value: "Reports", defaultChecked: true},
+                {key: "overview", value: "Overview", defaultChecked: true},
+                {key: "detail", value: "Active view detail", defaultChecked: true},
             ],
-            project.fetch().specification.title,
+            workspaceName,
             {
                 formats: ["json"],
-                fileName: `usage-report-all-${workspaceName}`,
-            }
+                fileName: `usage-report-${slug}`,
+            },
         );
-    }, [state.period, state.reports]);
+    }, [project, normalizedPeriod, overviewGroups, detail]);
 
-    // User-interface
-    // -----------------------------------------------------------------------------------------------------------------
     if (project.fetch().status.personalProviderProjectFor != null) {
         return <MainContainer
-            main={
-                <>
-                    <Heading.h2>Unavailable for this project</Heading.h2>
-                    <p>
-                        This project belongs to a provider which does not support the accounting and project management
-                        features of UCloud. Try again with a different project.
-                    </p>
-                </>
-            }
-        />
+            main={<>
+                <Heading.h2>Unavailable for this project</Heading.h2>
+                <p>
+                    This project belongs to a provider which does not support the accounting and project management
+                    features of UCloud. Try again with a different project.
+                </p>
+            </>}
+        />;
     }
 
-    let reportNode: React.ReactNode = null;
-    if (state.openReport !== undefined) {
-        const r = state.openReport;
-        const unit = explainUnitEx(r.unitAndFrequency.unit, r.unitAndFrequency.frequency, null);
-        const balanceToString = (balance: number, remove?: boolean, reference?: number): string => {
-            const normalizedBalance = balance * unit.balanceFactor;
-            const defaultReference = unit.productType === "STORAGE" ? undefined : 1000;
-            return balanceToStringFromUnit(null, unit.name, normalizedBalance, {
-                referenceBalance: reference ?? defaultReference,
-                removeUnitIfPossible: remove
-            });
-        };
+    const canConsumeResources = project.fetch().specification.canConsumeResources !== false;
+    const hideLocal = !canConsumeResources && (detail?.kpis.localUsageAtEnd ?? 0) === 0 && (detail?.kpis.periodLocalUsage ?? 0) === 0;
 
-        const period = normalizePeriod(state.period);
-        const alignedStart = getStartOfDay(new Date(period.start)).getTime();
-        const alignedEnd = getStartOfDay(new Date(period.end)).getTime();
-        const periodLengthInDays = Math.max(1, Math.floor((alignedEnd - alignedStart) / (1000 * 60 * 60 * 24)));
+    const hasMultipleProducts = (detail?.productsCovered.length ?? 0) > 1;
+    const subProjectCount = detail?.subProjectSummary.totalCount ?? 0;
+    const isLargeGrantAllocator = subProjectCount > 20;
+    const isCapacityGroup = (activeGroup?.accountingModel ?? detail?.accountingModel) === "CAPACITY";
+    const effectiveIncludeRetired = !isCapacityGroup && includeRetired;
 
-        const daysUntilExpiration = r.kpis.nextMeaningfulExpiration == null ?
-            0 :
-            Math.max(0, Math.floor((r.kpis.nextMeaningfulExpiration - period.end) / (1000 * 60 * 60 * 24)));
-
-        const combinedUsage = r.kpis.totalUsageAtEnd - r.kpis.totalUsageAtStart;
-        const burnRate = (combinedUsage) / periodLengthInDays;
-        const daysUntilDepletion = burnRate <= 0 ? null : Math.floor((r.kpis.quotaAtEnd - r.kpis.totalUsageAtEnd) / burnRate);
-
-        const overCommitRatio = r.kpis.quotaAtEnd != 0 ? r.kpis.totalAllocatedAtEnd / r.kpis.quotaAtEnd : 0;
-        const childBurnRate = childConsumption / periodLengthInDays;
-        const localBurnRate = (combinedUsage - childConsumption) / periodLengthInDays;
-        const baselineChildBurnRate = overCommitRatio != 0 ? childBurnRate / overCommitRatio : 0;
-
-        // NOTE(Dan): I am pretty sure I accidentally made this more complicated than it needs to be. This is intended
-        // to give the over-commit ratio required to hit 90% usage when the next meaningful expiration hits.
-        const recommendedOverCommit = baselineChildBurnRate == 0 || daysUntilExpiration == 0 ? 0 :
-            ((((r.kpis.quotaAtEnd * 0.9) - combinedUsage) / daysUntilExpiration) - localBurnRate) / baselineChildBurnRate;
-
-        const BalanceDisplay: (props: {
-            value: number,
-            children?: React.ReactNode
-        }) => React.ReactNode = ({value, children}) => {
-            return <div style={{display: "inline-block"}}>
-                <TooltipV2 tooltip={balanceToString(value, false, 1)}>
-                    {balanceToString(value, true)}{children}
-                </TooltipV2>
-            </div>;
-        }
-
-        reportNode = <>
-            <Flex gap={"16px"} flexWrap={"wrap"}>
-                <Card flexBasis={300} borderRadius={8} padding={16} flexGrow={1} flexShrink={0}>
-                    <Flex flexDirection={"column"} height={"100%"}>
-                        <Box flexGrow={1}><b>Usage summary</b></Box>
-
-                        <table width={"100%"}>
-                            <tbody>
-                                <tr>
-                                    <th align={"left"}>
-                                        <TooltipV2 tooltip={<>
-                                            Your current usage in the project. This includes the use from your project
-                                            and all of your children. Note that the usage is since the beginning of
-                                            your project.
-                                        </>}>
-                                            Use:
-                                        </TooltipV2>
-                                    </th>
-                                    <td align={"right"}>
-                                        <BalanceDisplay value={r.kpis.totalUsageAtEnd} />
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th align={"left"}>
-                                        <TooltipV2 tooltip={<>
-                                            Your current quota in the project. If the usage ever exceeds the quota, then
-                                            you will not be able to continue consuming resources.
-                                        </>}>
-                                            Quota:
-                                        </TooltipV2>
-                                    </th>
-                                    <td align={"right"}>
-                                        <BalanceDisplay value={r.kpis.quotaAtEnd} />
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th align={"left"}>
-                                        <TooltipV2 tooltip={<>
-                                            The change, during the period, in usage.
-                                        </>}>
-                                            Change:
-                                        </TooltipV2>
-                                    </th>
-                                    <td align={"right"}>
-                                        <BalanceDisplay value={r.kpis.totalUsageAtEnd - r.kpis.totalUsageAtStart} />
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </Flex>
-                </Card>
-
-                <Card flexBasis={300} borderRadius={8} padding={16} flexGrow={1} flexShrink={0}>
-                    <Flex flexDirection={"column"} height={"100%"}>
-                        <Box flexGrow={1}><b>Depletion forecast</b></Box>
-
-                        <table width={"100%"}>
-                            <tbody>
-                                <tr>
-                                    <th align={"left"}>
-                                        <TooltipV2 tooltip={"Average daily rate of use."}>
-                                            Burn-rate:
-                                        </TooltipV2>
-                                    </th>
-                                    <td align={"right"}>
-                                        <BalanceDisplay value={burnRate}>
-                                            /day
-                                        </BalanceDisplay>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th align={"left"}>
-                                        <TooltipV2 tooltip={<>
-                                            Duration estimated to run out of resources on your <i>currently active</i>
-                                            {" "}allocations at your current burn-rate.
-                                            <br /><br />
-                                            The duration is counted from the end of the selected period.
-                                        </>}>
-                                            Est. depletion in:
-                                        </TooltipV2>
-                                    </th>
-                                    <td align={"right"}>
-                                        {daysUntilDepletion === null || daysUntilDepletion <= 0 ? "-" : <>{daysUntilDepletion} days</>}
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th align={"left"}>
-                                        <TooltipV2 tooltip={<>
-                                            Duration until one of your allocations expires. Allocations which contribute
-                                            less than 10% of your total quota are not counted.
-                                            <br /><br />
-                                            The duration is counted from the end of the selected period.
-                                        </>}>
-                                            Alloc exp. in:
-                                        </TooltipV2>
-                                    </th>
-                                    <td align={"right"}>{daysUntilExpiration} days</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </Flex>
-                </Card>
-
-                {r.subProjectHealth.subProjectCount == 0 ? null :
-                    <>
-                        <Card flexBasis={300} borderRadius={8} padding={16} flexGrow={1} flexShrink={0}>
-                            <Box mb={"8px"}><b>Sub-project allocation summary</b></Box>
-
-                            <table width={"100%"}>
-                                <tbody>
-                                    <tr>
-                                        <th align={"left"}>
-                                            <TooltipV2 tooltip={<>
-                                                The total amount of resources allocated to your sub-projects.
-
-                                                <br /><br />
-
-                                                This number counts all allocations which contributes towards your usage.
-                                                Because of this, allocations which have expired may still contribute some
-                                                amount towards this number.
-                                            </>}>
-                                                Allocated:
-                                            </TooltipV2>
-                                        </th>
-                                        <td align={"right"}>
-                                            <BalanceDisplay value={r.kpis.totalAllocatedAtEnd} />
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th align={"left"}>
-                                            <TooltipV2 tooltip={<>
-                                                The ratio between your allocated resources versus your quota.
-                                                <br /><br />
-                                                Calculated as:{" "}
-                                                <pre style={{display: "inline-block", margin: "0"}}>Allocated / Quota</pre>
-                                                .
-                                            </>}>
-                                                Over-commit:
-                                            </TooltipV2>
-                                        </th>
-                                        <td align={"right"}>{overCommitRatio.toFixed(1)}x</td>
-                                    </tr>
-                                    <tr>
-                                        <th align={"left"}>
-                                            <TooltipV2 tooltip={<>
-                                                The recommended over-commit ratio to reach 90% utilization at the next
-                                                expiry date given your current burn-rate.
-                                            </>}>
-                                                Rec. over-commit:
-                                            </TooltipV2>
-                                        </th>
-                                        <td align={"right"}>{recommendedOverCommit === 0 ? "-" : <>{recommendedOverCommit.toFixed(1)}x</>}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </Card>
-                        {r.productsCovered.length > 1 ? null : <>
-                            <Card flexBasis={300} borderRadius={8} padding={16} flexGrow={1} flexShrink={0}>
-                                <Box mb={"8px"}><b>Sub-project health</b></Box>
-                                <table width={"100%"}>
-                                    <tbody>
-                                        <tr>
-                                            <th align={"left"}>Healthy:</th>
-                                            <td align={"right"} width={"42px"}>
-                                                {((r.subProjectHealth.ok / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th align={"left"}>Underutilized:</th>
-                                            <td align={"right"} width={"42px"}>
-                                                {((r.subProjectHealth.underUtilized / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th align={"left"}>At risk:</th>
-                                            <td align={"right"} width={"42px"}>
-                                                {((r.subProjectHealth.atRisk / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </Card>
-                        </>}
-                    </>
-                }
-            </Flex>
-
-
-            {r.subProjectHealth.subProjectCount === 0 || breakdownChart.table.length === 0 ? null :
-                <Card>
-                    <Flex alignItems="center" gap="6px">
-                        <h3 style={{margin: 0}}>Usage breakdown</h3>
-
-                        <TooltipV2
-                            tooltip="Shows the absolute usage for each project at the latest time in the selected period."
-                            side="right"
-                        >
-                            <Icon name={"heroInformationCircle"} />
-                        </TooltipV2>
-                    </Flex>
-                    <Flex flexWrap={"wrap"} gap={"16px"}>
-                        <svg ref={breakdownChart.chartRef} width={breakdownChartWidth} height={breakdownChartHeight}
-                             style={{flexShrink: 0, flexBasis: breakdownChartWidth}} />
-
-                        <div className={TableStyle} style={{flexBasis: "500px"}}>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th />
-                                        <th>Project</th>
-                                        <th>Usage</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {breakdownChart.table.map(row => <tr key={row.child}>
-                                        <td align={"center"}>
-                                            <Box width={14} height={14} flexShrink={0} style={{background: row.color}} />
-                                        </td>
-                                        <td>{childToLabel(row.child)}</td>
-                                        <td align={"right"}>{balanceToString(row.value)}</td>
-                                    </tr>)}
-
-                                </tbody>
-                            </table>
-                        </div>
-                    </Flex>
-                </Card>
+    const effectiveSeriesMode: ConsumptionSeriesMode = useMemo(() => {
+        if (seriesModeOverride !== null) {
+            if (seriesModeOverride === "product" && !hasMultipleProducts) {
+                return subProjectCount > 0 && !isLargeGrantAllocator ? "child" : "total";
             }
+            if (seriesModeOverride === "child" && subProjectCount === 0) {
+                return hasMultipleProducts ? "product" : "total";
+            }
+            return seriesModeOverride;
+        }
+        if (pinnedChildren.length > 0) return "total";
+        if (isLargeGrantAllocator) return hasMultipleProducts ? "product" : "total";
+        if (subProjectCount > 0) return "child";
+        if (hasMultipleProducts) return "product";
+        return "total";
+    }, [seriesModeOverride, hasMultipleProducts, subProjectCount, isLargeGrantAllocator, pinnedChildren.length]);
 
-            {r.usageOverTime.delta.length <= 1 ? null : (
-                r.accountingModel !== "CONSUMPTION" ? null : (
-                    <Card>
-                        <Flex mb={8}>
-                            <h3 style={{flexGrow: 1}}>Change in usage over time</h3>
-                            <Button onClick={exportDeltaOverTime}>
-                                <Icon name={"heroArrowDownTray"} mr={8} />
-                                Export
-                            </Button>
+    const chartWidth = Math.max(360, maxContentWidth - 20);
+    const twoColCharts = chartWidth >= 920;
+    const rateChartWidth = twoColCharts ? Math.floor((chartWidth - 24) / 2) : chartWidth;
+    const burnupChartWidth = twoColCharts ? Math.floor((chartWidth - 24) / 2) : chartWidth;
+    const rateChartHeight = twoColCharts ? 250 : Math.max(240, Math.min(310, Math.round(chartWidth * 0.27)));
+    const burnupChartHeight = twoColCharts ? 250 : Math.max(240, Math.min(310, Math.round(chartWidth * 0.27)));
+    const capacityChartHeight = Math.max(250, Math.min(320, Math.round(chartWidth * 0.27)));
+
+    const renderFocusContent = () => {
+        if (!detail || !unit || !detail.hasData) return null;
+
+        const isCapacity = detail.accountingModel === "CAPACITY";
+        const kpis = detail.kpis;
+        const fmt = (v: number) => usageFormatValue(unit, v);
+        const fmtNum = (v: number) => usageFormatNumber(unit, v);
+
+        const alignedStart = getStartOfDay(new Date(normalizedPeriod.start)).getTime();
+        const alignedEnd = getStartOfDay(new Date(normalizedPeriod.end)).getTime();
+        const periodDays = Math.max(1, Math.floor((alignedEnd - alignedStart) / (1000 * 60 * 60 * 24)));
+        const burnRatePerDay = kpis.periodUsage / periodDays;
+
+        const remainingActive = Math.max(0, kpis.activeQuotaAtEnd - kpis.activeUsageAtEnd);
+        const activeBalance = Math.max(0, Math.min(remainingActive, kpis.maxUsableAtEnd));
+        const daysToDepletion = burnRatePerDay > 0 ? Math.floor(activeBalance / burnRatePerDay) : null;
+        const daysToExpiry = usageDaysUntil(kpis.nextMeaningfulExpiration, normalizedPeriod.end);
+        const dropRiskDays = usageDropRiskDays(kpis.nextQuotaDrop ?? undefined, detail.accountingModel, normalizedPeriod.end);
+
+        const activeUtilPct = kpis.activeQuotaAtEnd > 0
+            ? (kpis.activeUsageAtEnd / kpis.activeQuotaAtEnd) * 100
+            : (isCapacity && kpis.activeUsageAtEnd > 0 ? 100 : 0);
+        const totalUtilPct = kpis.quotaAtEnd > 0 ? (kpis.totalUsageAtEnd / kpis.quotaAtEnd) * 100 : 0;
+        const expiredQuota = Math.max(0, kpis.quotaAtEnd - kpis.activeQuotaAtEnd);
+        const expiredUnused = Math.max(0, expiredQuota - kpis.retiredUsageAtEnd);
+        const expiredUnusedPct = expiredQuota > 0 ? (expiredUnused / expiredQuota) * 100 : 0;
+        const isLifetimeConsumption = !isCapacity && effectiveIncludeRetired;
+        const overCommitActive = kpis.activeQuotaAtEnd > 0 ? kpis.activeAllocatedAtEnd / kpis.activeQuotaAtEnd : 0;
+        const overCommitTotal = kpis.quotaAtEnd > 0 ? kpis.totalAllocatedAtEnd / kpis.quotaAtEnd : 0;
+        const capacityExcess = isCapacity ? Math.max(0, kpis.activeUsageAtEnd - kpis.activeQuotaAtEnd) : 0;
+
+        const projectedSpendBeforeExpiry = (daysToExpiry !== null && burnRatePerDay > 0)
+            ? burnRatePerDay * daysToExpiry
+            : 0;
+        const projectedUnusedAtExpiry = (daysToExpiry !== null && !isCapacity)
+            ? Math.max(0, activeBalance - projectedSpendBeforeExpiry)
+            : null;
+
+        const showBreakdownSwitcher = hasMultipleProducts || subProjectCount > 0;
+        const hasSubAllocators = detail.subProjectSummary.subAllocatorCount > 0;
+
+        const spentTooltip = !hideLocal && subProjectCount > 0
+            ? `Local: ${fmt(kpis.periodLocalUsage)}, Sub-projects: ${fmt(kpis.periodChildrenUsage)}`
+            : undefined;
+        const capacityUsageTooltip = [
+            `Average: ${fmt(kpis.avgUsage)}`,
+            ...(!hideLocal && subProjectCount > 0
+                ? [`Local: ${fmt(kpis.localUsageAtEnd)}`, `Sub-projects: ${fmt(Math.max(0, kpis.totalUsageAtEnd - kpis.localUsageAtEnd))}`]
+                : []),
+        ].join(" — ");
+        const quotaExpiryTooltip = kpis.nextMeaningfulExpiration
+            ? `Next meaningful expiry: ${usageFormatShortDate(kpis.nextMeaningfulExpiration)}`
+            : undefined;
+        const balanceTooltip = kpis.upstreamCapped
+            ? `Limited by parent project (own balance: ${fmt(remainingActive)})`
+            : undefined;
+        const runwaySub = daysToDepletion !== null && daysToExpiry !== null && daysToDepletion < daysToExpiry
+            ? "Depletes before expiry"
+            : projectedUnusedAtExpiry !== null && projectedUnusedAtExpiry > 0
+                ? `Est. unused ${fmt(projectedUnusedAtExpiry)}`
+                : daysToDepletion !== null
+                    ? "At current burn rate"
+                    : "No consumption in period";
+        const grantedTooltip = isLifetimeConsumption
+            ? `Active granted: ${fmt(kpis.activeAllocatedAtEnd)}, Total granted: ${fmt(kpis.totalAllocatedAtEnd)}`
+            : `Active granted: ${fmt(kpis.activeAllocatedAtEnd)}`;
+        const grantedPct = isLifetimeConsumption
+            ? (kpis.quotaAtEnd > 0
+                ? Math.min(100, (kpis.totalAllocatedAtEnd / kpis.quotaAtEnd) * 100)
+                : (kpis.totalAllocatedAtEnd > 0 ? 100 : 0))
+            : (kpis.activeQuotaAtEnd > 0
+                ? Math.min(100, (kpis.activeAllocatedAtEnd / kpis.activeQuotaAtEnd) * 100)
+                : (kpis.activeAllocatedAtEnd > 0 ? 100 : 0));
+
+        const displayUtilPct = isLifetimeConsumption ? totalUtilPct : activeUtilPct;
+        const usageBarColor = displayUtilPct >= 100
+            ? "var(--errorMain)"
+            : displayUtilPct >= 90
+                ? "var(--warningMain)"
+                : "var(--chart-blue-main)";
+
+        return <Flex flexDirection="column" gap="16px">
+            {kpis.upstreamCapped ? (
+                <Warning mb="0px">
+                    <b>Limited by parent project:</b> Only <b>{fmt(kpis.maxUsableAtEnd)}</b> of the {fmt(remainingActive)} remaining balance can currently be used, because a parent project does not have enough quota left.
+                </Warning>
+            ) : null}
+
+            {isCapacity && capacityExcess > 0 ? (
+                <Warning mb="0px">
+                    <b>Over active quota:</b> Current usage ({fmt(kpis.activeUsageAtEnd)}) exceeds active quota ({fmt(kpis.activeQuotaAtEnd)}) by{" "}
+                    <b>{fmt(capacityExcess)}</b>.
+                </Warning>
+            ) : null}
+
+            {kpis.nextQuotaDrop && dropRiskDays !== null ? (
+                <Warning mb="0px">
+                    {isCapacity ? <>
+                        <b>Upcoming quota drop:</b> On <b>{usageFormatShortDate(kpis.nextQuotaDrop.timestamp)}</b> (in{" "}
+                        <b>{formatNumber(dropRiskDays)} days</b>), active quota drops from{" "}
+                        {fmt(kpis.nextQuotaDrop.quotaBefore)} to <b>{fmt(kpis.nextQuotaDrop.quotaAfter)}</b>, which is below current usage of{" "}
+                        <b>{fmt(kpis.activeUsageAtEnd)}</b>.
+                    </> : <>
+                        <b>Upcoming quota drop:</b> On <b>{usageFormatShortDate(kpis.nextQuotaDrop.timestamp)}</b> (in{" "}
+                        <b>{formatNumber(dropRiskDays)} days</b>), active quota of{" "}
+                        <b>{fmt(kpis.nextQuotaDrop.quotaBefore)}</b> expires with no renewal in place.
+                    </>}
+                </Warning>
+            ) : null}
+
+            <div className="usage-kpi-strip">
+                {isCapacity ? <>
+                    <TooltipV2 tooltip={capacityUsageTooltip}>
+                        <div className="usage-kpi-item">
+                            <div className="usage-kpi-title">
+                                <span>Current usage</span>
+                                <span style={{color: capacityExcess > 0 ? "var(--errorMain)" : undefined}}>
+                                    {capacityExcess > 0 ? "Over quota" : `${activeUtilPct.toFixed(1)}%`}
+                                </span>
+                            </div>
+                            <div className="usage-kpi-value-row">
+                                <span className="usage-kpi-primary" style={{color: capacityExcess > 0 ? "var(--errorMain)" : undefined}}>
+                                    {fmtNum(kpis.activeUsageAtEnd)}
+                                </span>
+                                <span className="usage-kpi-unit">{unit.name}</span>
+                            </div>
+                            <div className="usage-kpi-bar">
+                                <div
+                                    className="usage-kpi-fill"
+                                    style={{
+                                        width: `${Math.min(100, activeUtilPct)}%`,
+                                        background: capacityExcess > 0 ? "var(--errorMain)" : usageBarColor,
+                                    }}
+                                />
+                            </div>
+                            <div className="usage-kpi-detail">Peak {fmt(kpis.peakUsage)}</div>
+                        </div>
+                    </TooltipV2>
+
+                    <TooltipV2 tooltip={balanceTooltip}>
+                        <div className="usage-kpi-item">
+                            <div className="usage-kpi-title">
+                                <span>Active quota</span>
+                            </div>
+                            <div className="usage-kpi-value-row">
+                                <span className="usage-kpi-primary">{fmtNum(kpis.activeQuotaAtEnd)}</span>
+                                <span className="usage-kpi-unit">{unit.name}</span>
+                            </div>
+                            <div className="usage-kpi-detail" style={{color: capacityExcess > 0 ? "var(--errorMain)" : (kpis.upstreamCapped ? "var(--warningMain)" : undefined)}}>
+                                {capacityExcess > 0
+                                    ? `Exceeds by ${fmt(capacityExcess)}`
+                                    : `Balance ${fmt(activeBalance)}`}
+                            </div>
+                        </div>
+                    </TooltipV2>
+
+                    <TooltipV2 tooltip={kpis.nextQuotaDrop ? usageFormatShortDate(kpis.nextQuotaDrop.timestamp) : undefined}>
+                        <div className="usage-kpi-item">
+                            <div className="usage-kpi-title">
+                                <span>Next quota drop</span>
+                            </div>
+                            <div className="usage-kpi-value-row">
+                                <span className="usage-kpi-primary">
+                                    {kpis.nextQuotaDrop ? `${formatNumber(usageDaysUntil(kpis.nextQuotaDrop.timestamp, normalizedPeriod.end) ?? 0)} days` : "None"}
+                                </span>
+                            </div>
+                            <div className="usage-kpi-detail">
+                                {kpis.nextQuotaDrop ? `Drops to ${fmt(kpis.nextQuotaDrop.quotaAfter)}` : "—"}
+                            </div>
+                        </div>
+                    </TooltipV2>
+                </> : isLifetimeConsumption ? <>
+                    <TooltipV2 tooltip={spentTooltip}>
+                        <div className="usage-kpi-item">
+                            <div className="usage-kpi-title">
+                                <span>Spent in period</span>
+                            </div>
+                            <div className="usage-kpi-value-row">
+                                <span className="usage-kpi-primary">{fmtNum(kpis.periodUsage)}</span>
+                                <span className="usage-kpi-unit">{unit.name}</span>
+                            </div>
+                            <div className="usage-kpi-detail">Avg {fmt(burnRatePerDay)}/day</div>
+                        </div>
+                    </TooltipV2>
+
+                    <TooltipV2 tooltip={`Active: ${fmt(kpis.activeUsageAtEnd)}, Retired: ${fmt(kpis.retiredUsageAtEnd)}`}>
+                        <div className="usage-kpi-item">
+                            <div className="usage-kpi-title">
+                                <span>Lifetime usage</span>
+                                <span>{totalUtilPct.toFixed(1)}%</span>
+                            </div>
+                            <div className="usage-kpi-value-row">
+                                <span className="usage-kpi-primary">{fmtNum(kpis.totalUsageAtEnd)}</span>
+                                <span className="usage-kpi-unit">{unit.name}</span>
+                            </div>
+                            <div className="usage-kpi-bar">
+                                <div
+                                    className="usage-kpi-fill"
+                                    style={{
+                                        width: `${Math.min(100, totalUtilPct)}%`,
+                                        background: usageBarColor,
+                                    }}
+                                />
+                            </div>
+                            <div className="usage-kpi-detail">
+                                {kpis.retiredUsageAtEnd > 0
+                                    ? `Active ${fmt(kpis.activeUsageAtEnd)}, retired ${fmt(kpis.retiredUsageAtEnd)}`
+                                    : "All usage active"}
+                            </div>
+                        </div>
+                    </TooltipV2>
+
+                    <TooltipV2 tooltip={`Active quota: ${fmt(kpis.activeQuotaAtEnd)}, Expired quota: ${fmt(expiredQuota)}, Balance: ${fmt(activeBalance)}`}>
+                        <div className="usage-kpi-item">
+                            <div className="usage-kpi-title">
+                                <span>Lifetime quota</span>
+                            </div>
+                            <div className="usage-kpi-value-row">
+                                <span className="usage-kpi-primary">{fmtNum(kpis.quotaAtEnd)}</span>
+                                <span className="usage-kpi-unit">{unit.name}</span>
+                            </div>
+                            <div className="usage-kpi-detail">
+                                Active {fmt(kpis.activeQuotaAtEnd)}
+                            </div>
+                        </div>
+                    </TooltipV2>
+
+                    <TooltipV2 tooltip={`Expired quota: ${fmt(expiredQuota)}, Retired usage: ${fmt(kpis.retiredUsageAtEnd)}`}>
+                        <div className="usage-kpi-item">
+                            <div className="usage-kpi-title">
+                                <span>Expired unused</span>
+                                {expiredQuota > 0 ? <span>{expiredUnusedPct.toFixed(1)}% unspent</span> : null}
+                            </div>
+                            <div className="usage-kpi-value-row">
+                                <span className="usage-kpi-primary">{fmtNum(expiredUnused)}</span>
+                                <span className="usage-kpi-unit">{unit.name}</span>
+                            </div>
+                            <div className="usage-kpi-detail">
+                                Retired usage {fmt(kpis.retiredUsageAtEnd)}
+                            </div>
+                        </div>
+                    </TooltipV2>
+                </> : <>
+                    <TooltipV2 tooltip={spentTooltip}>
+                        <div className="usage-kpi-item">
+                            <div className="usage-kpi-title">
+                                <span>Spent in period</span>
+                            </div>
+                            <div className="usage-kpi-value-row">
+                                <span className="usage-kpi-primary">{fmtNum(kpis.periodUsage)}</span>
+                                <span className="usage-kpi-unit">{unit.name}</span>
+                            </div>
+                            <div className="usage-kpi-detail">Avg {fmt(burnRatePerDay)}/day</div>
+                        </div>
+                    </TooltipV2>
+
+                    <TooltipV2 tooltip={balanceTooltip}>
+                        <div className="usage-kpi-item">
+                            <div className="usage-kpi-title">
+                                <span>Active usage</span>
+                                <span>{activeUtilPct.toFixed(1)}%</span>
+                            </div>
+                            <div className="usage-kpi-value-row">
+                                <span className="usage-kpi-primary">{fmtNum(kpis.activeUsageAtEnd)}</span>
+                                <span className="usage-kpi-unit">{unit.name}</span>
+                            </div>
+                            <div className="usage-kpi-bar">
+                                <div
+                                    className="usage-kpi-fill"
+                                    style={{
+                                        width: `${Math.min(100, activeUtilPct)}%`,
+                                        background: usageBarColor,
+                                    }}
+                                />
+                            </div>
+                            <div className="usage-kpi-detail" style={{color: kpis.upstreamCapped ? "var(--warningMain)" : undefined}}>
+                                Balance {fmt(activeBalance)}
+                            </div>
+                        </div>
+                    </TooltipV2>
+
+                    <TooltipV2 tooltip={quotaExpiryTooltip}>
+                        <div className="usage-kpi-item">
+                            <div className="usage-kpi-title">
+                                <span>Active quota</span>
+                            </div>
+                            <div className="usage-kpi-value-row">
+                                <span className="usage-kpi-primary">{fmtNum(kpis.activeQuotaAtEnd)}</span>
+                                <span className="usage-kpi-unit">{unit.name}</span>
+                            </div>
+                            <div className="usage-kpi-detail" style={{color: kpis.upstreamCapped ? "var(--warningMain)" : undefined}}>
+                                {kpis.upstreamCapped
+                                    ? `Usable balance ${fmt(kpis.maxUsableAtEnd)}`
+                                    : daysToExpiry !== null
+                                        ? `Next expiry ${formatNumber(daysToExpiry)}d`
+                                        : "No upcoming expiry"}
+                            </div>
+                        </div>
+                    </TooltipV2>
+
+                    <div className="usage-kpi-item">
+                        <div className="usage-kpi-title">
+                            <span>Est. runway</span>
+                        </div>
+                        <div className="usage-kpi-value-row">
+                            <span className="usage-kpi-primary">
+                                {daysToDepletion === null ? "—" : `${formatNumber(daysToDepletion)} days`}
+                            </span>
+                        </div>
+                        <div className="usage-kpi-detail">{runwaySub}</div>
+                    </div>
+                </>}
+
+                {subProjectCount > 0 ? (
+                    <TooltipV2 tooltip={grantedTooltip}>
+                        <div className="usage-kpi-item">
+                            <div className="usage-kpi-title">
+                                <span>{isLifetimeConsumption ? "Total granted to children" : "Granted to children"}</span>
+                                {isLifetimeConsumption
+                                    ? (kpis.quotaAtEnd > 0 ? <span>{overCommitTotal.toFixed(1)}x of quota</span> : null)
+                                    : (kpis.activeQuotaAtEnd > 0 ? <span>{overCommitActive.toFixed(1)}x of quota</span> : null)}
+                            </div>
+                            <div className="usage-kpi-value-row">
+                                <span className="usage-kpi-primary">
+                                    {fmtNum(isLifetimeConsumption ? kpis.totalAllocatedAtEnd : kpis.activeAllocatedAtEnd)}
+                                </span>
+                                <span className="usage-kpi-unit">{unit.name}</span>
+                            </div>
+                            <div className="usage-kpi-bar">
+                                <div
+                                    className="usage-kpi-fill"
+                                    style={{
+                                        width: `${grantedPct}%`,
+                                        background: "var(--chart-blue-main)",
+                                    }}
+                                />
+                            </div>
+                            <div className="usage-kpi-detail">
+                                {formatNumber(subProjectCount)} sub-project{subProjectCount === 1 ? "" : "s"}
+                            </div>
+                        </div>
+                    </TooltipV2>
+                ) : null}
+
+                {hasSubAllocators ? (
+                    <div className="usage-kpi-item">
+                        <div className="usage-kpi-title">
+                            <span>Re-allocated to sub-children</span>
+                        </div>
+                        <div className="usage-kpi-value-row">
+                            <span className="usage-kpi-primary">{fmtNum(kpis.downstreamActiveAllocated)}</span>
+                            <span className="usage-kpi-unit">{unit.name}</span>
+                        </div>
+                        <div className="usage-kpi-detail">
+                            By {formatNumber(detail.subProjectSummary.subAllocatorCount)} sub-allocator{detail.subProjectSummary.subAllocatorCount === 1 ? "" : "s"}
+                        </div>
+                    </div>
+                ) : null}
+            </div>
+
+            {isCapacity ? (
+                <section className="usage-section">
+                    <div className="usage-section-head">
+                        <h3>Usage over time</h3>
+                        <Flex alignItems="center" gap="8px" flexWrap="wrap">
+                            {pinnedChildren.length > 0 ? (
+                                <Button color="ghost" onClick={() => setPinnedChildren([])}>
+                                    Clear pinned ({pinnedChildren.length})
+                                </Button>
+                            ) : null}
+                            {showBreakdownSwitcher ? (
+                                <div className="usage-mode-row">
+                                    <button
+                                        type="button"
+                                        className="usage-mode-button"
+                                        aria-pressed={effectiveSeriesMode === "total"}
+                                        onClick={() => setSeriesModeOverride("total")}
+                                    >
+                                        {pinnedChildren.length > 0 ? "Pinned" : "Total"}
+                                    </button>
+                                    {hasMultipleProducts ? (
+                                        <button
+                                            type="button"
+                                            className="usage-mode-button"
+                                            aria-pressed={effectiveSeriesMode === "product"}
+                                            onClick={() => setSeriesModeOverride("product")}
+                                        >
+                                            By product
+                                        </button>
+                                    ) : null}
+                                    {subProjectCount > 0 ? (
+                                        <button
+                                            type="button"
+                                            className="usage-mode-button"
+                                            aria-pressed={effectiveSeriesMode === "child"}
+                                            onClick={() => setSeriesModeOverride("child")}
+                                        >
+                                            {isLargeGrantAllocator ? "Top sub-projects" : "By sub-project"}
+                                        </button>
+                                    ) : null}
+                                </div>
+                            ) : null}
                         </Flex>
-                        <svg ref={deltaOverTime.chartRef} width={deltaChartWidth} height={chartHeight(deltaChartWidth)} />
-                        <Flex flexWrap={"wrap"} gap={"16px"} ml={40} fontSize={"80%"}>
-                            {deltaOverTime.labels.map(label =>
-                                <Flex key={label.child} gap={"4px"} alignItems={"center"}>
-                                    <Box width={14} height={14} flexShrink={0} style={{background: label.color}} />
-                                    <div>{childToLabel(label.child)}</div>
+                    </div>
+                    <UsageCapacityOccupancyChart
+                        detail={detail}
+                        unit={unit}
+                        width={chartWidth}
+                        height={capacityChartHeight}
+                        seriesMode={effectiveSeriesMode}
+                        pinnedChildren={pinnedChildren}
+                        highlightedKey={highlightedKey}
+                        onHighlightKey={setHighlightedKey}
+                        labelForKey={labelForKey}
+                    />
+                </section>
+            ) : (
+                <section className="usage-section">
+                    {detail.timeline.length > 0 ? (
+                        <div className="usage-chart-col" style={{marginBottom: 8}}>
+                            <div className="usage-section-head">
+                                <h3>Daily activity</h3>
+                            </div>
+                            <UsageCalendarHeatmap
+                                detail={detail}
+                                unit={unit}
+                                width={chartWidth}
+                            />
+                        </div>
+                    ) : null}
+                    <div
+                        className="usage-chart-grid"
+                        style={{gridTemplateColumns: twoColCharts ? "repeat(2, minmax(0, 1fr))" : "minmax(0, 1fr)"}}
+                    >
+                        <div className="usage-chart-col">
+                            <div className="usage-section-head">
+                                <h3>Consumption rate</h3>
+                                <Flex alignItems="center" gap="8px" flexWrap="wrap">
+                                    {pinnedChildren.length > 0 ? (
+                                        <Button color="ghost" onClick={() => setPinnedChildren([])}>
+                                            Clear pinned ({pinnedChildren.length})
+                                        </Button>
+                                    ) : null}
+                                    {showBreakdownSwitcher ? (
+                                        <div className="usage-mode-row">
+                                            <button
+                                                type="button"
+                                                className="usage-mode-button"
+                                                aria-pressed={effectiveSeriesMode === "total"}
+                                                onClick={() => setSeriesModeOverride("total")}
+                                            >
+                                                {pinnedChildren.length > 0 ? "Pinned" : "Total"}
+                                            </button>
+                                            {hasMultipleProducts ? (
+                                                <button
+                                                    type="button"
+                                                    className="usage-mode-button"
+                                                    aria-pressed={effectiveSeriesMode === "product"}
+                                                    onClick={() => setSeriesModeOverride("product")}
+                                                >
+                                                    By product
+                                                </button>
+                                            ) : null}
+                                            {subProjectCount > 0 ? (
+                                                <button
+                                                    type="button"
+                                                    className="usage-mode-button"
+                                                    aria-pressed={effectiveSeriesMode === "child"}
+                                                    onClick={() => setSeriesModeOverride("child")}
+                                                >
+                                                    {isLargeGrantAllocator ? "Top sub-projects" : "By sub-project"}
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                    ) : null}
+                                    <TooltipV2 tooltip="Expand chart">
+                                        <button
+                                            type="button"
+                                            className={UcxTableIconButtonClass}
+                                            aria-label="Expand consumption rate chart"
+                                            onClick={() => openUsageChartDialog("Consumption rate", (w, h) => (
+                                                <UsageConsumptionRateChart
+                                                    detail={detail}
+                                                    unit={unit}
+                                                    width={w}
+                                                    height={h}
+                                                    seriesMode={effectiveSeriesMode}
+                                                    pinnedChildren={pinnedChildren}
+                                                    highlightedKey={null}
+                                                    onHighlightKey={() => void 0}
+                                                    labelForKey={labelForKey}
+                                                />
+                                            ))}
+                                        >
+                                            <Icon name="heroArrowsPointingOut" size={15} />
+                                        </button>
+                                    </TooltipV2>
                                 </Flex>
-                            )}
-                        </Flex>
-                    </Card>
-                )
+                            </div>
+                            <UsageConsumptionRateChart
+                                detail={detail}
+                                unit={unit}
+                                width={rateChartWidth}
+                                height={rateChartHeight}
+                                seriesMode={effectiveSeriesMode}
+                                pinnedChildren={pinnedChildren}
+                                highlightedKey={highlightedKey}
+                                onHighlightKey={setHighlightedKey}
+                                labelForKey={labelForKey}
+                            />
+                        </div>
+
+                        <div className="usage-chart-col">
+                            <div className="usage-section-head">
+                                <h3>{effectiveIncludeRetired ? "Lifetime cumulative usage" : "Cumulative usage"}</h3>
+                                <TooltipV2 tooltip="Expand chart">
+                                    <button
+                                        type="button"
+                                        className={UcxTableIconButtonClass}
+                                        aria-label="Expand cumulative usage chart"
+                                        onClick={() => openUsageChartDialog(
+                                            effectiveIncludeRetired ? "Lifetime cumulative usage" : "Cumulative usage",
+                                            (w, h) => (
+                                                <UsageConsumptionBurnupChart
+                                                    detail={detail}
+                                                    unit={unit}
+                                                    width={w}
+                                                    height={h}
+                                                    includeRetired={effectiveIncludeRetired}
+                                                />
+                                            ),
+                                        )}
+                                    >
+                                        <Icon name="heroArrowsPointingOut" size={15} />
+                                    </button>
+                                </TooltipV2>
+                            </div>
+                            <UsageConsumptionBurnupChart
+                                detail={detail}
+                                unit={unit}
+                                width={burnupChartWidth}
+                                height={burnupChartHeight}
+                                includeRetired={effectiveIncludeRetired}
+                            />
+                        </div>
+                    </div>
+                </section>
             )}
 
-            {r.usageOverTime.childrenAbsolute.length <= 1 ? null :
-                <Card>
-                    <Flex mb={8}>
-                        <h3 style={{flexGrow: 1}}>Usage over time (Stacked)</h3>
-                        <Button onClick={exportAbsoluteChildrenUsageOverTime}>
-                            <Icon name={"heroArrowDownTray"} mr={8} />
-                            Export
-                        </Button>
-                    </Flex>
-                    <svg ref={absoluteOverTime.chartRef} width={deltaChartWidth} height={chartHeight(deltaChartWidth)} />
-                    <Flex flexWrap={"wrap"} gap={"16px"} ml={40} fontSize={"80%"}>
-                        {absoluteOverTime.labels.map(label =>
-                            <Flex key={label.child} gap={"4px"} alignItems={"center"}>
-                                <Box width={14} height={14} flexShrink={0} style={{background: label.color}} />
-                                <div>{childToLabel(label.child)}</div>
-                            </Flex>
-                        )}
-                    </Flex>
-                </Card>
-            }
-
-            {r.usageOverTime.childrenAbsolute.length <= 1 ? null :
-                <Card>
-                    <Flex mb={8}>
-                        <h3 style={{flexGrow: 1}}>
-                            Usage over time (Seperate)
-                        </h3>
-                        <Button onClick={exportAbsoluteChildrenUsageOverTime}>
-                            <Icon name={"heroArrowDownTray"} mr={8} />
-                            Export
-                        </Button>
-                    </Flex>
-                    <Flex flexWrap={"wrap"} gap={"16px"}>
-                        <svg ref={usageOverTime.chartRef} width={usageChartWidth}
-                             height={usageChartHeight} />
-                        <div className={TableStyle} style={{flexBasis: "500px"}}>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th />
-                                        <th>Project</th>
-                                        <th>Usage</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {usageOverTime.rows.map(row => <tr key={row.child}>
-                                        <td align={"center"}>
-                                            <Box width={14} height={14} flexShrink={0} style={{background: row.color}} />
-                                        </td>
-                                        <td>{childToLabel(row.child)}</td>
-                                        <td align={"right"}>{balanceToString(row.usage)}</td>
-                                    </tr>)}
-
-                                </tbody>
-                            </table>
-                        </div>
-                    </Flex>
-                </Card>
-            }
-
-            {r.usageOverTime.absolute.length <= 1 ? null :
-                <Card>
-                    <Flex mb={8}>
-                        <h3 style={{flexGrow: 1}}>Utilization over time</h3>
-                        <Button onClick={exportAbsoluteUsageOverTime}>
-                            <Icon name={"heroArrowDownTray"} mr={8} />
-                            Export
-                        </Button>
-                    </Flex>
-                    <Flex flexWrap={"wrap"} gap={"16px"}>
-                        <svg ref={utilizationOverTime.chartRef} width={utilizationChartWidth}
-                             height={utilizationChartHeight} />
-
-                        <div className={TableStyle} style={{flexBasis: "380px"}}>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th style={{width: "60px"}} />
-                                        {utilizationOverTime.rows.map(row => <th key={row.title} style={{width: "150px"}}>
-                                            <Flex gap={"8px"} alignItems={"center"}>
-                                                <Box width={14} height={14} flexShrink={0} style={{background: row.color}} />
-                                                {row.title}
-                                            </Flex>
-                                        </th>)}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td><b>Min</b></td>
-                                        {utilizationOverTime.rows.map(row => <td key={row.title} align={"right"}>
-                                            {row.min}
-                                        </td>)}
-                                    </tr>
-                                    <tr>
-                                        <td><b>Max</b></td>
-                                        {utilizationOverTime.rows.map(row => <td key={row.title} align={"right"}>
-                                            {row.max}
-                                        </td>)}
-                                    </tr>
-                                    <tr>
-                                        <td><b>Mean</b></td>
-                                        {utilizationOverTime.rows.map(row => <td key={row.title} align={"right"}>
-                                            {row.mean}
-                                        </td>)}
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </Flex>
-                </Card>
-            }
-        </>
-    }
+            {subProjectCount > 0 ? (
+                <section className="usage-section">
+                    <UsageSubProjectTable
+                        rows={detail.children}
+                        utilizationBuckets={detail.subProjectSummary.utilizationBuckets}
+                        accountingModel={detail.accountingModel}
+                        unit={unit}
+                        includeRetired={effectiveIncludeRetired}
+                        hideLocal={hideLocal}
+                        periodEnd={normalizedPeriod.end}
+                        chartWidth={chartWidth}
+                        bucketFilter={bucketFilter}
+                        onSelectBucket={setBucketFilter}
+                        pinnedChildren={pinnedChildren}
+                        onTogglePin={handleTogglePin}
+                        onClearFilters={() => {
+                            setBucketFilter(null);
+                        }}
+                        exportTitle={detail.title}
+                        workspaceTitle={project.fetch().specification.title}
+                    />
+                </section>
+            ) : null}
+        </Flex>;
+    };
 
     return <MainContainer
-        main={<Flex flexDirection={"column"} gap={"32px"}>
-            <Flex>
-                <h3 className="title" style={{marginTop: "auto", marginBottom: "auto"}}>Usage report</h3>
-                <Box flexGrow={1} />
-                <ProjectSwitcher />
-            </Flex>
-
-            <Box>
-                <Flex gap={"16px"} flexWrap={"wrap"} alignItems={"end"}>
-                    <Box flexBasis={200} flexGrow={1} flexShrink={0}>
-                        <div><b>Period</b></div>
-                        <PeriodSelector value={state.period} onChange={setPeriod} />
-                    </Box>
-
-                    <Box flexBasis={730} flexShrink={1} flexGrow={3}>
-                        <div><b>Page</b></div>
-                        <RichSelect
-                            items={state.reports}
-                            keys={["title"]}
-                            RenderRow={RenderReportSelector}
-                            RenderSelected={RenderReportSelector}
-                            onSelect={setSelectedReport}
-                            fullWidth
-                            selected={state.openReport}
-                        />
-                    </Box>
-                    <Flex flexBasis={125} flexShrink={0} flexGrow={0} alignItems={"center"} height={40}>
-                        <Button onClick={exportAll}>
-                            <Icon name={"heroArrowDownTray"} mr={8} />
-                            Export all
-                        </Button>
-                    </Flex>
+        main={<div className={PageStyle}>
+            <Flex flexDirection="column" gap="20px">
+                <Flex alignItems="center" gap="12px" flexWrap="wrap">
+                    <h3 className="title" style={{margin: 0}}>Usage report</h3>
+                    <Box flexGrow={1} />
+                    <ProjectSwitcher />
                 </Flex>
 
-                {normalizePeriod(state.period).start < new Date("2026-01-28").getTime() ||
-                normalizePeriod(state.period).end < new Date("2026-01-28").getTime() ? <>
-                    <Card
-                        borderRadius="6px"
-                        height="auto"
-                        mt={"32px"}
-                        color="textPrimary"
-                        style={{background: `var(--warningMain)`}}
-                    >
+                <div className="usage-controls">
+                    <PeriodFilter
+                        value={dateRange}
+                        onChange={setDateRange}
+                    />
+
+                    <Box flexGrow={1} />
+
+                    <Button height={35} onClick={exportAll} disabled={overviewGroups.length === 0}>
+                        <Icon name="heroArrowDownTray" mr={8} />
+                        Export all
+                    </Button>
+                </div>
+
+                {(normalizedPeriod.start < new Date("2026-01-28").getTime() ||
+                    normalizedPeriod.end < new Date("2026-01-28").getTime()) ? (
+                    <Warning mb="0px">
                         Data prior to 28/01/2026 is incomplete due to the historic data being produced by an older
                         version of UCloud.
-                    </Card>
-                </> : null}
-            </Box>
+                    </Warning>
+                ) : null}
 
-            {state.loading ? <HexSpin /> :
-                state.error ? <>{state.error}</> :
-                    state.openReport === undefined ? <>No reports available</> :
-                        reportNode
-            }
-        </Flex>}
-    />
-};
+                {overviewLoading ? (
+                    <HexSpin />
+                ) : overviewError ? (
+                    <div>{overviewError}</div>
+                ) : overviewGroups.length === 0 ? (
+                    <div>No usage or allocation history available for this project.</div>
+                ) : !overviewHasData ? (
+                    <div>No usage data for this period.</div>
+                ) : <>
+                    <UsagePortfolioOverview
+                        unitGroups={overviewGroups}
+                        selectedUnitKey={selectedUnitKey}
+                        selectedProductKeys={selectedProductKeys}
+                        includeRetired={effectiveIncludeRetired}
+                        periodEnd={normalizedPeriod.end}
+                        onSelectUnit={handleSelectUnit}
+                        onToggleProduct={handleToggleOverviewProduct}
+                    />
 
-const RenderReportSelector: RichSelectChildComponent<UsageReport> = ({element, onSelect, dataProps}) => {
-    if (element === undefined) {
-        return <Flex height={40} alignItems={"center"} pl={12}>No report selected</Flex>
-    }
+                    <div className="usage-nav-bar">
+                        <div className="usage-tabs" role="tablist" aria-label="Accounting unit groups">
+                            {overviewGroups.map(group => {
+                                const active = group.key === selectedUnitKey;
+                                return <button
+                                    key={group.key}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={active}
+                                    className="usage-tab"
+                                    data-active={active ? "true" : undefined}
+                                    onClick={() => handleSelectUnit(group.key)}
+                                >
+                                    <Icon name={productTypeToIcon(group.productType)} size={15} />
+                                    <span>{group.title}</span>
+                                </button>;
+                            })}
+                        </div>
 
-    return <Flex gap={"16px"} height="40px" {...dataProps} alignItems={"center"} py={4} px={8}
-                 onClick={onSelect}>
-        {/* TODO Icon */}
-        <Icon name={"heroCpuChip"} />
-        <div><b>{element.title}</b></div>
-    </Flex>;
-};
+                        <Flex ml="auto" mb="6px" alignItems="center" gap="16px" flexWrap="wrap">
+                            <TooltipV2
+                                tooltip={isCapacityGroup
+                                    ? "Lifetime usage only applies to consumption-based resources. Capacity resources always show current usage."
+                                    : undefined}
+                            >
+                                <div
+                                    className="usage-toggle"
+                                    role="group"
+                                    aria-label="Usage scope"
+                                    data-disabled={isCapacityGroup ? "true" : undefined}
+                                >
+                                    <button
+                                        type="button"
+                                        className="usage-toggle-label"
+                                        data-active={!effectiveIncludeRetired ? "true" : undefined}
+                                        disabled={isCapacityGroup}
+                                        onClick={() => {
+                                            if (!isCapacityGroup) setIncludeRetired(false);
+                                        }}
+                                    >
+                                        Active usage
+                                    </button>
+                                    <Toggle
+                                        height={18}
+                                        activeColor="primaryMain"
+                                        checked={effectiveIncludeRetired}
+                                        disabled={isCapacityGroup}
+                                        onChange={prev => {
+                                            if (!isCapacityGroup) setIncludeRetired(!prev);
+                                        }}
+                                        ariaLabel="Lifetime usage"
+                                    />
+                                    <button
+                                        type="button"
+                                        className="usage-toggle-label"
+                                        data-active={effectiveIncludeRetired ? "true" : undefined}
+                                        disabled={isCapacityGroup}
+                                        onClick={() => {
+                                            if (!isCapacityGroup) setIncludeRetired(true);
+                                        }}
+                                    >
+                                        Lifetime usage
+                                    </button>
+                                </div>
+                            </TooltipV2>
 
-function normalizePeriod(period: Period): {start: number, end: number} {
-    switch (period.type) {
-        case "relative": {
-            let start = new Date();
-            const end = start.getTime();
-            start.setUTCHours(0, 0, 0, 0);
+                            {activeGroup && activeGroup.products.length > 1 ? (
+                                <ClickableDropdown
+                                    trigger={<span className="usage-product-trigger">
+                                        <Icon name="heroCpuChip" size={14} />
+                                        Products
+                                        {selectedProductKeys.length > 0 ? ` (${formatNumber(selectedProductKeys.length)})` : ""}
+                                        <Icon name="heroChevronDown" size={12} />
+                                    </span>}
+                                    triggerAriaLabel="Filter by product"
+                                    width={300}
+                                    focusable
+                                    keepOpenOnClick
+                                    colorOnHover={false}
+                                    hoverColor="rowHover"
+                                    paddingControlledByContent
+                                >
+                                    <div className={ProductMenuStyle}>
+                                        {activeGroup.products.map(p => {
+                                            const pKey = usageProductKey(p.category);
+                                            const selected = selectedProductKeys.includes(pKey);
+                                            return <div
+                                                key={pKey}
+                                                className="prod-option"
+                                                role="menuitemcheckbox"
+                                                aria-checked={selected}
+                                                onClick={() => handleToggleProduct(pKey)}
+                                            >
+                                                <ProviderLogo providerId={p.category.provider} size={16} />
+                                                <div className="prod-option-label">
+                                                    <span>{p.category.name}</span>
+                                                    <span className="prod-option-sub">
+                                                        {getShortProviderTitle(p.category.provider)}
+                                                    </span>
+                                                </div>
+                                                <Toggle
+                                                    height={18}
+                                                    activeColor="primaryMain"
+                                                    checked={selected}
+                                                    onChange={() => handleToggleProduct(pKey)}
+                                                    ariaLabel={p.category.name}
+                                                />
+                                            </div>;
+                                        })}
+                                    </div>
+                                </ClickableDropdown>
+                            ) : null}
+                        </Flex>
+                    </div>
 
-            switch (period.unit) {
-                case "day": {
-                    start.setDate(start.getDate() - period.distance);
-                    break;
-                }
-
-                case "month": {
-                    start.setMonth(start.getMonth() - period.distance);
-                    break;
-                }
-            }
-            return {start: start.getTime(), end};
-        }
-
-        case "absolute": {
-            return {start: period.start, end: period.end};
-        }
-    }
-}
-
-const PeriodStyle = injectStyle("period-selector", k => `
-    ${k} {
-        position: relative;
-        cursor: pointer;
-        border-radius: 5px;
-        border: 1px solid var(--borderColor, #f00);
-        width: 100%;
-        user-select: none;
-        -webkit-user-select: none;
-        background: var(--backgroundDefault);
-        box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);
-        
-        display: flex;
-        padding: 4px 8px;
-        height: 40px;
-        align-items: center;
-    }
-
-    ${k}:hover {
-        border-color: var(--borderColorHover);
-    }
-
-    ${k}[data-omit-border="true"] {
-        border: unset;
-    }
-
-    ${k} > svg {
-        position: absolute;
-        bottom: 13px;
-        right: 15px;
-        height: 16px;
-    }
-`);
-
-const PeriodSelectorBodyStyle = injectStyle("period-selector-body", k => `
-    ${k} {
-        cursor: auto;
-        display: flex;
-        flex-direction: row;
-        width: 422px;
-        height: 300px;
-    }
-    
-    ${k} > div {
-        flex-grow: 1;
-        display: flex;
-        flex-direction: column;
-        padding: 8px;
-    }
-    
-    ${k} > div:first-child {
-        border-right: 1px solid var(--borderColor);
-    }
-    
-    ${k} b {
-        display: block;
-        margin-bottom: 10px;
-    }
-    
-    ${k} .relative {
-        cursor: pointer;
-        margin-left: -8px;
-        margin-right: -8px;
-        padding: 8px;
-    }
-    
-    ${k} .relative:hover {
-        background: var(--rowHover);
-    }
-`);
-
-const PeriodSelector: React.FunctionComponent<{
-    value: Period;
-    onChange: (period: Period) => void;
-}> = props => {
-    const [{start, end}, setPeriod] = React.useState(normalizePeriod(props.value));
-
-    function formatTs(ts: number): string {
-        const d = new Date(ts);
-        return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
-    }
-
-    function periodToString(period: Period) {
-        switch (period.type) {
-            case "relative": {
-                return `Last ${period.distance} ${period.unit}s`;
-            }
-
-            case "absolute": {
-                const pad = (n: number) => n.toString().padStart(2, "0");
-                const startDate = new Date(period.start);
-                const endDate = new Date(period.end);
-                let b = "";
-
-                b += pad(startDate.getDate());
-                b += "/";
-                b += pad(startDate.getMonth() + 1);
-                b += "/";
-                b += startDate.getFullYear();
-
-                b += " to ";
-
-                b += pad(endDate.getDate());
-                b += "/";
-                b += pad(endDate.getMonth() + 1);
-                b += "/";
-                b += endDate.getFullYear();
-                return b;
-            }
-        }
-    }
-
-    const onRelativeUpdated = useCallback((ev: React.SyntheticEvent) => {
-        const t = ev.target as HTMLElement;
-        const distance = parseInt(t.getAttribute("data-relative") ?? "0");
-        const unit = t.getAttribute("data-relative-unit") as any;
-
-        props.onChange({
-            type: "relative",
-            distance,
-            unit
-        });
-    }, [props.onChange]);
-
-    const onChange = useCallback((ev: React.SyntheticEvent) => {
-        const target = ev.target as HTMLInputElement;
-        if (!target) return;
-        const isStart = target.classList.contains("start");
-
-        const newPeriod = {
-            start: isStart ? (target.valueAsDate?.getTime() ?? start) : start,
-            end: isStart ? end : (target.valueAsDate?.getTime() ?? end),
-        };
-
-        setPeriod(newPeriod);
-    }, [start, end]);
-
-    return <ClickableDropdown
-        colorOnHover={false}
-        paddingControlledByContent
-        fullWidth
-        rightAligned
-        onOpeningTriggerClick={() => setPeriod(normalizePeriod(props.value))}
-        trigger={
-            <div className={PeriodStyle}>
-                <div>{periodToString(props.value)}</div>
-                <Icon name="heroChevronDown" size="16px" ml="4px" mt="4px" />
-            </div>
-        }
-    >
-        <div className={PeriodSelectorBodyStyle}>
-            <div onClick={stopPropagation}>
-                <form onSubmit={e => {
-                    e.preventDefault();
-                    props.onChange({start, end, type: "absolute"})
-                }}>
-                    <b>Absolute time range</b>
-
-                    <label>
-                        From
-                        <Input className={"start"} onChange={onChange} type={"date"} value={formatTs(start)} />
-                    </label>
-                    <label>
-                        To
-                        <Input className={"end"} onChange={onChange} type={"date"} value={formatTs(end)} />
-                    </label>
-
-                    <Button mt="8px" type="submit">Apply</Button>
-                </form>
-            </div>
-
-            <div>
-                <b>Relative time range</b>
-
-                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
-                     data-relative={"7"}>Last 7 days
-                </div>
-                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
-                     data-relative={"30"}>Last 30 days
-                </div>
-                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
-                     data-relative={"90"}>Last 90 days
-                </div>
-                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
-                     data-relative={"6"}>Last 6 months
-                </div>
-                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
-                     data-relative={"12"}>Last 12 months
-                </div>
-            </div>
-        </div>
-    </ClickableDropdown>;
+                    {detailLoading && !detail ? (
+                        <HexSpin />
+                    ) : detailError ? (
+                        <div>{detailError}</div>
+                    ) : detail && !detail.hasData ? (
+                        <div>No usage data for this period.</div>
+                    ) : renderFocusContent()}
+                </>}
+            </Flex>
+        </div>}
+    />;
 };
 
 export default UsagePage;

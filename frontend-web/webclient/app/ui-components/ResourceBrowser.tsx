@@ -3490,7 +3490,7 @@ export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclarat
     inner.style.width = "100%";
     inner.style.height = "100%";
     inner.style.fontSize = opts?.fontSize ?? "14px";
-    inner.style.color = "white"
+    inner.style.color = "black"
     if (logo) {
         outer.style.padding = "3px";
 
