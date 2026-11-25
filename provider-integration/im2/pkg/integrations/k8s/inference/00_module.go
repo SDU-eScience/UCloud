@@ -139,6 +139,11 @@ func Init() {
 	initCli()
 	inferenceCfg := &shared.ServiceConfig.Compute.Inference
 	if !inferenceCfg.Enabled {
+		if util.DevelopmentModeEnabled() {
+			inferenceModelCatalogLoad()
+			orcapi.InferenceUsageBreakdownProvider.Handler(inferenceHandleUsageBreakdown)
+			orcapi.InferenceUsageBreakdownSeedProvider.Handler(inferenceHandleUsageBreakdownSeed)
+		}
 		return
 	}
 
@@ -386,6 +391,11 @@ func Init() {
 		}
 		return util.Empty{}, nil
 	})
+
+	orcapi.InferenceUsageBreakdownProvider.Handler(inferenceHandleUsageBreakdown)
+	if util.DevelopmentModeEnabled() {
+		orcapi.InferenceUsageBreakdownSeedProvider.Handler(inferenceHandleUsageBreakdownSeed)
+	}
 
 	inferenceGlobals.Product = apm.ProductV2{
 		Type: apm.ProductTypeCInference,

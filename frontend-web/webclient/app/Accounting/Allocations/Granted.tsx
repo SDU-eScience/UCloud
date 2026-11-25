@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useState} from "react";
 import * as Accounting from "@/Accounting";
-import {explainUnit, productTypeToIcon} from "@/Accounting";
+import {explainUnit, productCategoryDisplayName, productTypeToIcon} from "@/Accounting";
 import type {ProductCategoryV2} from "@/Accounting";
 import {
     Button,
@@ -270,7 +270,7 @@ function Overview(props: {
         key: categoryKey(row.category),
         group: row.category.provider,
         cells: [
-            row.category.name,
+            productCategoryDisplayName(row.category),
             `${row.activeUsage}`,
             `${row.activeGranted}`,
             `${row.activeReceived}`,
@@ -310,10 +310,10 @@ function Overview(props: {
             const selected = props.selectedCategories.includes(context.row.key);
             const action = selected ? "Remove" : "Add";
             const preposition = selected ? "from" : "to";
-            const label = `${action} ${row.category.name} ${preposition} product filter`;
+            const label = `${action} ${productCategoryDisplayName(row.category)} ${preposition} product filter`;
             return <div className="overview-product">
                 <Icon name={productTypeToIcon(row.category.productType)} size={16} />
-                <span className="overview-product-name">{row.category.name}</span>
+                <span className="overview-product-name">{productCategoryDisplayName(row.category)}</span>
                 <TooltipV2 tooltip={label}>
                     <button
                         className={UcxTableIconButtonClass}
@@ -550,7 +550,7 @@ function openEditDialog(
         }}>
             <div onKeyDown={e => e.stopPropagation()}>
                 <div>
-                    <Heading.h3>Update {category.name} ({getProviderTitle(category.provider)}) allocation
+                    <Heading.h3>Update {productCategoryDisplayName(category)} ({getProviderTitle(category.provider)}) allocation
                         (ID: {allocationId}) belonging to "{workspaceTitle}"</Heading.h3>
                     <Divider />
                     <Flex mb={"16px"} flexDirection={"row"}>

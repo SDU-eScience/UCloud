@@ -1,7 +1,7 @@
 import * as React from "react";
 import ReactDOM from "react-dom";
 
-import {ProductV2, productCategoryEquals, ProductV2Compute, ProductType, explainUnit, ProductCategoryV2, priceToString, Product, ProductCategoryId} from "@/Accounting";
+import {ProductV2, productCategoryEquals, ProductV2Compute, ProductType, explainUnit, ProductCategoryV2, priceToString, Product, ProductCategoryId, productDisplayName, usageGeneratorDisplayName} from "@/Accounting";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {connectionState} from "@/Providers/ConnectionState";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -381,9 +381,9 @@ export const ProductSelector: React.FunctionComponent<{
                     {selected ?
                         <Flex alignItems={"center"} gap="8px">
                             {isCompute ? <Icon size={24} ml="-4px" name={selectedComputeCategory?.kind === "CPU" ? "heroCpuChip" : "gpu"} /> : <ProviderLogo providerId={selected?.category?.provider ?? "?"} size={24} />}
-                            {selectedComputeCategory?.category}
+                            {selectedComputeCategory?.category ? usageGeneratorDisplayName(selectedComputeCategory.category, selectedComputeCategory.provider) : null}
                             {isCompute ? null : <>
-                                {props.renderProductName?.(selected) ?? selected.name}
+                                {props.renderProductName?.(selected) ?? productDisplayName(selected)}
                                 {props.renderProductBadge?.(selected)}
                                 <Box>-</Box>
                                 <Box>{priceToString(selected, 1)}</Box>
@@ -405,7 +405,7 @@ export const ProductSelector: React.FunctionComponent<{
                         {props.slim !== true ?
                             <>
                                 <Flex mt="4px" gap="24px" flexWrap={"wrap"} rowGap={"2px"} alignItems={"center"} className={MachineSelectorNameRowClass}>
-                                    <Flex>{selected?.name}</Flex>
+                                    <Flex>{selected ? productDisplayName(selected) : null}</Flex>
                                     <Flex gap="12px" alignItems={"center"} className={MachineSelectorNameStatsClass}>
                                         <ProductStatsSummary product={selected as ProductV2Compute} />
                                     </Flex>
@@ -423,7 +423,7 @@ export const ProductSelector: React.FunctionComponent<{
                             </> :
                             <Flex alignItems={"center"} gap={"8px"}>
                                 <ProviderLogo className={"provider-logo"} providerId={selected?.category?.provider ?? "?"} size={24} />
-                                {selected.name}
+                                {selected ? productDisplayName(selected) : null}
                                 {selected.category.accountingFrequency === "ONCE" ? <>
                                     <Box>-</Box>
                                     <Box>{priceToString(selected, 1)}</Box>
@@ -516,7 +516,7 @@ export const ProductSelector: React.FunctionComponent<{
                                             return <tr key={i} data-active={i.toString()} onClick={() => selectShownProduct(p)} className="table-info">
                                                 <TableCell><Icon size={24} name={p.kind === "CPU" ? "heroCpuChip" : "gpu"} /></TableCell>
                                                 <TableCell>{p.kind}</TableCell>
-                                                <TableCell>{p.category}</TableCell>
+                                                <TableCell>{usageGeneratorDisplayName(p.category, p.provider)}</TableCell>
                                                 <TableCell><ProductDescription serviceProvider={serviceProvider} category={p.category} /></TableCell>
                                                 <TableCell><Box ml="16px"><JobQueueStatusIndicator multiple status={queueStatus} /></Box></TableCell>
                                             </tr>
@@ -589,7 +589,7 @@ const ProductName: React.FunctionComponent<{
     product: ProductV2;
     render?: (product: ProductV2) => React.ReactNode;
 }> = ({product, render}) => {
-    return <>{render ? render(product) : product.name}</>;
+    return <>{render ? render(product) : productDisplayName(product)}</>;
 }
 
 function ProductDescription({className, serviceProvider, category}: {className?: string; serviceProvider: string; category: string;}): React.ReactNode {

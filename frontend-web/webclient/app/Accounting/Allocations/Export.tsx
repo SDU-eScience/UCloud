@@ -16,6 +16,7 @@ import type {ProjectInfo} from "@/Project/InfoCache";
 import {sendFailureNotification} from "@/Notifications";
 import {injectStyle} from "@/Unstyled";
 import * as SiteConfig from "../../../site.config.json";
+import {productCategoryDisplayName} from "@/Accounting";
 import {productWorkspaceInfo, rangeBounds, selectProducts, workspaceInfo} from "./Model";
 import type {DateRange, Model, ProductAllocation, Status} from "./Model";
 
@@ -213,7 +214,7 @@ function buildAllocationRows(
                     workspaceId: workspace.id,
                     pi: workspace.pi,
                     provider: product.category.provider,
-                    product: product.category.name,
+                    product: productCategoryDisplayName(product.category),
                     productType: product.category.productType,
                     accountingModel: product.category.accountingModel,
                     unit: product.unit,
@@ -246,7 +247,7 @@ function buildWalletRows(
             workspaceId: workspace.id,
             pi: workspace.pi,
             provider: product.category.provider,
-            product: product.category.name,
+            product: productCategoryDisplayName(product.category),
             productType: product.category.productType,
             unit: product.unit,
             activeQuota: product.amounts.activeQuota,
@@ -273,7 +274,7 @@ function buildSummary(products: ProductAllocation[]): SummaryProduct[] {
         if (!entry) {
             entry = {
                 row: {
-                    product: product.category.name,
+                    product: productCategoryDisplayName(product.category),
                     provider: product.category.provider,
                     unit: product.unit,
                     activeQuota: 0,
@@ -546,7 +547,7 @@ function buildLegacySubAllocationRows(
         return {
             workspace: workspace.title,
             pi: workspace.pi,
-            category: product.category.name,
+            category: productCategoryDisplayName(product.category),
             provider: product.category.provider,
             usage: product.amounts.activeUsed,
             quota: product.amounts.activeQuota,
@@ -616,7 +617,7 @@ function buildLegacyReceivedRows(products: ProductAllocation[]): LegacyReceivedR
         if (!entry) {
             entry = {
                 row: {
-                    product: product.category.name,
+                    product: productCategoryDisplayName(product.category),
                     provider: product.category.provider,
                     usage: 0,
                     quota: 0,

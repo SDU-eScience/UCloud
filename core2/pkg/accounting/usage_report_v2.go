@@ -1482,6 +1482,19 @@ func usageBuildHistogramBuckets(rows []accapi.UsageChildRow) []accapi.UsageHisto
 	return buckets
 }
 
+func usageEmptyDetailResponse() accapi.UsageDetailResponse {
+	return accapi.UsageDetailResponse{
+		ProductsCovered: []accapi.ProductCategory{},
+		Timeline:        []accapi.UsageTimelineBucket{},
+		DailyActivity:   []accapi.UsageDailyActivityPoint{},
+		Events:          []accapi.UsageLifecycleEvent{},
+		SubProjectSummary: accapi.UsageSubProjectSummary{
+			UtilizationBuckets: []accapi.UsageHistogramBucket{},
+		},
+		Children: []accapi.UsageChildRow{},
+	}
+}
+
 func usageHandleDetailRetrieve(
 	info rpc.RequestInfo,
 	request accapi.UsageDetailRequest,
@@ -1502,7 +1515,7 @@ func usageHandleDetailRetrieve(
 		target = entries[0]
 	}
 	if target == nil {
-		return accapi.UsageDetailResponse{}, nil
+		return usageEmptyDetailResponse(), nil
 	}
 
 	return usageBuildDetailResponse(target, request.Products, request.PinnedChildren, startTime, endTime, now), nil
@@ -1592,19 +1605,18 @@ func usageBuildDetailResponse(
 	bucketDur := usageChooseBucketDuration(startTime, endTime, 0)
 	bucketStarts := usageBuildBucketStarts(startTime, endTime, bucketDur)
 
-	response := accapi.UsageDetailResponse{
-		UnitGroupKey:    target.Descriptor.Key,
-		Title:           target.Descriptor.BaseTitle,
-		AccountingModel: target.Descriptor.AccountingModel,
-		ProductType:     target.Descriptor.ProductType,
-		UnitAndFrequency: accapi.AccountingUnitAndFrequency{
-			Unit:      target.Descriptor.Unit,
-			Frequency: target.GroupFrequency,
-		},
-		BucketDurationMs: bucketDur.Milliseconds(),
-		ValidFrom:        fndapi.Timestamp(startTime),
-		ValidUntil:       fndapi.Timestamp(endTime),
+	response := usageEmptyDetailResponse()
+	response.UnitGroupKey = target.Descriptor.Key
+	response.Title = target.Descriptor.BaseTitle
+	response.AccountingModel = target.Descriptor.AccountingModel
+	response.ProductType = target.Descriptor.ProductType
+	response.UnitAndFrequency = accapi.AccountingUnitAndFrequency{
+		Unit:      target.Descriptor.Unit,
+		Frequency: target.GroupFrequency,
 	}
+	response.BucketDurationMs = bucketDur.Milliseconds()
+	response.ValidFrom = fndapi.Timestamp(startTime)
+	response.ValidUntil = fndapi.Timestamp(endTime)
 	for _, w := range selectedWallets {
 		response.ProductsCovered = append(response.ProductsCovered, w.Live.Category)
 	}
@@ -2161,5 +2173,13 @@ func usageBuildDetailResponse(
 	response.Events = util.NonNilSlice(events)
 	response.SubProjectSummary = subSummary
 	response.Children = util.NonNilSlice(childRows)
+	response.InferenceBreakdown = usageBuildInferenceBreakdown(
+		selectedWallets,
+		pinnedChildren,
+		startTime,
+		endTime,
+		bucketStarts,
+		bucketDur,
+	)
 	return response
 }

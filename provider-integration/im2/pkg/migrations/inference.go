@@ -675,3 +675,19 @@ func inferenceV27() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV28() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV28",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create index inference_usage_by_model_owner_day_idx
+					on inference_usage_by_model (owner, usage_day)
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

@@ -4,7 +4,7 @@ import {Icon} from "@/ui-components";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
-import {productTypeToIcon} from "@/Accounting/index";
+import {productCategoryDisplayName, productTypeToIcon} from "@/Accounting/index";
 import {Amount} from "@/Accounting/Allocations/Table";
 import {UcxStreamedTable, UcxTableIconButtonClass, UcxTableStore} from "@/UCX/UcxBrowser";
 import type {UcxTableActivationEvent, UcxTableCellRenderContext} from "@/UCX/UcxBrowser";
@@ -299,7 +299,7 @@ export function UsagePortfolioOverview(props: {
         const isCapacity = g.accountingModel === "CAPACITY";
         const useLifetime = !isCapacity && props.includeRetired;
         const source = m.kind === "group" ? g : m.product;
-        const title = m.kind === "group" ? g.title : m.product.category.name;
+        const title = m.kind === "group" ? g.title : productCategoryDisplayName(m.product.category);
         const periodMetric = isCapacity ? source.peakUsage : source.periodUsage;
         const usageMetric = useLifetime ? source.totalUsage : source.activeUsage;
         const quotaMetric = useLifetime ? source.quota : source.activeQuota;
@@ -417,13 +417,13 @@ export function UsagePortfolioOverview(props: {
             const isSelectedProduct = props.selectedUnitKey === group.key
                 && props.selectedProductKeys.includes(model.productKey);
             const productLabel = isSelectedProduct
-                ? `Remove ${model.product.category.name} from product filter`
-                : `Show ${model.product.category.name}`;
+                ? `Remove ${productCategoryDisplayName(model.product.category)} from product filter`
+                : `Show ${productCategoryDisplayName(model.product.category)}`;
             return <div className="ov-name">
                 <span className="ov-indent" />
                 <ProviderLogo providerId={model.product.category.provider} size={15} />
                 <div className="ov-label">
-                    <div className="ov-title">{model.product.category.name}</div>
+                    <div className="ov-title">{productCategoryDisplayName(model.product.category)}</div>
                     <div className="ov-sub">{getShortProviderTitle(model.product.category.provider)}</div>
                 </div>
                 <TooltipV2 tooltip={productLabel}>

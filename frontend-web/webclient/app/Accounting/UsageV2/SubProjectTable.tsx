@@ -172,6 +172,7 @@ export function UsageSubProjectTable(props: {
     onClearFilters: () => void;
     exportTitle: string;
     workspaceTitle: string;
+    beforeSubProjects?: React.ReactNode;
 }): React.ReactNode {
     const store = useMemo(() => new UcxTableStore(), []);
     const [query, setQuery] = useState("");
@@ -723,6 +724,8 @@ export function UsageSubProjectTable(props: {
                 ) : null}
             </div>
         ) : null}
+
+        {props.beforeSubProjects}
 
         <div className="st-section-head">
             <h3>Sub-projects</h3>

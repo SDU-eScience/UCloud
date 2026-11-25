@@ -91,22 +91,81 @@ type UsageDetailRequest struct {
 }
 
 type UsageDetailResponse struct {
-	HasData           bool                       `json:"hasData"`
-	UnitGroupKey      string                     `json:"unitGroupKey"`
-	Title             string                     `json:"title"`
-	AccountingModel   AccountingModel            `json:"accountingModel"`
-	ProductType       ProductType                `json:"productType"`
-	UnitAndFrequency  AccountingUnitAndFrequency `json:"unitAndFrequency"`
-	ProductsCovered   []ProductCategory          `json:"productsCovered"`
-	BucketDurationMs  int64                      `json:"bucketDurationMs"`
-	ValidFrom         fnd.Timestamp              `json:"validFrom"`
-	ValidUntil        fnd.Timestamp              `json:"validUntil"`
-	Kpis              UsageDetailKpis            `json:"kpis"`
-	Timeline          []UsageTimelineBucket      `json:"timeline"`
-	DailyActivity     []UsageDailyActivityPoint  `json:"dailyActivity"`
-	Events            []UsageLifecycleEvent      `json:"events"`
-	SubProjectSummary UsageSubProjectSummary     `json:"subProjectSummary"`
-	Children          []UsageChildRow            `json:"children"`
+	HasData            bool                                 `json:"hasData"`
+	UnitGroupKey       string                               `json:"unitGroupKey"`
+	Title              string                               `json:"title"`
+	AccountingModel    AccountingModel                      `json:"accountingModel"`
+	ProductType        ProductType                          `json:"productType"`
+	UnitAndFrequency   AccountingUnitAndFrequency           `json:"unitAndFrequency"`
+	ProductsCovered    []ProductCategory                    `json:"productsCovered"`
+	BucketDurationMs   int64                                `json:"bucketDurationMs"`
+	ValidFrom          fnd.Timestamp                        `json:"validFrom"`
+	ValidUntil         fnd.Timestamp                        `json:"validUntil"`
+	Kpis               UsageDetailKpis                      `json:"kpis"`
+	Timeline           []UsageTimelineBucket                `json:"timeline"`
+	DailyActivity      []UsageDailyActivityPoint            `json:"dailyActivity"`
+	Events             []UsageLifecycleEvent                `json:"events"`
+	SubProjectSummary  UsageSubProjectSummary               `json:"subProjectSummary"`
+	Children           []UsageChildRow                      `json:"children"`
+	InferenceBreakdown util.Option[UsageInferenceBreakdown] `json:"inferenceBreakdown"`
+}
+
+type UsageInferenceCostBreakdown struct {
+	CachedInput int64 `json:"cachedInput"`
+	Input       int64 `json:"input"`
+	Output      int64 `json:"output"`
+	Image       int64 `json:"image"`
+	Audio       int64 `json:"audio"`
+	Video       int64 `json:"video"`
+	Total       int64 `json:"total"`
+}
+
+type UsageInferenceTokenBreakdown struct {
+	CachedInput int64 `json:"cachedInput"`
+	Input       int64 `json:"input"`
+	Output      int64 `json:"output"`
+	Total       int64 `json:"total"`
+}
+
+type UsageInferenceModelBucketValue struct {
+	Model         string                       `json:"model"`
+	EstimatedCost UsageInferenceCostBreakdown  `json:"estimatedCost"`
+	Tokens        UsageInferenceTokenBreakdown `json:"tokens"`
+}
+
+type UsageInferenceTimelineBucket struct {
+	Timestamp     fnd.Timestamp                    `json:"timestamp"`
+	EndTimestamp  fnd.Timestamp                    `json:"endTimestamp"`
+	EstimatedCost UsageInferenceCostBreakdown      `json:"estimatedCost"`
+	Tokens        UsageInferenceTokenBreakdown     `json:"tokens"`
+	ByModel       []UsageInferenceModelBucketValue `json:"byModel"`
+}
+
+type UsageInferenceModelSummary struct {
+	Model             string                       `json:"model"`
+	Title             string                       `json:"title"`
+	Priced            bool                         `json:"priced"`
+	EstimatedCost     UsageInferenceCostBreakdown  `json:"estimatedCost"`
+	Tokens            UsageInferenceTokenBreakdown `json:"tokens"`
+	ImageCount        int64                        `json:"imageCount"`
+	ImagePixels       int64                        `json:"imagePixels"`
+	AudioMilliseconds int64                        `json:"audioMilliseconds"`
+	VideoSeconds      int64                        `json:"videoSeconds"`
+}
+
+type UsageInferenceBreakdown struct {
+	Available              bool                           `json:"available"`
+	EstimatedCost          UsageInferenceCostBreakdown    `json:"estimatedCost"`
+	Tokens                 UsageInferenceTokenBreakdown   `json:"tokens"`
+	ImageCount             int64                          `json:"imageCount"`
+	ImagePixels            int64                          `json:"imagePixels"`
+	AudioMilliseconds      int64                          `json:"audioMilliseconds"`
+	VideoSeconds           int64                          `json:"videoSeconds"`
+	CoFundedWorkspaceCount int                            `json:"coFundedWorkspaceCount"`
+	HasUnpricedModels      bool                           `json:"hasUnpricedModels"`
+	HasVideoEstimate       bool                           `json:"hasVideoEstimate"`
+	Models                 []UsageInferenceModelSummary   `json:"models"`
+	Timeline               []UsageInferenceTimelineBucket `json:"timeline"`
 }
 
 type UsageDetailKpis struct {

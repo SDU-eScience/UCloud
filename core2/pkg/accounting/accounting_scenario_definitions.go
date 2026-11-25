@@ -18,6 +18,7 @@ const (
 type accountingScenarioProductSpec struct {
 	Key             string
 	Slug            string
+	Provider        string
 	ProductType     accapi.ProductType
 	AccountingModel accapi.AccountingModel
 	Unit            accapi.AccountingUnit

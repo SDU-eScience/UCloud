@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"net/http"
 	"slices"
+	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -108,6 +109,45 @@ func initInference() {
 			ProviderCallOpts{Username: util.OptValue(info.Actor.Username)},
 		)
 	})
+
+	orcapi.InferenceUsageBreakdownInternal.Handler(func(info rpc.RequestInfo, request orcapi.InferenceUsageBreakdownInternalRequest) (orcapi.InferenceUsageBreakdownResponse, *util.HttpError) {
+		_ = info
+		if request.ProviderId == "" {
+			return orcapi.InferenceUsageBreakdownResponse{}, util.HttpErr(http.StatusBadRequest, "providerId is required")
+		}
+		return InvokeProvider(
+			request.ProviderId,
+			orcapi.InferenceUsageBreakdownProvider,
+			orcapi.InferenceUsageBreakdownProviderRequest{
+				StartDate:       request.StartDate,
+				EndDate:         request.EndDate,
+				ExclusiveOwners: request.ExclusiveOwners,
+				DailyWeights:    request.DailyWeights,
+			},
+			ProviderCallOpts{
+				Timeout: util.OptValue(5 * time.Second),
+			},
+		)
+	})
+
+	if util.DevelopmentModeEnabled() {
+		orcapi.InferenceUsageBreakdownSeedInternal.Handler(func(info rpc.RequestInfo, request orcapi.InferenceUsageBreakdownSeedInternalRequest) (util.Empty, *util.HttpError) {
+			_ = info
+			if request.ProviderId == "" {
+				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "providerId is required")
+			}
+			return InvokeProvider(
+				request.ProviderId,
+				orcapi.InferenceUsageBreakdownSeedProvider,
+				orcapi.InferenceUsageBreakdownSeedProviderRequest{
+					Charges: request.Charges,
+				},
+				ProviderCallOpts{
+					Timeout: util.OptValue(15 * time.Second),
+				},
+			)
+		})
+	}
 }
 
 type inferenceProviderSelection struct {

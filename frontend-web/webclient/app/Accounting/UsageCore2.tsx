@@ -2,6 +2,7 @@ import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {
     ProductCategoryId,
+    productCategoryDisplayName,
     productTypeToIcon,
 } from "@/Accounting/index";
 import {callAPI} from "@/Authentication/DataHook";
@@ -53,6 +54,7 @@ import {
     openUsageChartDialog,
 } from "@/Accounting/UsageV2/Charts";
 import {UsageSubProjectTable} from "@/Accounting/UsageV2/SubProjectTable";
+import {UsageInferenceBreakdownSection} from "@/Accounting/UsageV2/InferenceBreakdown";
 
 function defaultUsageDateRange(now = Date.now()): DateRange {
     const current = new Date(now);
@@ -538,8 +540,8 @@ const UsagePage: React.FunctionComponent = () => {
     const chartChildProjectIds = useMemo(() => {
         if (!detail) return [];
         const ids = new Set<string>();
-        for (const pt of detail.timeline) {
-            for (const c of pt.byChild) {
+        for (const pt of detail.timeline ?? []) {
+            for (const c of pt.byChild ?? []) {
                 if (looksLikeUUID(c.key)) ids.add(c.key);
             }
         }
@@ -556,9 +558,9 @@ const UsagePage: React.FunctionComponent = () => {
     const productLabelMap = useMemo(() => {
         const map = new Map<string, string>();
         if (!detail) return map;
-        for (const cat of detail.productsCovered) {
+        for (const cat of detail.productsCovered ?? []) {
             const key = usageProductKey(cat);
-            map.set(key, `${cat.name} (${getShortProviderTitle(cat.provider)})`);
+            map.set(key, `${productCategoryDisplayName(cat)} (${getShortProviderTitle(cat.provider)})`);
         }
         return map;
     }, [detail]);
@@ -651,8 +653,8 @@ const UsagePage: React.FunctionComponent = () => {
     const canConsumeResources = project.fetch().specification.canConsumeResources !== false;
     const hideLocal = !canConsumeResources && (detail?.kpis.localUsageAtEnd ?? 0) === 0 && (detail?.kpis.periodLocalUsage ?? 0) === 0;
 
-    const hasMultipleProducts = (detail?.productsCovered.length ?? 0) > 1;
-    const subProjectCount = detail?.subProjectSummary.totalCount ?? 0;
+    const hasMultipleProducts = (detail?.productsCovered?.length ?? 0) > 1;
+    const subProjectCount = detail?.subProjectSummary?.totalCount ?? 0;
     const isLargeGrantAllocator = subProjectCount > 20;
     const isCapacityGroup = (activeGroup?.accountingModel ?? detail?.accountingModel) === "CAPACITY";
     const effectiveIncludeRetired = !isCapacityGroup && includeRetired;
@@ -762,6 +764,21 @@ const UsagePage: React.FunctionComponent = () => {
             : displayUtilPct >= 90
                 ? "var(--warningMain)"
                 : "var(--chart-blue-main)";
+
+        const inferenceSection = detail.inferenceBreakdown ? (
+            <UsageInferenceBreakdownSection
+                breakdown={detail.inferenceBreakdown}
+                bucketDurationMs={detail.bucketDurationMs}
+                unit={unit}
+                twoColCharts={twoColCharts}
+                rateChartWidth={rateChartWidth}
+                burnupChartWidth={burnupChartWidth}
+                rateChartHeight={rateChartHeight}
+                burnupChartHeight={burnupChartHeight}
+                pinnedChildren={pinnedChildren}
+                onClearPinned={() => setPinnedChildren([])}
+            />
+        ) : null;
 
         return <Flex flexDirection="column" gap="16px">
             {kpis.upstreamCapped ? (
@@ -1100,7 +1117,7 @@ const UsagePage: React.FunctionComponent = () => {
                 </section>
             ) : (
                 <section className="usage-section">
-                    {detail.timeline.length > 0 ? (
+                    {(detail.timeline?.length ?? 0) > 0 ? (
                         <div className="usage-chart-col" style={{marginBottom: 8}}>
                             <div className="usage-section-head">
                                 <h3>Daily activity</h3>
@@ -1234,8 +1251,8 @@ const UsagePage: React.FunctionComponent = () => {
             {subProjectCount > 0 ? (
                 <section className="usage-section">
                     <UsageSubProjectTable
-                        rows={detail.children}
-                        utilizationBuckets={detail.subProjectSummary.utilizationBuckets}
+                        rows={detail.children ?? []}
+                        utilizationBuckets={detail.subProjectSummary.utilizationBuckets ?? []}
                         accountingModel={detail.accountingModel}
                         unit={unit}
                         includeRetired={effectiveIncludeRetired}
@@ -1249,11 +1266,14 @@ const UsagePage: React.FunctionComponent = () => {
                         onClearFilters={() => {
                             setBucketFilter(null);
                         }}
-                        exportTitle={detail.title}
+                        exportTitle={(detail.productsCovered?.length ?? 0) === 1
+                            ? productCategoryDisplayName(detail.productsCovered[0])
+                            : detail.title}
                         workspaceTitle={project.fetch().specification.title}
+                        beforeSubProjects={inferenceSection}
                     />
                 </section>
-            ) : null}
+            ) : inferenceSection}
         </Flex>;
     };
 
@@ -1402,7 +1422,7 @@ const UsagePage: React.FunctionComponent = () => {
                                             >
                                                 <ProviderLogo providerId={p.category.provider} size={16} />
                                                 <div className="prod-option-label">
-                                                    <span>{p.category.name}</span>
+                                                    <span>{productCategoryDisplayName(p.category)}</span>
                                                     <span className="prod-option-sub">
                                                         {getShortProviderTitle(p.category.provider)}
                                                     </span>
@@ -1412,7 +1432,7 @@ const UsagePage: React.FunctionComponent = () => {
                                                     activeColor="primaryMain"
                                                     checked={selected}
                                                     onChange={() => handleToggleProduct(pKey)}
-                                                    ariaLabel={p.category.name}
+                                                    ariaLabel={productCategoryDisplayName(p.category)}
                                                 />
                                             </div>;
                                         })}

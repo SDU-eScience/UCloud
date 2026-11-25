@@ -89,4 +89,5 @@ func Init() {
 	db.AddMigration(inferenceV25())
 	db.AddMigration(inferenceV26())
 	db.AddMigration(inferenceV27())
+	db.AddMigration(inferenceV28())
 }

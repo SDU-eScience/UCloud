@@ -269,9 +269,99 @@ var InferenceUpdateModelProvider = rpc.Call[InferenceUpdateModelProviderRequest,
 	Roles:       rpc.RolesService,
 }
 
+type InferenceUsageDailyWeight struct {
+	Owner  string  `json:"owner"`
+	Day    string  `json:"day"`
+	Weight float64 `json:"weight"`
+}
+
+type InferenceUsageBreakdownInternalRequest struct {
+	ProviderId      string                      `json:"providerId"`
+	StartDate       string                      `json:"startDate"`
+	EndDate         string                      `json:"endDate"`
+	ExclusiveOwners []string                    `json:"exclusiveOwners"`
+	DailyWeights    []InferenceUsageDailyWeight `json:"dailyWeights"`
+}
+
+type InferenceUsageBreakdownProviderRequest struct {
+	StartDate       string                      `json:"startDate"`
+	EndDate         string                      `json:"endDate"`
+	ExclusiveOwners []string                    `json:"exclusiveOwners"`
+	DailyWeights    []InferenceUsageDailyWeight `json:"dailyWeights"`
+}
+
+type InferenceUsageBreakdownDailyRow struct {
+	Day                         string `json:"day"`
+	Model                       string `json:"model"`
+	ModelTitle                  string `json:"modelTitle"`
+	CachedInputTokens           int64  `json:"cachedInputTokens"`
+	InputTokens                 int64  `json:"inputTokens"`
+	OutputTokens                int64  `json:"outputTokens"`
+	ImageCount                  int64  `json:"imageCount"`
+	ImagePixels                 int64  `json:"imagePixels"`
+	AudioMilliseconds           int64  `json:"audioMilliseconds"`
+	VideoSeconds                int64  `json:"videoSeconds"`
+	EstimatedCachedInputCost    int64  `json:"estimatedCachedInputCost"`
+	EstimatedInputCost          int64  `json:"estimatedInputCost"`
+	EstimatedOutputCost         int64  `json:"estimatedOutputCost"`
+	EstimatedImageCost          int64  `json:"estimatedImageCost"`
+	EstimatedAudioCost          int64  `json:"estimatedAudioCost"`
+	EstimatedVideoCost          int64  `json:"estimatedVideoCost"`
+	ModelPriced                 bool   `json:"modelPriced"`
+	VideoUsedDefaultTierPricing bool   `json:"videoUsedDefaultTierPricing"`
+}
+
+type InferenceUsageBreakdownResponse struct {
+	Rows                   []InferenceUsageBreakdownDailyRow `json:"rows"`
+	CoFundedWorkspaceCount int                               `json:"coFundedWorkspaceCount"`
+}
+
+type InferenceUsageSeedCharge struct {
+	Owner        string `json:"owner"`
+	Day          string `json:"day"`
+	MicroCredits int64  `json:"microCredits"`
+}
+
+type InferenceUsageBreakdownSeedInternalRequest struct {
+	ProviderId string                     `json:"providerId"`
+	Charges    []InferenceUsageSeedCharge `json:"charges"`
+}
+
+type InferenceUsageBreakdownSeedProviderRequest struct {
+	Charges []InferenceUsageSeedCharge `json:"charges"`
+}
+
+var InferenceUsageBreakdownInternal = rpc.Call[InferenceUsageBreakdownInternalRequest, InferenceUsageBreakdownResponse]{
+	BaseContext: inferenceBaseContext,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "usageBreakdown",
+	Roles:       rpc.RolesService,
+}
+
+var InferenceUsageBreakdownSeedInternal = rpc.Call[InferenceUsageBreakdownSeedInternalRequest, util.Empty]{
+	BaseContext: inferenceBaseContext,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "seedUsageBreakdown",
+	Roles:       rpc.RolesService,
+}
+
 var InferenceUpdateBenchmarksProvider = rpc.Call[InferenceUpdateBenchmarksProviderRequest, util.Empty]{
 	BaseContext: inferenceProviderBaseContext,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "benchmarks",
+	Roles:       rpc.RolesService,
+}
+
+var InferenceUsageBreakdownProvider = rpc.Call[InferenceUsageBreakdownProviderRequest, InferenceUsageBreakdownResponse]{
+	BaseContext: inferenceProviderBaseContext,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "usageBreakdown",
+	Roles:       rpc.RolesService,
+}
+
+var InferenceUsageBreakdownSeedProvider = rpc.Call[InferenceUsageBreakdownSeedProviderRequest, util.Empty]{
+	BaseContext: inferenceProviderBaseContext,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "seedUsageBreakdown",
 	Roles:       rpc.RolesService,
 }

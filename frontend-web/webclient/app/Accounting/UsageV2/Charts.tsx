@@ -31,7 +31,7 @@ import {
     usageFormatValue,
 } from "./Api";
 
-const ChartShellStyle = injectStyle("usage-v2-charts", k => `
+export const ChartShellStyle = injectStyle("usage-v2-charts", k => `
     ${k} .usage-legend {
         display: flex;
         flex-wrap: wrap;
@@ -209,7 +209,7 @@ function hideUsageChartTooltip() {
     }
 }
 
-function createUsageChartTooltip(content: HTMLElement): {
+export function createUsageChartTooltip(content: HTMLElement): {
     moveListener: (ev: MouseEvent) => void;
     leaveListener: () => void;
 } {
@@ -249,16 +249,16 @@ function createUsageChartTooltip(content: HTMLElement): {
     return {moveListener, leaveListener};
 }
 
-function formatAxisTick(value: number): string {
+export function formatAxisTick(value: number): string {
     return formatAmount(value);
 }
 
-function leftMarginForMax(yMax: number): number {
+export function leftMarginForMax(yMax: number): number {
     const sample = formatAmount(Math.ceil(yMax));
     return Math.max(56, sample.length * 7 + 18);
 }
 
-function formatBucketTick(bucketDurationMs: number): (date: Date) => string {
+export function formatBucketTick(bucketDurationMs: number): (date: Date) => string {
     if (bucketDurationMs < 24 * 60 * 60 * 1000) {
         return timeFormat("%b %d %H:%M");
     }
@@ -268,7 +268,7 @@ function formatBucketTick(bucketDurationMs: number): (date: Date) => string {
     return timeFormat("%b %Y");
 }
 
-function buildSeriesColorMap(keys: string[]): Map<string, string> {
+export function buildSeriesColorMap(keys: string[]): Map<string, string> {
     const map = new Map<string, string>();
     const hasLocal = keys.includes("");
     let idx = hasLocal ? 1 : 0;
@@ -1728,7 +1728,7 @@ function drawLifecycleMarkers(
     }
 }
 
-function styleAxes(gX: any, gY: any, unitName: string) {
+export function styleAxes(gX: any, gY: any, unitName: string) {
     for (const axis of [gX, gY]) {
         axis.selectAll("path, line")
             .style("stroke", "var(--borderColor)")
@@ -2290,7 +2290,7 @@ export function UsageExpirationScheduleChart(props: {
                     ["Expiring active quota", usageFormatValue(unit, d.atRiskQuota + d.safeQuota)],
                 ];
                 if (d.atRiskCount > 0) {
-                    const riskLabel = isCapacity ? "Over quota after drop" : "No quota after expiry";
+                    const riskLabel = isCapacity ? "Over quota after expiry" : "No quota after expiry";
                     rows.push([riskLabel, `${d.atRiskCount} (${usageFormatValue(unit, d.atRiskQuota)})`]);
                 }
                 if (!isCapacity) {
@@ -2403,7 +2403,7 @@ export function UsageExpirationScheduleChart(props: {
             </div>
             {hasAtRisk ? <div className="usage-legend-item" {...legendProps("risk")}>
                 <span className="usage-legend-swatch" style={{background: "var(--chart-red-main)"}} />
-                <span>{isCapacity ? "Over quota within 90d" : "No quota within 90d"}</span>
+                <span>{isCapacity ? "Over quota after expiry" : "No quota after expiry"}</span>
             </div> : null}
         </div> : null}
     </div>;

@@ -15,6 +15,9 @@ func accountingScenarioUsageDefinitions() []accountingScenarioDefinition {
 		accountingScenarioUsageDeepHierarchy(),
 		accountingScenarioUsageCapacityLifecycle(),
 		accountingScenarioUsageGrantAllocator(),
+		accountingScenarioUsageProviderCatalog(),
+		accountingScenarioUsageInferenceCredits(),
+		accountingScenarioUsageInferenceCoFunded(),
 	}
 }
 
@@ -45,11 +48,11 @@ func accountingScenarioUnitGb() accapi.AccountingUnit {
 	}
 }
 
-func accountingScenarioUnitTokens() accapi.AccountingUnit {
+func accountingScenarioUnitCredit() accapi.AccountingUnit {
 	return accapi.AccountingUnit{
-		Name:                   "Token",
-		NamePlural:             "Tokens",
-		FloatingPoint:          false,
+		Name:                   "Credit",
+		NamePlural:             "Credits",
+		FloatingPoint:          true,
 		DisplayFrequencySuffix: false,
 	}
 }
@@ -139,12 +142,12 @@ func accountingScenarioUsageResearchMultiProduct() accountingScenarioDefinition 
 		},
 		{
 			Key:             "inference-llm",
-			Slug:            "llm-tokens",
+			Slug:            "llm-credits",
 			ProductType:     accapi.ProductTypeInference,
 			AccountingModel: accapi.AccountingModelConsumption,
-			Unit:            accountingScenarioUnitTokens(),
+			Unit:            accountingScenarioUnitCredit(),
 			Frequency:       accapi.AccountingFrequencyOnce,
-			RootQuota:       50000000,
+			RootQuota:       2000000000,
 		},
 	}
 
@@ -157,7 +160,7 @@ func accountingScenarioUsageResearchMultiProduct() accountingScenarioDefinition 
 		{Kind: "allocate", At: -60, Start: -60, End: 90, Quota: 20000, Owner: "research", Product: "storage-ceph"},
 		{Kind: "allocate", At: -60, Start: -60, End: 10, Quota: 8000, Owner: "research", Product: "storage-scratch"},
 		{Kind: "allocate", At: -60, Start: -60, End: 90, Quota: 4000, Owner: "research", Product: "storage-scratch"},
-		{Kind: "allocate", At: -45, Start: -45, End: 45, Quota: 5000000, Owner: "research", Product: "inference-llm"},
+		{Kind: "allocate", At: -45, Start: -45, End: 45, Quota: 500000000, Owner: "research", Product: "inference-llm"},
 	}
 
 	for day := -70; day <= -1; day++ {
@@ -217,7 +220,7 @@ func accountingScenarioUsageResearchMultiProduct() accountingScenarioDefinition 
 	}
 
 	for day := -42; day <= -1; day += 2 {
-		burst := int64(45000 + ((day+100)%6)*18000)
+		burst := int64(4500000 + ((day+100)%6)*1800000)
 		steps = append(steps, accountingScenarioStep{Kind: "charge", At: day, Quota: burst, Owner: "research", Product: "inference-llm"})
 	}
 
@@ -231,7 +234,7 @@ func accountingScenarioUsageResearchMultiProduct() accountingScenarioDefinition 
 	return accountingScenarioDefinition{
 		Name:                "usage-research-multi-product",
 		Code:                "URMP",
-		Description:         "Leaf research project with 6 products across 4 units (Core-hours migration, GPU retired baseline, Storage upcoming quota drop, Inference tokens) sampled daily.",
+		Description:         "Leaf research project with 6 products across 4 units (Core-hours migration, GPU retired baseline, Storage upcoming quota drop, Inference credits) sampled daily.",
 		SampleIntervalHours: 24,
 		PrimaryProjectRole:  "research",
 		Products:            products,
@@ -532,6 +535,15 @@ func accountingScenarioUsageGrantAllocator() accountingScenarioDefinition {
 			Frequency:       accapi.AccountingFrequencyOnce,
 			RootQuota:       4000000,
 		},
+		{
+			Key:             "inference-llm",
+			Slug:            "inference-credits",
+			ProductType:     accapi.ProductTypeInference,
+			AccountingModel: accapi.AccountingModelConsumption,
+			Unit:            accountingScenarioUnitCredit(),
+			Frequency:       accapi.AccountingFrequencyOnce,
+			RootQuota:       40000000000,
+		},
 	}
 
 	var steps []accountingScenarioStep
@@ -548,6 +560,8 @@ func accountingScenarioUsageGrantAllocator() accountingScenarioDefinition {
 
 		var quotaCpu int64
 		var burnPerTick int64
+		var quotaInf int64
+		var burnInfPerTick int64
 		endDay := 60
 		retiredQuota := int64(0)
 		retiredCharge := int64(0)
@@ -555,26 +569,37 @@ func accountingScenarioUsageGrantAllocator() accountingScenarioDefinition {
 		switch {
 		case i <= 8:
 			quotaCpu = 240000
+			quotaInf = 400000000
 			retiredQuota = 80000
 			retiredCharge = 65000
 		case i <= 18:
 			quotaCpu = 180000
 			burnPerTick = 5800
+			quotaInf = 300000000
+			burnInfPerTick = 9500000
 			retiredQuota = 60000
 			retiredCharge = 55000
 		case i <= 42:
 			quotaCpu = 50000
 			burnPerTick = 1850
+			quotaInf = 120000000
+			burnInfPerTick = 4200000
 			endDay = 18
 		case i <= 95:
 			quotaCpu = 40000
 			burnPerTick = 750
+			quotaInf = 80000000
+			burnInfPerTick = 1800000
 		case i <= 125:
 			quotaCpu = 30000
 			burnPerTick = 140
+			quotaInf = 50000000
+			burnInfPerTick = 500000
 		default:
 			quotaCpu = 25000
 			burnPerTick = 0
+			quotaInf = 40000000
+			burnInfPerTick = 0
 		}
 
 		if retiredQuota > 0 {
@@ -585,6 +610,7 @@ func accountingScenarioUsageGrantAllocator() accountingScenarioDefinition {
 		}
 
 		steps = append(steps, accountingScenarioStep{Kind: "allocate", At: -45, Start: -45, End: endDay, Quota: quotaCpu, Owner: owner, Product: "cpu-zen5"})
+		steps = append(steps, accountingScenarioStep{Kind: "allocate", At: -45, Start: -45, End: endDay, Quota: quotaInf, Owner: owner, Product: "inference-llm"})
 		if i%3 == 0 {
 			steps = append(steps, accountingScenarioStep{Kind: "allocate", At: -45, Start: -45, End: 60, Quota: quotaCpu / 2, Owner: owner, Product: "cpu-legacy"})
 		}
@@ -601,19 +627,26 @@ func accountingScenarioUsageGrantAllocator() accountingScenarioDefinition {
 			for g := 1; g <= 4; g++ {
 				grand := fmt.Sprintf("suballoc-%02d-g%d", i, g)
 				downQuota := int64(45000)
+				downInfQuota := int64(75000000)
 				if i%2 == 0 {
 					downQuota = 22000
+					downInfQuota = 45000000
 				}
 				steps = append(steps, accountingScenarioStep{Kind: "allocate", At: -42, Start: -42, End: 60, Quota: downQuota, Parent: owner, Owner: grand, Product: "cpu-zen5"})
+				steps = append(steps, accountingScenarioStep{Kind: "allocate", At: -42, Start: -42, End: 60, Quota: downInfQuota, Parent: owner, Owner: grand, Product: "inference-llm"})
 				if g <= 3 {
 					for day := -36; day <= -2; day += 4 {
 						steps = append(steps, accountingScenarioStep{Kind: "charge", At: day, Quota: 1600 + int64(i*120), Owner: grand, Product: "cpu-zen5"})
+						steps = append(steps, accountingScenarioStep{Kind: "charge", At: day, Quota: 2200000 + int64(i*250000), Owner: grand, Product: "inference-llm"})
 					}
 				}
 			}
 		} else if burnPerTick > 0 {
 			for day := -40; day <= -2; day += 2 {
 				steps = append(steps, accountingScenarioStep{Kind: "charge", At: day, Quota: burnPerTick, Owner: owner, Product: "cpu-zen5"})
+				if burnInfPerTick > 0 && (day+i)%3 == 0 {
+					steps = append(steps, accountingScenarioStep{Kind: "charge", At: day, Quota: burnInfPerTick, Owner: owner, Product: "inference-llm"})
+				}
 				if i%3 == 0 && day%4 == 0 {
 					steps = append(steps, accountingScenarioStep{Kind: "charge", At: day, Quota: burnPerTick / 3, Owner: owner, Product: "cpu-legacy"})
 				}

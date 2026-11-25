@@ -187,6 +187,64 @@ export interface UsageChildRow {
     subAllocator?: UsageSubAllocatorAggregate | null;
 }
 
+export interface UsageInferenceCostBreakdown {
+    cachedInput: number;
+    input: number;
+    output: number;
+    image: number;
+    audio: number;
+    video: number;
+    total: number;
+}
+
+export interface UsageInferenceTokenBreakdown {
+    cachedInput: number;
+    input: number;
+    output: number;
+    total: number;
+}
+
+export interface UsageInferenceModelBucketValue {
+    model: string;
+    estimatedCost: UsageInferenceCostBreakdown;
+    tokens: UsageInferenceTokenBreakdown;
+}
+
+export interface UsageInferenceTimelineBucket {
+    timestamp: number;
+    endTimestamp: number;
+    estimatedCost: UsageInferenceCostBreakdown;
+    tokens: UsageInferenceTokenBreakdown;
+    byModel: UsageInferenceModelBucketValue[];
+}
+
+export interface UsageInferenceModelSummary {
+    model: string;
+    title: string;
+    priced: boolean;
+    estimatedCost: UsageInferenceCostBreakdown;
+    tokens: UsageInferenceTokenBreakdown;
+    imageCount: number;
+    imagePixels: number;
+    audioMilliseconds: number;
+    videoSeconds: number;
+}
+
+export interface UsageInferenceBreakdown {
+    available: boolean;
+    estimatedCost: UsageInferenceCostBreakdown;
+    tokens: UsageInferenceTokenBreakdown;
+    imageCount: number;
+    imagePixels: number;
+    audioMilliseconds: number;
+    videoSeconds: number;
+    coFundedWorkspaceCount: number;
+    hasUnpricedModels: boolean;
+    hasVideoEstimate: boolean;
+    models: UsageInferenceModelSummary[];
+    timeline: UsageInferenceTimelineBucket[];
+}
+
 export interface UsageDetailResponse {
     hasData: boolean;
     unitGroupKey: string;
@@ -207,6 +265,7 @@ export interface UsageDetailResponse {
     events: UsageLifecycleEvent[];
     subProjectSummary: UsageSubProjectSummary;
     children: UsageChildRow[];
+    inferenceBreakdown?: UsageInferenceBreakdown | null;
 }
 
 export function usageOverviewRetrieve(

@@ -63,6 +63,21 @@ export function productCategoryEquals(a: ProductCategoryId, b: ProductCategoryId
     return a.provider === b.provider && a.name === b.name;
 }
 
+export function usageGeneratorDisplayName(name: string, provider: string): string {
+    if (!provider.startsWith("usagegen")) return name;
+    const match = /^(.+?)-([0-9a-f]{12})(?:-(.+))?$/.exec(name);
+    if (match === null) return name;
+    return match[3] ?? match[1];
+}
+
+export function productCategoryDisplayName(category: {name: string; provider: string}): string {
+    return usageGeneratorDisplayName(category.name, category.provider);
+}
+
+export function productDisplayName(product: {name: string; category: {provider: string}}): string {
+    return usageGeneratorDisplayName(product.name, product.category.provider);
+}
+
 export type ChargeType = "ABSOLUTE" | "DIFFERENTIAL_QUOTA";
 export type ProductPriceUnit =
     "PER_UNIT" |
@@ -316,8 +331,8 @@ export function categoryComparator(a: ProductCategoryV2, b: ProductCategoryV2): 
     if (aType < bType) return -1;
     if (aType > bType) return 1;
 
-    const aName = a.name;
-    const bName = b.name;
+    const aName = productCategoryDisplayName(a);
+    const bName = productCategoryDisplayName(b);
     return aName.localeCompare(bName);
 }
 
@@ -1192,7 +1207,7 @@ export function buildSubAllocations(allWallets: WalletV2[], onlyProjects: boolea
                 if (providerCmp !== 0) return providerCmp;
                 const productTypeCmp = a.category.productType.localeCompare(b.category.productType);
                 if (productTypeCmp !== 0) return productTypeCmp;
-                const categoryCmp = a.category.name.localeCompare(b.category.name);
+                const categoryCmp = productCategoryDisplayName(a.category).localeCompare(productCategoryDisplayName(b.category));
                 if (categoryCmp !== 0) return categoryCmp;
                 return 0;
             });

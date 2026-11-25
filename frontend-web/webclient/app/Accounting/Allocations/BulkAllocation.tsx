@@ -2,7 +2,7 @@ import * as React from "react";
 import {useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import ReactModal from "react-modal";
 import {format} from "date-fns";
-import {allocationInputToRaw, allocationInputUnit, allocationInputValue, productTypeToIcon} from "@/Accounting";
+import {allocationInputToRaw, allocationInputUnit, allocationInputValue, productCategoryDisplayName, productTypeToIcon} from "@/Accounting";
 import type {ProductCategoryV2} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
 import {FieldGroup, FieldRow} from "@/Applications/Jobs/Widgets";
@@ -914,7 +914,7 @@ export function BulkAllocation(props: {
         const total = step === 4
             ? allocationInputValue(category, batchRawQuota.get(key) ?? 0)
             : quota * recipients.length;
-        return {key, group: category.provider, cells: [category.name, `${quota}`, `${total}`]};
+        return {key, group: category.provider, cells: [productCategoryDisplayName(category), `${quota}`, `${total}`]};
     });
     const perSliceAmount = (row: WorkspaceRow): number | null => {
         if (!hasSplitSchedule || row.category.accountingModel !== "CONSUMPTION" || row.rawAdjusted <= 0) return null;
@@ -929,7 +929,7 @@ export function BulkAllocation(props: {
         key: row.key,
         group: `${row.recipientIndex}`,
         cells: [
-            row.category.name,
+            productCategoryDisplayName(row.category),
             `${row.current}`,
             `${row.base}`,
             `${row.adjusted}`,
@@ -940,7 +940,7 @@ export function BulkAllocation(props: {
     const reviewTableRows: TableRow[] = workspaceRows.map(row => ({
         key: row.key,
         group: `${row.recipientIndex}`,
-        cells: [row.category.name, `${row.current}`, `${row.adjusted}`, `${row.total}`, ...sliceCells(row)],
+        cells: [productCategoryDisplayName(row.category), `${row.current}`, `${row.adjusted}`, `${row.total}`, ...sliceCells(row)],
     }));
     const workspaceRowByKey = new Map(workspaceRows.map(row => [row.key, row]));
 
@@ -1098,7 +1098,7 @@ export function BulkAllocation(props: {
     const renderProduct = (context: UcxTableCellRenderContext): React.ReactNode => {
         const category = categoryByKey.get(context.row.key)!;
         if (context.column.key === "product") return <div className="bulk-product">
-            <Icon name={productTypeToIcon(category.productType)} size={16} /><span>{category.name}</span>
+            <Icon name={productTypeToIcon(category.productType)} size={16} /><span>{productCategoryDisplayName(category)}</span>
         </div>;
         if (context.column.key === "quota" && step === 1) return <div className="bulk-quota">
             <Input
@@ -1109,7 +1109,7 @@ export function BulkAllocation(props: {
                 placeholder="0"
                 data-bulk-quota-input=""
                 aria-invalid={quotaInvalid(category)}
-                aria-label={`Quota per recipient for ${category.name} (${getProviderTitle(category.provider)})`}
+                aria-label={`Quota per recipient for ${productCategoryDisplayName(category)} (${getProviderTitle(category.provider)})`}
                 onChange={event => {
                     const key = context.row.key;
                     const value = event.target.value;
@@ -1174,7 +1174,7 @@ export function BulkAllocation(props: {
         const modeLabel = row.mode === "percent" ? "Percentage" : "Amount";
         if (context.column.key === "product") return <div className="bulk-product">
             <ProviderLogo providerId={row.category.provider} size={16} />
-            <span>{row.category.name} ({getProviderTitle(row.category.provider)})</span>
+            <span>{productCategoryDisplayName(row.category)} ({getProviderTitle(row.category.provider)})</span>
         </div>;
         if (context.column.key === "slices") return renderSliceValues(row);
         if (context.column.key === "adjusted") return <div className="bulk-adjust-value">
@@ -1187,7 +1187,7 @@ export function BulkAllocation(props: {
                     width="88px"
                     flexShrink={0}
                     value={row.mode}
-                    aria-label={`Amount mode for ${row.category.name} in ${title}`}
+                    aria-label={`Amount mode for ${productCategoryDisplayName(row.category)} in ${title}`}
                     onChange={event => changeRowMode(row, event.target.value as AdjustMode)}
                 >
                     <option value="inherit">Inherit</option>
@@ -1201,7 +1201,7 @@ export function BulkAllocation(props: {
                         step="any"
                         value={editValue(row.adjusted)}
                         aria-invalid={row.invalid}
-                        aria-label={`Inherited amount for ${row.category.name} in ${title}`}
+                        aria-label={`Inherited amount for ${productCategoryDisplayName(row.category)} in ${title}`}
                         onChange={event => setRowOverride(row.key, "absolute", event.target.value)}
                     />
                     <span className="bulk-adjust-suffix">{unit}</span>
@@ -1212,7 +1212,7 @@ export function BulkAllocation(props: {
                         step="any"
                         value={row.overrideValue}
                         aria-invalid={row.invalid}
-                        aria-label={`${modeLabel} for ${row.category.name} in ${title}`}
+                        aria-label={`${modeLabel} for ${productCategoryDisplayName(row.category)} in ${title}`}
                         onChange={event => setRowOverride(
                             row.key,
                             row.mode === "percent" ? "percent" : "absolute",
@@ -1238,7 +1238,7 @@ export function BulkAllocation(props: {
         const unit = allocationInputUnit(row.category).name;
         if (context.column.key === "product") return <div className="bulk-product">
             <ProviderLogo providerId={row.category.provider} size={16} />
-            <span>{row.category.name} ({getProviderTitle(row.category.provider)})</span>
+            <span>{productCategoryDisplayName(row.category)} ({getProviderTitle(row.category.provider)})</span>
         </div>;
         if (context.column.key === "slices") return renderSliceValues(row);
         return <Amount value={Number(context.cell)} unit={unit} />;

@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import {NO_EXPIRATION_FALLBACK, productTypeToIcon} from "@/Accounting";
+import {NO_EXPIRATION_FALLBACK, productCategoryDisplayName, productTypeToIcon} from "@/Accounting";
 import type {ProductCategoryV2} from "@/Accounting";
 import {TableColumnSortType} from "@/UCX/protocol";
 import type {TableColumn, TableRow} from "@/UCX/protocol";
@@ -753,7 +753,7 @@ export function Table(props: TableProps): React.ReactNode {
                 workspaceKey: product.workspaceKey,
                 workspacePi: workspace.pi,
                 workspaceType: workspace.type,
-                productName: product.category.name,
+                productName: productCategoryDisplayName(product.category),
                 provider: product.category.provider,
                 unit: product.unit,
                 allocationQuota: grant.quota,
@@ -823,7 +823,7 @@ export function Table(props: TableProps): React.ReactNode {
         }
         return [...options.values()].sort(compareProducts).map(category => ({
             key: `${category.provider}/${category.name}`,
-            label: `${category.name} (${getShortProviderTitle(category.provider)})`,
+            label: `${productCategoryDisplayName(category)} (${getShortProviderTitle(category.provider)})`,
             icon: <Icon name={productTypeToIcon(category.productType)} size={16} />,
         }));
     }, [allProducts]);
@@ -949,7 +949,7 @@ export function Table(props: TableProps): React.ReactNode {
             if (entry.kind === "wallet") {
                 const wallet = entry.wallet;
                 const cells: Record<string, string> = {
-                    [COLUMN_KEYS.workspace]: `${wallet.category.name} ${wallet.category.provider}`,
+                    [COLUMN_KEYS.workspace]: `${productCategoryDisplayName(wallet.category)} ${wallet.category.provider}`,
                     [COLUMN_KEYS.period]: `${wallet.start} ${wallet.end}`,
                     [COLUMN_KEYS.quota]: `${wallet.amounts.granted}`,
                     ...lifecycleCells(
@@ -1312,11 +1312,11 @@ export function Table(props: TableProps): React.ReactNode {
                 const wallet = entry.wallet;
                 if (context.column.key === COLUMN_KEYS.workspace) {
                     return <div className="allocation-product">
-                        {expandButton(`${wallet.category.name} sources`)}
+                        {expandButton(`${productCategoryDisplayName(wallet.category)} sources`)}
                         <span className="allocation-icon-slot">
                             <ProviderLogo providerId={wallet.category.provider} size={14} />
                         </span>
-                        <span className="allocation-product-name">{wallet.category.name}</span>
+                        <span className="allocation-product-name">{productCategoryDisplayName(wallet.category)}</span>
                         <span className="allocation-product-meta">
                             {getShortProviderTitle(wallet.category.provider)}
                         </span>

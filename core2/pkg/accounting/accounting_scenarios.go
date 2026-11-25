@@ -12,6 +12,8 @@ import (
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -120,12 +122,16 @@ func accountingScenarioBuildProducts(runId string, definition accountingScenario
 	rootQuotas := make(map[string]int64, len(definition.Products))
 
 	for _, spec := range definition.Products {
+		provider := spec.Provider
+		if provider == "" {
+			provider = "usagegen"
+		}
 		name := runId + "-" + spec.Slug
 		product := accapi.ProductV2{
 			Type: accapi.ProductTypeCCreate(spec.ProductType),
 			Category: accapi.ProductCategory{
 				Name:                name,
-				Provider:            "usagegen",
+				Provider:            provider,
 				ProductType:         spec.ProductType,
 				AccountingUnit:      spec.Unit,
 				AccountingFrequency: spec.Frequency,
@@ -243,14 +249,22 @@ func accountingScenarioRun(piUsername string, name string, launcherRun bool) (ac
 	result.ProjectId = result.Projects[primaryRole]
 
 	productKeys, productsByKey, rootQuotasByKey := accountingScenarioBuildProducts(runId, definition)
-	productsToCreate := make([]accapi.ProductV2, 0, len(productKeys))
+	scenarioProductsByProvider := map[string][]accapi.ProductV2{}
+	var providerOrder []string
 	for _, key := range productKeys {
-		productsToCreate = append(productsToCreate, productsByKey[key])
+		product := productsByKey[key]
+		provider := product.Category.Provider
+		if _, exists := scenarioProductsByProvider[provider]; !exists {
+			providerOrder = append(providerOrder, provider)
+		}
+		scenarioProductsByProvider[provider] = append(scenarioProductsByProvider[provider], product)
 	}
-	err := ProductCreate(rpc.ActorSystem, productsToCreate)
-	if err != nil {
-		result.Failure = err.Error()
-		return result, nil
+	for _, provider := range providerOrder {
+		err := ProductCreate(rpc.ActorSystem, scenarioProductsByProvider[provider])
+		if err != nil {
+			result.Failure = err.Error()
+			return result, nil
+		}
 	}
 
 	primaryKey := productKeys[0]
@@ -586,8 +600,84 @@ func accountingScenarioRun(piUsername string, name string, launcherRun bool) (ac
 	})
 	if replayErr != nil {
 		result.Failure = replayErr.Error()
+		return result, nil
+	}
+
+	if util.DevelopmentModeEnabled() && accountingScenarioLauncherCore() {
+		accountingScenarioSeedInferenceBreakdown(definition, productsByKey, primaryKey, result.Projects, now)
 	}
 	return result, nil
+}
+
+func accountingScenarioSeedInferenceBreakdown(
+	definition accountingScenarioDefinition,
+	productsByKey map[string]accapi.ProductV2,
+	primaryKey string,
+	projects map[string]string,
+	now time.Time,
+) {
+	type seedKey struct {
+		Provider string
+		Owner    string
+		Day      string
+	}
+	totals := map[seedKey]int64{}
+	for _, step := range definition.Steps {
+		if step.Kind != "charge" || step.Quota <= 0 {
+			continue
+		}
+		pKey := step.Product
+		if pKey == "" {
+			pKey = primaryKey
+		}
+		product, ok := productsByKey[pKey]
+		if !ok || product.Category.ProductType != accapi.ProductTypeInference {
+			continue
+		}
+		ownerRole := step.Owner
+		if ownerRole == "" {
+			ownerRole = "workspace"
+		}
+		ownerId := projects[ownerRole]
+		if ownerId == "" {
+			continue
+		}
+		providerId := usageResolveInferenceProviderId(product.Category.Provider)
+		if providerId == "" {
+			continue
+		}
+		when := now.AddDate(0, 0, step.At).Add(time.Duration(step.AtMillis) * time.Millisecond)
+		dayStr := util.StartOfDayUTC(when).Format("2006-01-02")
+		key := seedKey{
+			Provider: providerId,
+			Owner:    ownerId,
+			Day:      dayStr,
+		}
+		totals[key] += step.Quota
+	}
+
+	if len(totals) == 0 {
+		return
+	}
+
+	chargesByProvider := map[string][]orcapi.InferenceUsageSeedCharge{}
+	for key, amount := range totals {
+		chargesByProvider[key.Provider] = append(chargesByProvider[key.Provider], orcapi.InferenceUsageSeedCharge{
+			Owner:        key.Owner,
+			Day:          key.Day,
+			MicroCredits: amount,
+		})
+	}
+
+	for providerId, charges := range chargesByProvider {
+		_, err := orcapi.InferenceUsageBreakdownSeedInternal.Invoke(orcapi.InferenceUsageBreakdownSeedInternalRequest{
+			ProviderId: providerId,
+			Charges:    charges,
+		})
+		if err != nil {
+			log.Warn("Could not seed inference breakdown for scenario %s on provider %s: %s", definition.Name, providerId, err.Error())
+		}
+	}
 }
 
 func accountingScenarioReadAmounts(wallet accapi.WalletV2, childId string, capacity bool, now time.Time) accountingScenarioExpected {

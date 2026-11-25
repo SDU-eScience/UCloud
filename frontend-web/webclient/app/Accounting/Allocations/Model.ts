@@ -1,4 +1,4 @@
-import {explainUnit, ProductTypesByPriority} from "@/Accounting";
+import {explainUnit, ProductTypesByPriority, productCategoryDisplayName} from "@/Accounting";
 import type {
     Allocation,
     AllocationDisplayTreeRecipient,
@@ -30,7 +30,7 @@ export function compareProducts(a: ProductCategoryV2, b: ProductCategoryV2): num
     if (type !== 0) return type;
     const unit = explainUnit(a).name.localeCompare(explainUnit(b).name);
     if (unit !== 0) return unit;
-    return a.name.localeCompare(b.name);
+    return productCategoryDisplayName(a).localeCompare(productCategoryDisplayName(b));
 }
 
 export interface DateRange {
@@ -644,6 +644,7 @@ export function selectProducts(
             workspace.title,
             workspace.pi,
             product.category.name,
+            productCategoryDisplayName(product.category),
             getShortProviderTitle(product.category.provider),
         ].join(" ").toLowerCase();
         return needle === "" || text.includes(needle);
