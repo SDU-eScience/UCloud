@@ -44,6 +44,7 @@ type VMCreateCommand struct {
 	PublicLink     string `flag:"public-link" usage:"Public Link"`
 	PrivateNetwork string `flag:"private-network" usage:"Private Network"`
 	Workspace      string `flag:"workspace" usage:"Workspace"`
+	Wait           bool   `flag:"wait" usage:"Wait until the VM starts running"`
 
 	Id string
 }
@@ -67,8 +68,7 @@ func (c *VMListCommand) Execute() error {
 	if httpErr != nil {
 		return httpErr
 	}
-	printJobs(jobs)
-	return nil
+	return printJobs(jobs)
 }
 
 func (c *VMGetCommand) Execute() error {
@@ -81,8 +81,7 @@ func (c *VMGetCommand) Execute() error {
 	if httpErr != nil {
 		return httpErr
 	}
-	printJobs(jobs)
-	return nil
+	return printJobs(jobs)
 }
 
 func (c *VMDeleteCommand) Execute() error {
@@ -151,6 +150,9 @@ func (c *VMCreateCommand) Execute() error {
 		return err
 	}
 	c.Id = job.Id
+	if c.Wait {
+		return waitForJobStart(c.Id)
+	}
 	return nil
 }
 

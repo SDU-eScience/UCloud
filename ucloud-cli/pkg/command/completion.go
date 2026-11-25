@@ -194,6 +194,10 @@ func completionCollectNode(data *completionData, path []string, node *CommandNod
 		for _, name := range childNames {
 			group.Children = append(group.Children, completionEscape(name))
 		}
+
+		// Adding help flag completion
+		group.Children = append(group.Children, completionEscape("--help"))
+
 		data.Groups = append(data.Groups, group)
 
 		for _, name := range childNames {
@@ -240,6 +244,8 @@ func completionCollectNode(data *completionData, path []string, node *CommandNod
 		}
 		leaf.Flags = append(leaf.Flags, completionEscape(flag.Name+":"+flag.Usage))
 	}
+
+	leaf.Flags = append(leaf.Flags, completionEscape("--help"))
 
 	data.Leaves = append(data.Leaves, leaf)
 	return nil

@@ -3,9 +3,11 @@ package command
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/cli"
@@ -37,6 +39,7 @@ type JobCreateCommand struct {
 	PublicLink string            `flag:"public-link" usage:"Public link"`
 	Workspace  string            `flag:"workspace" usage:"Workspace to create the job in"`
 	Parameters map[string]string `flag:"param" usage:"eg. image=ubuntu"`
+	Wait       bool              `flag:"wait" usage:"Wait until the job starts running"`
 
 	// Internal use
 	Id string
@@ -133,19 +136,28 @@ func retrieveJobs(filter orcapi.JobFlags) (map[string][]orcapi.Job, error) {
 	return jobs, nil
 }
 
-func printJobs(jobsMap map[string][]orcapi.Job) {
+func printJobs(jobsMap map[string][]orcapi.Job) error {
+	providers := make(map[string]orcapi.ProviderBranding)
+	if len(jobsMap) > 0 {
+		result, httpErr := orcapi.ProviderBrandingBrowse.Invoke(util.Empty{})
+		if httpErr != nil {
+			return fmt.Errorf("failed to retrieve provider branding: %s", httpErr.Why)
+		}
+		providers = result.Providers
+	}
+
 	t := termio.Table{}
 	t.AppendHeader("Provider")
 	t.AppendHeader("Application")
-	t.AppendHeader("JobId")
-	t.AppendHeader("JobName")
-	t.AppendHeader("JobStatus")
+	t.AppendHeader("Id")
+	t.AppendHeader("Name")
+	t.AppendHeader("Status")
 	t.AppendHeader("Owner")
-	t.AppendHeader("JobStartTime")
+	t.AppendHeader("CreateTime")
 
 	for _, jobMap := range jobsMap {
 		for _, job := range jobMap {
-			t.Cell("%v", job.Specification.Product.Provider)
+			t.Cell("%v", jobProviderLabel(job.Specification.Product.Provider, providers))
 			t.Cell("%v", job.Specification.Application.Name)
 			t.Cell(job.Id)
 			t.Cell("%v", job.Specification.Name)
@@ -155,6 +167,25 @@ func printJobs(jobsMap map[string][]orcapi.Job) {
 		}
 	}
 	t.Print()
+	return nil
+}
+
+func jobProviderLabel(providerId string, providers map[string]orcapi.ProviderBranding) string {
+	branding, ok := providers[providerId]
+	if !ok {
+		return providerId
+	}
+	title := strings.TrimSpace(branding.ShortTitle)
+	if title == "" {
+		title = strings.TrimSpace(branding.Title)
+	}
+	if title == "" {
+		return providerId
+	}
+	if strings.EqualFold(title, providerId) || strings.HasSuffix(strings.ToLower(title), "/"+strings.ToLower(providerId)) {
+		return title
+	}
+	return title + "/" + providerId
 }
 
 func (c JobRenameCommand) Execute() error {
@@ -206,8 +237,7 @@ func (c JobSearchCommand) Execute() error {
 		jobs[repoName] = append(jobs[repoName], job)
 	}
 	fmt.Printf("Jobs of %v\n", wsName)
-	printJobs(jobs)
-	return nil
+	return printJobs(jobs)
 }
 
 func (c JobExtendCommand) Execute() error {
@@ -302,19 +332,25 @@ func (c JobListCommand) Execute() error {
 		return err
 	}
 
-	filter := orcapi.JobFlags{
-		FilterType:        util.OptValue(orcapi.JobTypeFilterJobsOnly),
-		FilterState:       util.OptValue(orcapi.JobState(c.State)),
-		FilterApplication: util.OptValue(c.App),
-	}
-	filter.FilterProvider = util.OptValue(c.Provider)
+	filter := jobListFilter(c)
 	jobs, err := retrieveJobs(filter)
 	if err != nil {
 		return err
 	}
 	fmt.Printf("Jobs of %v\n", currentWs)
-	printJobs(jobs)
-	return nil
+	return printJobs(jobs)
+}
+
+func jobListFilter(command JobListCommand) orcapi.JobFlags {
+	filter := orcapi.JobFlags{
+		FilterType:        util.OptValue(orcapi.JobTypeFilterJobsOnly),
+		FilterApplication: util.OptValue(command.App),
+	}
+	if command.State != "" {
+		filter.FilterState = util.OptValue(orcapi.JobState(command.State))
+	}
+	filter.FilterProvider = util.OptValue(command.Provider)
+	return filter
 }
 
 // looks up an application by its name (e.g. "terminal-ubuntu").
@@ -647,7 +683,101 @@ func (c *JobCreateCommand) Execute() error {
 		return appErr
 	}
 
-	return createApp(c, foundApp)
+	if err := createApp(c, foundApp); err != nil {
+		return err
+	}
+	if c.Wait {
+		return waitForJobStart(c.Id)
+	}
+	return nil
+}
+
+const (
+	jobWaitTimeout      = 30 * time.Minute
+	jobWaitPollInterval = 2 * time.Second
+)
+
+func waitForJobStart(jobId string) error {
+	progress := termio.NewProgressList(os.Stdout, fmt.Sprintf("Waiting for job %s", jobId))
+	progress.SetItem(termio.ProgressItem{
+		Key:    "job",
+		Label:  "Job",
+		Status: "Waiting for the job to start",
+		State:  termio.ProgressRunning,
+	})
+	progress.Start()
+	defer progress.Stop()
+
+	deadline := time.Now().Add(jobWaitTimeout)
+	for {
+		job, httpErr := orcapi.JobsRetrieve.Invoke(orcapi.JobsRetrieveRequest{Id: jobId})
+		if httpErr != nil {
+			progress.SetItem(termio.ProgressItem{
+				Key:    "job",
+				Label:  "Job",
+				Status: "Failed to retrieve job status",
+				State:  termio.ProgressFailure,
+			})
+			return fmt.Errorf("failed to wait for job %s: %s", jobId, httpErr.Why)
+		}
+
+		switch job.Status.State {
+		case orcapi.JobStateRunning:
+			progress.SetItem(termio.ProgressItem{
+				Key:    "job",
+				Label:  "Job",
+				Status: "Job is running",
+				State:  termio.ProgressSuccess,
+			})
+			return nil
+		case orcapi.JobStateSuccess:
+			progress.SetItem(termio.ProgressItem{
+				Key:    "job",
+				Label:  "Job",
+				Status: "Job completed",
+				State:  termio.ProgressSuccess,
+			})
+			return nil
+		case orcapi.JobStateFailure, orcapi.JobStateExpired:
+			progress.SetItem(termio.ProgressItem{
+				Key:    "job",
+				Label:  "Job",
+				Status: fmt.Sprintf("Job ended with state %s", job.Status.State),
+				State:  termio.ProgressFailure,
+			})
+			return fmt.Errorf("job %s ended with state %s before it started running", jobId, job.Status.State)
+		case orcapi.JobStateSuspended:
+			progress.SetItem(termio.ProgressItem{
+				Key:    "job",
+				Label:  "Job",
+				Status: "Job is suspended",
+				State:  termio.ProgressWarning,
+			})
+			return fmt.Errorf("job %s was suspended before it started running", jobId)
+		}
+
+		status := "Waiting for the job to start"
+		if job.Status.State != "" {
+			status = fmt.Sprintf("Waiting for the job to start (%s)", job.Status.State)
+		}
+		progress.SetItem(termio.ProgressItem{
+			Key:    "job",
+			Label:  "Job",
+			Status: status,
+			State:  termio.ProgressRunning,
+		})
+
+		if time.Until(deadline) <= 0 {
+			progress.SetItem(termio.ProgressItem{
+				Key:    "job",
+				Label:  "Job",
+				Status: "Timed out waiting for the job to start",
+				State:  termio.ProgressFailure,
+			})
+			return fmt.Errorf("job %s did not start within %s (last state: %s)", jobId, jobWaitTimeout, job.Status.State)
+		}
+		time.Sleep(jobWaitPollInterval)
+	}
 }
 
 func (c JobTerminateCommand) Execute() error {

@@ -81,6 +81,9 @@ func (c EnvironmentAddCommand) Execute() error {
 			URL: c.URL,
 		}
 	}
+	if cfg.DefaultEnvironment == "" {
+		cfg.DefaultEnvironment = c.Name
+	}
 	updateCfg, updateErr := shared.UpdateConfig(cfg)
 	if updateErr != nil {
 		return updateErr
@@ -99,7 +102,10 @@ func (c EnvironmentRemoveCommand) Execute() error {
 		return fmt.Errorf("environment %s was not found", c.Name)
 	}
 	delete(cfg.Environments, c.Name)
-	_, updateErr := shared.UpdateConfig(cfg)
+	if cfg.DefaultEnvironment == c.Name {
+		cfg.DefaultEnvironment = ""
+	}
+	_, updateErr := shared.SaveConfig(cfg)
 	if updateErr != nil {
 		return updateErr
 	}

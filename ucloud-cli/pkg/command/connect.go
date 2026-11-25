@@ -168,7 +168,6 @@ func performConnection() error {
 	}
 
 	connectionURL := baseURL + UCloudCliPath
-	fmt.Printf("Opening %s in your browser...\n", connectionURL)
 	if err := shared.OpenBrowser(connectionURL); err != nil {
 		return err
 	}

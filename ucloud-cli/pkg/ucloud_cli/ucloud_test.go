@@ -165,12 +165,77 @@ func TestEnvironmentAdd(t *testing.T) {
 }
 
 func TestEnvironmentRemove(t *testing.T) {
-	input := []string{"environment", "remove", "foo"}
+	name := "remove-test-" + util.UUid()
+	remainingName := "remaining-test-" + util.UUid()
+	originalConfig, err := shared.ReadConfig()
+	if !assert.NoError(t, err) {
+		return
+	}
+	t.Cleanup(func() {
+		_, saveErr := shared.SaveConfig(originalConfig)
+		assert.NoError(t, saveErr)
+	})
+
+	input := []string{"environment", "add", name, "--url", "https://example.test"}
 	cmd, err := Parse(input)
-	assert.NoError(t, err)
-	assert.NotNil(t, cmd)
-	err = cmd.Execute()
-	assert.NoError(t, err)
+	if !assert.NoError(t, err) || !assert.NotNil(t, cmd) || !assert.NoError(t, cmd.Execute()) {
+		return
+	}
+
+	input = []string{"environment", "add", remainingName, "--url", "https://example.test"}
+	cmd, err = Parse(input)
+	if !assert.NoError(t, err) || !assert.NotNil(t, cmd) || !assert.NoError(t, cmd.Execute()) {
+		return
+	}
+
+	input = []string{"environment", "use", name}
+	cmd, err = Parse(input)
+	if !assert.NoError(t, err) || !assert.NotNil(t, cmd) || !assert.NoError(t, cmd.Execute()) {
+		return
+	}
+
+	input = []string{"environment", "remove", name}
+	cmd, err = Parse(input)
+	if !assert.NoError(t, err) || !assert.NotNil(t, cmd) || !assert.NoError(t, cmd.Execute()) {
+		return
+	}
+
+	cfg, err := shared.ReadConfig()
+	if !assert.NoError(t, err) {
+		return
+	}
+	assert.Empty(t, cfg.DefaultEnvironment, "removing the active environment should not select a fallback")
+	_, remainingExists := cfg.Environments[remainingName]
+	assert.True(t, remainingExists, "other environments should remain configured")
+
+	names := make([]string, 0, len(cfg.Environments))
+	for environment := range cfg.Environments {
+		names = append(names, environment)
+	}
+	for _, environment := range names {
+		input = []string{"environment", "remove", environment}
+		cmd, err = Parse(input)
+		if !assert.NoError(t, err) || !assert.NotNil(t, cmd) || !assert.NoError(t, cmd.Execute()) {
+			return
+		}
+	}
+
+	cfg, err = shared.ReadConfig()
+	if !assert.NoError(t, err) {
+		return
+	}
+	assert.Empty(t, cfg.Environments, "all environments should be removable")
+	assert.Empty(t, cfg.DefaultEnvironment, "default should be empty when no environments remain")
+
+	input = []string{"environment", "add", name, "--url", "https://example.test"}
+	cmd, err = Parse(input)
+	if !assert.NoError(t, err) || !assert.NotNil(t, cmd) || !assert.NoError(t, cmd.Execute()) {
+		return
+	}
+	cfg, err = shared.ReadConfig()
+	if assert.NoError(t, err) {
+		assert.Equal(t, name, cfg.DefaultEnvironment, "adding the first environment should make it the default")
+	}
 }
 
 func TestEnvironmentList(t *testing.T) {
@@ -239,6 +304,7 @@ func TestJobCreateWithProviderProduct(t *testing.T) {
 		"--folder", "/5/",
 		"--workspace", "test-workspace",
 		"--name", "test-job",
+		"--wait",
 	}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)

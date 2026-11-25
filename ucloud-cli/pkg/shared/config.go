@@ -61,15 +61,6 @@ func ReadConfig() (*Config, error) {
 		return nil, err
 	}
 	var cfg Config
-	// Make sure the workspace map exists.
-	if cfg.Environments == nil {
-		cfg.DefaultEnvironment = "ucloud"
-		cfg.Environments = make(map[string]Environment)
-		cfg.Environments["ucloud"] = Environment{
-			URL: "https://cloud.sdu.dk",
-		}
-	}
-
 	cfg.Defaults = Defaults{
 		Output:       "table",
 		ItemsPerPage: 100,
@@ -87,6 +78,14 @@ func ReadConfig() (*Config, error) {
 	if len(data) > 0 {
 		if err := yaml.Unmarshal(data, &cfg); err != nil {
 			return nil, err
+		}
+	}
+	if cfg.Environments == nil {
+		cfg.Environments = map[string]Environment{
+			"ucloud": {URL: "https://cloud.sdu.dk"},
+		}
+		if cfg.DefaultEnvironment == "" {
+			cfg.DefaultEnvironment = "ucloud"
 		}
 	}
 	return &cfg, nil

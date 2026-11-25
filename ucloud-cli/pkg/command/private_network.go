@@ -201,8 +201,7 @@ func (c PrivateNetworkMembersCommand) Execute() error {
 		}
 	}
 	fmt.Printf("Found %d jobs using private network %s\n", len(foundJobs), c.Name)
-	printJobs(map[string][]orcapi.Job{c.Name: foundJobs})
-	return nil
+	return printJobs(map[string][]orcapi.Job{c.Name: foundJobs})
 }
 
 type JobPrivateNetwork struct {

@@ -107,16 +107,18 @@ func TestVMGetProbe(t *testing.T) {
 }
 
 func TestVMCreateProbe(t *testing.T) {
-	input := []string{"vm", "create", "vm-ubuntu"}
+	input := []string{"vm", "create", "vm-ubuntu", "--wait"}
 	cmd, err := ucloud_cli.Parse(input)
-	assert.NoError(t, err)
-	assert.NotNil(t, cmd)
-	err = cmd.Execute()
-	assert.NoError(t, err)
+	if !assert.NoError(t, err) || !assert.NotNil(t, cmd) {
+		return
+	}
 
 	concrete := cmd.(*command.VMCreateCommand)
-	assert.NotEmpty(t, concrete.Id)
+	assert.True(t, concrete.Wait)
 	t.Cleanup(func() {
+		if concrete.Id == "" {
+			return
+		}
 		terminate := []string{"job", "terminate", concrete.Id}
 		termCmd, termErr := ucloud_cli.Parse(terminate)
 		assert.NoError(t, termErr)
@@ -124,6 +126,11 @@ func TestVMCreateProbe(t *testing.T) {
 			_ = termCmd.Execute()
 		}
 	})
+
+	if !assert.NoError(t, cmd.Execute()) || !assert.NotEmpty(t, concrete.Id) {
+		return
+	}
+	waitForVmState(t, concrete.Id, orcapi.JobStateRunning, time.Second)
 }
 
 func TestVMDeleteProbe(t *testing.T) {
