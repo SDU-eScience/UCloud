@@ -11,18 +11,17 @@ import type {UcxTableActivationEvent, UcxTableCellRenderContext} from "@/UCX/Ucx
 import {TableColumnSortType} from "@/UCX/protocol";
 import type {TableColumn, TableRow} from "@/UCX/protocol";
 import {injectStyle} from "@/Unstyled";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {
-    USAGE_DROP_CRITICAL_DAYS,
     UsageProductSummary,
     UsageUnitGroup,
-    usageDaysUntil,
-    usageDropRiskDays,
     usageExplainUnit,
-    usageFormatShortDate,
+    usageFormatPercent,
     usageFormatValue,
     usageProductKey,
 } from "./Api";
 import {UsageSparkline} from "./Charts";
+import {UsageExpiryCell} from "./ExpiryCell";
 
 type OverviewRowModel =
     | {
@@ -36,27 +35,24 @@ type OverviewRowModel =
         group: UsageUnitGroup;
         product: UsageProductSummary;
         productKey: string;
-        sharePercent: number;
+        sharePercent: number | null;
     };
 
 function productShareInGroup(
     group: UsageUnitGroup,
     product: UsageProductSummary,
     includeRetired: boolean,
-): number {
+): number | null {
     if (group.accountingModel === "CAPACITY") {
         if (group.activeUsage > 0) return (product.activeUsage / group.activeUsage) * 100;
-        if (group.activeQuota > 0) return (product.activeQuota / group.activeQuota) * 100;
-        return 0;
+        return null;
     }
     if (includeRetired) {
         if (group.totalUsage > 0) return (product.totalUsage / group.totalUsage) * 100;
-        if (group.quota > 0) return (product.quota / group.quota) * 100;
-        return 0;
+        return null;
     }
     if (group.periodUsage > 0) return (product.periodUsage / group.periodUsage) * 100;
-    if (group.activeUsage > 0) return (product.activeUsage / group.activeUsage) * 100;
-    return 0;
+    return null;
 }
 
 const OverviewStyle = injectStyle("usage-v2-overview", k => `
@@ -198,6 +194,7 @@ export function UsagePortfolioOverview(props: {
     selectedUnitKey: string | null;
     selectedProductKeys: string[];
     includeRetired: boolean;
+    isHistorical: boolean;
     periodEnd: number;
     onSelectUnit: (unitKey: string) => void;
     onToggleProduct: (unitKey: string, productKey: string) => void;
@@ -207,7 +204,7 @@ export function UsagePortfolioOverview(props: {
     const [collapsedUnits, setCollapsedUnits] = useState<Record<string, boolean>>({});
 
     const columns = useMemo((): TableColumn[] => {
-        return [
+        const cols: TableColumn[] = [
             {
                 key: "ov.name",
                 label: "Product",
@@ -257,15 +254,18 @@ export function UsagePortfolioOverview(props: {
                 sortType: TableColumnSortType.Number,
                 alignment: "right",
             },
-            {
+        ];
+        if (!props.isHistorical) {
+            cols.push({
                 key: "ov.expiry",
                 label: "Next expiry",
                 jsonPath: "expiry",
                 sortType: TableColumnSortType.Number,
                 alignment: "right",
-            },
-        ];
-    }, []);
+            });
+        }
+        return cols;
+    }, [props.isHistorical]);
 
     const models = useMemo((): OverviewRowModel[] => {
         const result: OverviewRowModel[] = [];
@@ -300,7 +300,6 @@ export function UsagePortfolioOverview(props: {
         const useLifetime = !isCapacity && props.includeRetired;
         const source = m.kind === "group" ? g : m.product;
         const title = m.kind === "group" ? g.title : productCategoryDisplayName(m.product.category);
-        const periodMetric = isCapacity ? source.peakUsage : source.periodUsage;
         const usageMetric = useLifetime ? source.totalUsage : source.activeUsage;
         const quotaMetric = useLifetime ? source.quota : source.activeQuota;
         const pct = quotaMetric > 0
@@ -311,19 +310,21 @@ export function UsagePortfolioOverview(props: {
         const cells: string[] = [
             title,
             "",
-            `${periodMetric}`,
+            `${source.periodUsage}`,
             `${usageMetric}`,
             `${quotaMetric}`,
             `${pct.toFixed(1)}`,
-            m.kind === "product" ? `${m.sharePercent.toFixed(1)}` : "",
-            `${expiry}`,
+            m.kind === "product" && m.sharePercent !== null ? `${m.sharePercent.toFixed(1)}` : "",
         ];
+        if (!props.isHistorical) {
+            cells.push(`${expiry}`);
+        }
         return {
             key: m.key,
             group: "",
             cells,
         };
-    }), [models, props.includeRetired]);
+    }), [models, props.includeRetired, props.isHistorical]);
 
     useLayoutEffect(() => {
         store.apply({
@@ -390,7 +391,8 @@ export function UsagePortfolioOverview(props: {
                     <div className="ov-label">
                         <div className="ov-group-title">{group.title}</div>
                         <div className="ov-sub">
-                            {group.products.length} product{group.products.length === 1 ? "" : "s"}
+                            {formatNumber(group.products.length)} product{group.products.length === 1 ? "" : "s"}
+                            {!isCapacity && props.includeRetired ? " · Lifetime" : ""}
                         </div>
                     </div>
                     <TooltipV2 tooltip={label}>
@@ -456,7 +458,7 @@ export function UsagePortfolioOverview(props: {
         if (context.column.key === "ov.period") {
             if (isCapacity) {
                 return <Amount
-                    value={source.peakUsage * unit.balanceFactor}
+                    value={source.periodUsage * unit.balanceFactor}
                     unit={unit.name}
                     title="Peak capacity in use during the selected period."
                 />;
@@ -483,7 +485,7 @@ export function UsagePortfolioOverview(props: {
                 value={source.activeUsage * unit.balanceFactor}
                 unit={unit.name}
                 negative={isExcess}
-                title={isCapacity ? "Current capacity in use." : "Usage charged against active quota."}
+                title={isCapacity ? "Capacity in use at the end of the report period." : "Usage charged against active quota."}
             />;
         }
 
@@ -502,7 +504,7 @@ export function UsagePortfolioOverview(props: {
             return <Amount
                 value={source.activeQuota * unit.balanceFactor}
                 unit={unit.name}
-                title="Quota from allocations that are active now."
+                title="Quota from allocations active at the end of the report period."
             />;
         }
 
@@ -520,12 +522,15 @@ export function UsagePortfolioOverview(props: {
                     ? "var(--warningMain)"
                     : undefined;
             return <span className="ov-num" style={{color, fontWeight: isExcess ? 600 : undefined}}>
-                {isExcess && source.activeQuota === 0 ? "Over" : `${pct.toFixed(1)}%`}
+                {isExcess && source.activeQuota === 0 ? "Over" : usageFormatPercent(pct)}
             </span>;
         }
 
         if (context.column.key === "ov.share") {
             if (model.kind === "group") return null;
+            if (model.sharePercent === null) {
+                return <span className="ov-num" style={{color: "var(--textSecondary)"}}>—</span>;
+            }
             const useLifetime = !isCapacity && props.includeRetired;
             const tooltip = isCapacity
                 ? `Share of active usage within ${group.title}.`
@@ -533,35 +538,20 @@ export function UsagePortfolioOverview(props: {
                     ? `Share of lifetime usage within ${group.title}.`
                     : `Share of period usage within ${group.title}.`;
             return <TooltipV2 tooltip={tooltip}>
-                <span className="ov-num">{model.sharePercent.toFixed(1)}%</span>
+                <span className="ov-num">{usageFormatPercent(model.sharePercent)}</span>
             </TooltipV2>;
         }
 
         if (context.column.key === "ov.expiry") {
-            const drop = source.nextQuotaDrop;
-            const riskDays = usageDropRiskDays(drop, group.accountingModel, props.periodEnd);
-            if (drop && riskDays !== null) {
-                const isCritical = riskDays < USAGE_DROP_CRITICAL_DAYS;
-                const label = isCapacity ? `Over quota in ${riskDays}d` : `No quota in ${riskDays}d`;
-                const tooltip = isCapacity
-                    ? `On ${usageFormatShortDate(drop.timestamp)}, active quota drops from ${usageFormatValue(unit, drop.quotaBefore)} to ${usageFormatValue(unit, drop.quotaAfter)}, below current usage of ${usageFormatValue(unit, source.activeUsage)}.`
-                    : `On ${usageFormatShortDate(drop.timestamp)}, active quota of ${usageFormatValue(unit, drop.quotaBefore)} expires with no renewal in place.`;
-                return <TooltipV2 tooltip={tooltip}>
-                    <span
-                        className="ov-warn"
-                        style={{color: isCritical ? "var(--errorMain)" : "var(--warningMain)"}}
-                    >
-                        <Icon name="heroExclamationTriangle" size={14} color={isCritical ? "errorMain" : "warningMain"} />
-                        <span>{label}</span>
-                    </span>
-                </TooltipV2>;
-            }
-            const target = drop?.timestamp ?? source.nextMeaningfulExpiration;
-            if (target == null) return <span className="ov-num" style={{color: "var(--textSecondary)"}}>—</span>;
-            const days = usageDaysUntil(target, props.periodEnd);
-            return <TooltipV2 tooltip={usageFormatShortDate(target)}>
-                <span className="ov-num">{days}d</span>
-            </TooltipV2>;
+            return <UsageExpiryCell
+                drop={source.nextQuotaDrop}
+                nextExpiration={source.nextMeaningfulExpiration}
+                accountingModel={group.accountingModel}
+                unit={unit}
+                referenceTime={props.periodEnd}
+                warningClassName="ov-warn"
+                numberClassName="ov-num"
+            />;
         }
 
         return context.cell;
@@ -593,7 +583,7 @@ export function UsagePortfolioOverview(props: {
             <UcxStreamedTable
                 tableId="usage-v2-overview"
                 store={store}
-                preserveRowOrder
+                sorted={false}
                 showControls={false}
                 density="compact"
                 rowHeight={46}

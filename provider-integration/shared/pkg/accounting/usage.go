@@ -61,7 +61,6 @@ type UsageUnitGroup struct {
 	RetiredUsage             int64                       `json:"retiredUsage"`
 	Quota                    int64                       `json:"quota"`
 	TotalUsage               int64                       `json:"totalUsage"`
-	PeakUsage                int64                       `json:"peakUsage"`
 	NextMeaningfulExpiration util.Option[fnd.Timestamp]  `json:"nextMeaningfulExpiration"`
 	NextQuotaDrop            util.Option[UsageQuotaDrop] `json:"nextQuotaDrop"`
 	Sparkline                []UsageSparklinePoint       `json:"sparkline"`
@@ -76,7 +75,6 @@ type UsageProductSummary struct {
 	RetiredUsage             int64                       `json:"retiredUsage"`
 	Quota                    int64                       `json:"quota"`
 	TotalUsage               int64                       `json:"totalUsage"`
-	PeakUsage                int64                       `json:"peakUsage"`
 	NextMeaningfulExpiration util.Option[fnd.Timestamp]  `json:"nextMeaningfulExpiration"`
 	NextQuotaDrop            util.Option[UsageQuotaDrop] `json:"nextQuotaDrop"`
 	Sparkline                []UsageSparklinePoint       `json:"sparkline"`
@@ -105,9 +103,66 @@ type UsageDetailResponse struct {
 	Timeline           []UsageTimelineBucket                `json:"timeline"`
 	DailyActivity      []UsageDailyActivityPoint            `json:"dailyActivity"`
 	Events             []UsageLifecycleEvent                `json:"events"`
-	SubProjectSummary  UsageSubProjectSummary               `json:"subProjectSummary"`
 	Children           []UsageChildRow                      `json:"children"`
 	InferenceBreakdown util.Option[UsageInferenceBreakdown] `json:"inferenceBreakdown"`
+	JobBreakdown       util.Option[UsageJobBreakdown]       `json:"jobBreakdown"`
+}
+
+type UsageJobOutcomeCounts struct {
+	Completed int64 `json:"completed"`
+	Failed    int64 `json:"failed"`
+	Expired   int64 `json:"expired"`
+	Active    int64 `json:"active"`
+}
+
+type UsageJobSliceBucketValue struct {
+	Application    string                `json:"application"`
+	ProductKey     string                `json:"productKey"`
+	EstimatedHours float64               `json:"estimatedHours"`
+	RequestedHours float64               `json:"requestedHours"`
+	Outcomes       UsageJobOutcomeCounts `json:"outcomes"`
+}
+
+type UsageJobTimelineBucket struct {
+	Timestamp       fnd.Timestamp              `json:"timestamp"`
+	EndTimestamp    fnd.Timestamp              `json:"endTimestamp"`
+	QueueSamples    int64                      `json:"queueSamples"`
+	AvgQueueSeconds float64                    `json:"avgQueueSeconds"`
+	P50QueueSeconds float64                    `json:"p50QueueSeconds"`
+	P90QueueSeconds float64                    `json:"p90QueueSeconds"`
+	BySlice         []UsageJobSliceBucketValue `json:"bySlice"`
+}
+
+type UsageJobApplicationSummary struct {
+	Application    string                `json:"application"`
+	EstimatedHours float64               `json:"estimatedHours"`
+	Outcomes       UsageJobOutcomeCounts `json:"outcomes"`
+	TopProductKeys []string              `json:"topProductKeys"`
+}
+
+type UsageJobProductSummary struct {
+	Product         string  `json:"product"`
+	Provider        string  `json:"provider"`
+	Cpu             int     `json:"cpu"`
+	Gpu             int     `json:"gpu"`
+	MemoryInGigs    int     `json:"memoryInGigs"`
+	Jobs            int64   `json:"jobs"`
+	EstimatedHours  float64 `json:"estimatedHours"`
+	RequestedHours  float64 `json:"requestedHours"`
+	QueueSamples    int64   `json:"queueSamples"`
+	AvgQueueSeconds float64 `json:"avgQueueSeconds"`
+	P50QueueSeconds float64 `json:"p50QueueSeconds"`
+	P90QueueSeconds float64 `json:"p90QueueSeconds"`
+	MaxQueueSeconds float64 `json:"maxQueueSeconds"`
+}
+
+type UsageJobBreakdown struct {
+	Available              bool                         `json:"available"`
+	BucketDurationMs       int64                        `json:"bucketDurationMs,omitempty"`
+	CoFundedWorkspaceCount int                          `json:"coFundedWorkspaceCount"`
+	Applications           []UsageJobApplicationSummary `json:"applications"`
+	Products               []UsageJobProductSummary     `json:"products"`
+	Timeline               []UsageJobTimelineBucket     `json:"timeline"`
 }
 
 type UsageInferenceCostBreakdown struct {
@@ -117,14 +172,12 @@ type UsageInferenceCostBreakdown struct {
 	Image       int64 `json:"image"`
 	Audio       int64 `json:"audio"`
 	Video       int64 `json:"video"`
-	Total       int64 `json:"total"`
 }
 
 type UsageInferenceTokenBreakdown struct {
 	CachedInput int64 `json:"cachedInput"`
 	Input       int64 `json:"input"`
 	Output      int64 `json:"output"`
-	Total       int64 `json:"total"`
 }
 
 type UsageInferenceModelBucketValue struct {
@@ -134,18 +187,16 @@ type UsageInferenceModelBucketValue struct {
 }
 
 type UsageInferenceTimelineBucket struct {
-	Timestamp     fnd.Timestamp                    `json:"timestamp"`
-	EndTimestamp  fnd.Timestamp                    `json:"endTimestamp"`
-	EstimatedCost UsageInferenceCostBreakdown      `json:"estimatedCost"`
-	Tokens        UsageInferenceTokenBreakdown     `json:"tokens"`
-	ByModel       []UsageInferenceModelBucketValue `json:"byModel"`
+	Timestamp    fnd.Timestamp                    `json:"timestamp"`
+	EndTimestamp fnd.Timestamp                    `json:"endTimestamp"`
+	ByModel      []UsageInferenceModelBucketValue `json:"byModel"`
 }
 
 type UsageInferenceModelSummary struct {
 	Model             string                       `json:"model"`
 	Title             string                       `json:"title"`
 	Priced            bool                         `json:"priced"`
-	EstimatedCost     UsageInferenceCostBreakdown  `json:"estimatedCost"`
+	EstimatedCost     int64                        `json:"estimatedCost"`
 	Tokens            UsageInferenceTokenBreakdown `json:"tokens"`
 	ImageCount        int64                        `json:"imageCount"`
 	ImagePixels       int64                        `json:"imagePixels"`
@@ -155,12 +206,7 @@ type UsageInferenceModelSummary struct {
 
 type UsageInferenceBreakdown struct {
 	Available              bool                           `json:"available"`
-	EstimatedCost          UsageInferenceCostBreakdown    `json:"estimatedCost"`
-	Tokens                 UsageInferenceTokenBreakdown   `json:"tokens"`
-	ImageCount             int64                          `json:"imageCount"`
-	ImagePixels            int64                          `json:"imagePixels"`
-	AudioMilliseconds      int64                          `json:"audioMilliseconds"`
-	VideoSeconds           int64                          `json:"videoSeconds"`
+	BucketDurationMs       int64                          `json:"bucketDurationMs,omitempty"`
 	CoFundedWorkspaceCount int                            `json:"coFundedWorkspaceCount"`
 	HasUnpricedModels      bool                           `json:"hasUnpricedModels"`
 	HasVideoEstimate       bool                           `json:"hasVideoEstimate"`
@@ -169,30 +215,22 @@ type UsageInferenceBreakdown struct {
 }
 
 type UsageDetailKpis struct {
-	PeriodUsage               int64                       `json:"periodUsage"`
-	PeriodLocalUsage          int64                       `json:"periodLocalUsage"`
-	PeriodChildrenUsage       int64                       `json:"periodChildrenUsage"`
-	ActiveUsageAtStart        int64                       `json:"activeUsageAtStart"`
-	ActiveUsageAtEnd          int64                       `json:"activeUsageAtEnd"`
-	ActiveQuotaAtStart        int64                       `json:"activeQuotaAtStart"`
-	ActiveQuotaAtEnd          int64                       `json:"activeQuotaAtEnd"`
-	RetiredUsageAtStart       int64                       `json:"retiredUsageAtStart"`
-	RetiredUsageAtEnd         int64                       `json:"retiredUsageAtEnd"`
-	TotalUsageAtStart         int64                       `json:"totalUsageAtStart"`
-	TotalUsageAtEnd           int64                       `json:"totalUsageAtEnd"`
-	QuotaAtStart              int64                       `json:"quotaAtStart"`
-	QuotaAtEnd                int64                       `json:"quotaAtEnd"`
-	LocalUsageAtStart         int64                       `json:"localUsageAtStart"`
-	LocalUsageAtEnd           int64                       `json:"localUsageAtEnd"`
-	MaxUsableAtEnd            int64                       `json:"maxUsableAtEnd"`
-	ActiveAllocatedAtEnd      int64                       `json:"activeAllocatedAtEnd"`
-	TotalAllocatedAtEnd       int64                       `json:"totalAllocatedAtEnd"`
-	PeakUsage                 int64                       `json:"peakUsage"`
-	AvgUsage                  int64                       `json:"avgUsage"`
-	UpstreamCapped            bool                        `json:"upstreamCapped"`
-	NextMeaningfulExpiration  util.Option[fnd.Timestamp]  `json:"nextMeaningfulExpiration"`
-	NextQuotaDrop             util.Option[UsageQuotaDrop] `json:"nextQuotaDrop"`
-	DownstreamActiveAllocated int64                       `json:"downstreamActiveAllocated"`
+	PeriodUsage              int64                       `json:"periodUsage"`
+	PeriodLocalUsage         int64                       `json:"periodLocalUsage"`
+	PeriodChildrenUsage      int64                       `json:"periodChildrenUsage"`
+	ActiveUsageAtEnd         int64                       `json:"activeUsageAtEnd"`
+	ActiveQuotaAtEnd         int64                       `json:"activeQuotaAtEnd"`
+	RetiredUsageAtEnd        int64                       `json:"retiredUsageAtEnd"`
+	TotalUsageAtEnd          int64                       `json:"totalUsageAtEnd"`
+	QuotaAtEnd               int64                       `json:"quotaAtEnd"`
+	LocalUsageAtEnd          int64                       `json:"localUsageAtEnd"`
+	MaxUsableAtEnd           int64                       `json:"maxUsableAtEnd"`
+	ActiveAllocatedAtEnd     int64                       `json:"activeAllocatedAtEnd"`
+	TotalAllocatedAtEnd      int64                       `json:"totalAllocatedAtEnd"`
+	AvgUsage                 int64                       `json:"avgUsage"`
+	UpstreamCapped           bool                        `json:"upstreamCapped"`
+	NextMeaningfulExpiration util.Option[fnd.Timestamp]  `json:"nextMeaningfulExpiration"`
+	NextQuotaDrop            util.Option[UsageQuotaDrop] `json:"nextQuotaDrop"`
 }
 
 type UsageSeriesValue struct {
@@ -202,21 +240,18 @@ type UsageSeriesValue struct {
 }
 
 type UsageTimelineBucket struct {
-	Timestamp        fnd.Timestamp      `json:"timestamp"`
-	EndTimestamp     fnd.Timestamp      `json:"endTimestamp"`
-	UsageChange      int64              `json:"usageChange"`
-	LocalUsageChange int64              `json:"localUsageChange"`
-	FlowShift        int64              `json:"flowShift"`
-	ActiveUsage      int64              `json:"activeUsage"`
-	RetiredUsage     int64              `json:"retiredUsage"`
-	TotalUsage       int64              `json:"totalUsage"`
-	LocalUsage       int64              `json:"localUsage"`
-	ActiveQuota      int64              `json:"activeQuota"`
-	Quota            int64              `json:"quota"`
-	MaxUsable        int64              `json:"maxUsable"`
-	PeakUsage        int64              `json:"peakUsage"`
-	ByProduct        []UsageSeriesValue `json:"byProduct"`
-	ByChild          []UsageSeriesValue `json:"byChild"`
+	Timestamp    fnd.Timestamp      `json:"timestamp"`
+	EndTimestamp fnd.Timestamp      `json:"endTimestamp"`
+	UsageChange  int64              `json:"usageChange"`
+	FlowShift    int64              `json:"flowShift"`
+	ActiveUsage  int64              `json:"activeUsage"`
+	RetiredUsage int64              `json:"retiredUsage"`
+	ActiveQuota  int64              `json:"activeQuota"`
+	Quota        int64              `json:"quota"`
+	MaxUsable    int64              `json:"maxUsable"`
+	PeakUsage    int64              `json:"peakUsage"`
+	ByProduct    []UsageSeriesValue `json:"byProduct"`
+	ByChild      []UsageSeriesValue `json:"byChild"`
 }
 
 type UsageDailyActivityPoint struct {
@@ -228,51 +263,34 @@ type UsageLifecycleEvent struct {
 	Timestamp  fnd.Timestamp `json:"timestamp"`
 	Type       string        `json:"type"`
 	QuotaDelta int64         `json:"quotaDelta"`
-	Count      int           `json:"count"`
-	ProductKey string        `json:"productKey"`
-}
-
-type UsageHistogramBucket struct {
-	Key              string `json:"key"`
-	Label            string `json:"label"`
-	Count            int    `json:"count"`
-	TotalPeriodUsage int64  `json:"totalPeriodUsage"`
-	TotalActiveQuota int64  `json:"totalActiveQuota"`
-}
-
-type UsageSubProjectSummary struct {
-	TotalCount         int                    `json:"totalCount"`
-	SubAllocatorCount  int                    `json:"subAllocatorCount"`
-	UtilizationBuckets []UsageHistogramBucket `json:"utilizationBuckets"`
 }
 
 type UsageSubAllocatorAggregate struct {
-	ActiveDownstreamCount     int     `json:"activeDownstreamCount"`
-	DownstreamActiveAllocated int64   `json:"downstreamActiveAllocated"`
-	ReallocatedPercent        float64 `json:"reallocatedPercent"`
-	DirectUsage               int64   `json:"directUsage"`
-	DownstreamUsage           int64   `json:"downstreamUsage"`
+	DownstreamActiveAllocated int64 `json:"downstreamActiveAllocated"`
+	DirectUsage               int64 `json:"directUsage"`
+	DownstreamUsage           int64 `json:"downstreamUsage"`
+}
+
+type UsageQuotaExpiration struct {
+	Timestamp fnd.Timestamp `json:"timestamp"`
+	Quota     int64         `json:"quota"`
 }
 
 type UsageChildRow struct {
-	Child              string                                  `json:"child"`
-	IsLocal            bool                                    `json:"isLocal"`
-	IsSubAllocator     bool                                    `json:"isSubAllocator"`
-	PeriodUsage        int64                                   `json:"periodUsage"`
-	CurrentUsage       int64                                   `json:"currentUsage"`
-	PeakUsage          int64                                   `json:"peakUsage"`
-	ActiveUsage        int64                                   `json:"activeUsage"`
-	ActiveQuota        int64                                   `json:"activeQuota"`
-	ActiveQuotaKnown   bool                                    `json:"activeQuotaKnown"`
-	Quota              int64                                   `json:"quota"`
-	QuotaKnown         bool                                    `json:"quotaKnown"`
-	RetiredUsage       int64                                   `json:"retiredUsage"`
-	TotalUsage         int64                                   `json:"totalUsage"`
-	UtilizationPercent float64                                 `json:"utilizationPercent"`
-	UtilizationBucket  string                                  `json:"utilizationBucket"`
-	NextExpiration     util.Option[fnd.Timestamp]              `json:"nextExpiration"`
-	NextQuotaDrop      util.Option[UsageQuotaDrop]             `json:"nextQuotaDrop"`
-	SubAllocator       util.Option[UsageSubAllocatorAggregate] `json:"subAllocator"`
+	Child               string                                  `json:"child"`
+	IsLocal             bool                                    `json:"isLocal"`
+	PeriodUsage         int64                                   `json:"periodUsage"`
+	ActiveUsage         int64                                   `json:"activeUsage"`
+	ActiveQuota         int64                                   `json:"activeQuota"`
+	ActiveQuotaKnown    bool                                    `json:"activeQuotaKnown"`
+	Quota               int64                                   `json:"quota"`
+	QuotaKnown          bool                                    `json:"quotaKnown"`
+	RetiredUsage        int64                                   `json:"retiredUsage"`
+	TotalUsage          int64                                   `json:"totalUsage"`
+	NextExpiration      util.Option[fnd.Timestamp]              `json:"nextExpiration"`
+	NextQuotaDrop       util.Option[UsageQuotaDrop]             `json:"nextQuotaDrop"`
+	UpcomingExpirations []UsageQuotaExpiration                  `json:"upcomingExpirations,omitempty"`
+	SubAllocator        util.Option[UsageSubAllocatorAggregate] `json:"subAllocator"`
 }
 
 var UsageOverviewRetrieve = rpc.Call[UsageOverviewRequest, UsageOverviewResponse]{

@@ -167,9 +167,10 @@ type internalUsageWalletSample struct {
 	ActiveQuota      int64
 	MaxUsable        int64
 	ActiveAllocated  int64
-	UsageChange      int64 `json:",omitempty"`
-	LocalUsageChange int64 `json:",omitempty"`
-	FlowShift        int64 `json:",omitempty"`
+	TotalAllocated   *int64 `json:",omitempty"`
+	UsageChange      int64  `json:",omitempty"`
+	LocalUsageChange int64  `json:",omitempty"`
+	FlowShift        int64  `json:",omitempty"`
 }
 
 type internalUsageChildDelta struct {
@@ -182,6 +183,7 @@ type internalUsageChildDelta struct {
 type internalUsageChildDaySnapshot struct {
 	TreeUsage     int64
 	ActiveUsage   int64
+	PeakUsage     int64 `json:",omitempty"`
 	ActiveQuota   int64
 	Quota         int64 `json:",omitempty"`
 	QuotaRecorded bool  `json:",omitempty"`
@@ -708,6 +710,55 @@ func usageSampleEx(now time.Time, bucketFilter func(cat accapi.ProductCategory) 
 	}
 }
 
+func lUsageAllocGrantedQuota(b *internalBucket, alloc *internalAllocation) int64 {
+	if !b.IsCapacityBased() && alloc.Retired && alloc.RetiredQuota > 0 {
+		return alloc.RetiredQuota
+	}
+	return alloc.Quota
+}
+
+func lUsageGroupTotalGrantedQuota(b *internalBucket, group *internalGroup) int64 {
+	retiredContributes := !b.IsCapacityBased()
+	sum := int64(0)
+	for allocId := range group.Allocations {
+		alloc := b.AllocationsById[allocId]
+		if alloc != nil && alloc.Committed && alloc.Active && (retiredContributes || !alloc.Retired) {
+			sum += lUsageAllocGrantedQuota(b, alloc)
+		}
+	}
+	return sum
+}
+
+func lUsageWalletTotalGrantedQuota(b *internalBucket, w *internalWallet) int64 {
+	sum := int64(0)
+	for _, group := range w.AllocationsByParent {
+		sum += lUsageGroupTotalGrantedQuota(b, group)
+	}
+	return sum
+}
+
+func lUsageWalletTotalGrantedAllocated(b *internalBucket, w *internalWallet) int64 {
+	retiredContributes := !b.IsCapacityBased()
+	sum := int64(0)
+	for childId := range w.ChildrenUsage {
+		child := b.WalletsById[childId]
+		if child == nil {
+			continue
+		}
+		childGroup := child.AllocationsByParent[w.Id]
+		if childGroup == nil {
+			continue
+		}
+		for allocId := range childGroup.Allocations {
+			childAlloc := b.AllocationsById[allocId]
+			if childAlloc != nil && childAlloc.Committed && childAlloc.Active && (retiredContributes || !childAlloc.Retired) {
+				sum += lUsageAllocGrantedQuota(b, childAlloc)
+			}
+		}
+	}
+	return sum
+}
+
 func lUsageWalletActiveAllocated(b *internalBucket, w *internalWallet) int64 {
 	sum := int64(0)
 	for childId := range w.ChildrenUsage {
@@ -769,14 +820,14 @@ func lSnapshotWallet(now time.Time, b *internalBucket, w *internalWallet) intern
 	current := internalWalletSnapshot{
 		Id:                        w.Id,
 		Timestamp:                 now,
-		Quota:                     lInternalWalletTotalQuotaContributing(b, w),
+		Quota:                     lUsageWalletTotalGrantedQuota(b, w),
 		ActiveQuota:               lInternalWalletTotalQuotaFromActiveAllocations(b, w),
 		ActiveUsage:               activeUsageTotal,
 		RetiredUsage:              retiredTotal,
 		MaxUsable:                 lInternalMaxUsable(b, now, w),
 		LocalUsage:                w.LocalUsage,
 		TotalUsage:                totalUsage,
-		TotalAllocated:            lInternalWalletTotalAllocatedContributing(b, w),
+		TotalAllocated:            lUsageWalletTotalGrantedAllocated(b, w),
 		ActiveAllocated:           lUsageWalletActiveAllocated(b, w),
 		UsageByParent:             map[AccWalletId]int64{},
 		ActiveUsageByParent:       map[AccWalletId]int64{},
@@ -791,7 +842,7 @@ func lSnapshotWallet(now time.Time, b *internalBucket, w *internalWallet) intern
 
 	for parent, group := range w.AllocationsByParent {
 		current.UsageByParent[parent] = group.TreeUsage
-		contributingQuota := lInternalGroupTotalQuotaContributing(b, group)
+		contributingQuota := lUsageGroupTotalGrantedQuota(b, group)
 		activeQuota := lInternalGroupTotalQuotaFromActiveAllocations(b, group)
 		retiredUsage := int64(0)
 		if !b.IsCapacityBased() {
@@ -925,6 +976,7 @@ func lUsageRecordWalletChange(
 		ActiveQuota:      report.Kpis.ActiveQuotaAtEnd,
 		MaxUsable:        report.Kpis.MaxUsableAtEnd,
 		ActiveAllocated:  report.Kpis.ActiveAllocatedAtEnd,
+		TotalAllocated:   util.Pointer(report.Kpis.TotalAllocatedAtEnd),
 		UsageChange:      usageChange,
 		LocalUsageChange: localUsageChange,
 		FlowShift:        flowShift,
@@ -1040,6 +1092,7 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 			prevWallet.ActiveUsage != currWallet.ActiveUsage ||
 			prevWallet.MaxUsable != currWallet.MaxUsable ||
 			prevWallet.ActiveAllocated != currWallet.ActiveAllocated ||
+			prevWallet.TotalAllocated != currWallet.TotalAllocated ||
 			len(report.UsageOverTime.WalletSeries) == 0
 
 		if walletChanged || delta != 0 {
@@ -1055,6 +1108,7 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 					ActiveQuota:      currWallet.ActiveQuota,
 					MaxUsable:        currWallet.MaxUsable,
 					ActiveAllocated:  currWallet.ActiveAllocated,
+					TotalAllocated:   util.Pointer(currWallet.TotalAllocated),
 					UsageChange:      delta,
 					LocalUsageChange: delta,
 					FlowShift:        0,
@@ -1084,9 +1138,20 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 
 		parentReport.Dirty = true
 
+		childActiveUsage := currWallet.ActiveUsageByParent[parent]
+		childPeakUsage := childActiveUsage
+		prevChildSnap, hasPrevChildSnap := parentReport.UsageOverTime.ChildDayEnd[currWallet.Id]
+		if hasPrevChildSnap {
+			prevPeak := max(prevChildSnap.PeakUsage, prevChildSnap.ActiveUsage)
+			if prevPeak > childPeakUsage {
+				childPeakUsage = prevPeak
+			}
+		}
+
 		parentReport.UsageOverTime.ChildDayEnd[currWallet.Id] = internalUsageChildDaySnapshot{
 			TreeUsage:     usage,
-			ActiveUsage:   currWallet.ActiveUsageByParent[parent],
+			ActiveUsage:   childActiveUsage,
+			PeakUsage:     childPeakUsage,
 			ActiveQuota:   currWallet.QuotaByParentActive[parent],
 			Quota:         currWallet.QuotaByParentContributing[parent],
 			QuotaRecorded: true,

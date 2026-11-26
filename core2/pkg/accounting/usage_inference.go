@@ -14,7 +14,6 @@ import (
 )
 
 type usageInferenceNodeSnapshot struct {
-	WalletId              AccWalletId
 	OwnerRef              string
 	ParentIds             []AccWalletId
 	HasRootAlloc          bool
@@ -167,6 +166,8 @@ func usageBuildInferenceBreakdown(
 		endDay,
 		bucketStarts,
 		bucketDur,
+		startTime,
+		endTime,
 	))
 }
 
@@ -252,7 +253,6 @@ func usageCollectWalletInferenceAttribution(
 		}
 
 		snap := &usageInferenceNodeSnapshot{
-			WalletId:              currId,
 			OwnerRef:              currOwner.Reference,
 			LiveParentTreeUsage:   map[AccWalletId]int64{},
 			LiveParentActiveQuota: map[AccWalletId]int64{},
@@ -593,26 +593,22 @@ func usageAssembleInferenceBreakdown(
 	endDay time.Time,
 	bucketStarts []time.Time,
 	bucketDur time.Duration,
+	startTime time.Time,
+	endTime time.Time,
 ) accapi.UsageInferenceBreakdown {
 	nBuckets := len(bucketStarts)
 	timeline := make([]accapi.UsageInferenceTimelineBucket, nBuckets)
 	bucketModels := make([]map[string]*accapi.UsageInferenceModelBucketValue, nBuckets)
 	for i, bStart := range bucketStarts {
 		timeline[i] = accapi.UsageInferenceTimelineBucket{
-			Timestamp:    fndapi.Timestamp(bStart),
-			EndTimestamp: fndapi.Timestamp(bStart.Add(bucketDur)),
+			Timestamp:    fndapi.Timestamp(usageBucketStart(bStart, startTime)),
+			EndTimestamp: fndapi.Timestamp(usageBucketEnd(bStart, bucketDur, endTime)),
 			ByModel:      []accapi.UsageInferenceModelBucketValue{},
 		}
 		bucketModels[i] = map[string]*accapi.UsageInferenceModelBucketValue{}
 	}
 
 	modelTotals := map[string]*accapi.UsageInferenceModelSummary{}
-	totalCost := accapi.UsageInferenceCostBreakdown{}
-	totalTokens := accapi.UsageInferenceTokenBreakdown{}
-	totalImages := int64(0)
-	totalPixels := int64(0)
-	totalAudioMs := int64(0)
-	totalVideoSec := int64(0)
 	hasUnpriced := false
 	hasVideoEstimate := false
 
@@ -623,7 +619,6 @@ func usageAssembleInferenceBreakdown(
 		}
 		dayTime = dayTime.UTC()
 
-		rowTokens := row.CachedInputTokens + row.InputTokens + row.OutputTokens
 		rowCost := row.EstimatedCachedInputCost +
 			row.EstimatedInputCost +
 			row.EstimatedOutputCost +
@@ -637,24 +632,6 @@ func usageAssembleInferenceBreakdown(
 		if row.VideoUsedDefaultTierPricing {
 			hasVideoEstimate = true
 		}
-
-		totalCost.CachedInput += row.EstimatedCachedInputCost
-		totalCost.Input += row.EstimatedInputCost
-		totalCost.Output += row.EstimatedOutputCost
-		totalCost.Image += row.EstimatedImageCost
-		totalCost.Audio += row.EstimatedAudioCost
-		totalCost.Video += row.EstimatedVideoCost
-		totalCost.Total += rowCost
-
-		totalTokens.CachedInput += row.CachedInputTokens
-		totalTokens.Input += row.InputTokens
-		totalTokens.Output += row.OutputTokens
-		totalTokens.Total += rowTokens
-
-		totalImages += row.ImageCount
-		totalPixels += row.ImagePixels
-		totalAudioMs += row.AudioMilliseconds
-		totalVideoSec += row.VideoSeconds
 
 		summary, ok := modelTotals[row.Model]
 		if !ok {
@@ -675,18 +652,11 @@ func usageAssembleInferenceBreakdown(
 			}
 		}
 
-		summary.EstimatedCost.CachedInput += row.EstimatedCachedInputCost
-		summary.EstimatedCost.Input += row.EstimatedInputCost
-		summary.EstimatedCost.Output += row.EstimatedOutputCost
-		summary.EstimatedCost.Image += row.EstimatedImageCost
-		summary.EstimatedCost.Audio += row.EstimatedAudioCost
-		summary.EstimatedCost.Video += row.EstimatedVideoCost
-		summary.EstimatedCost.Total += rowCost
+		summary.EstimatedCost += rowCost
 
 		summary.Tokens.CachedInput += row.CachedInputTokens
 		summary.Tokens.Input += row.InputTokens
 		summary.Tokens.Output += row.OutputTokens
-		summary.Tokens.Total += rowTokens
 
 		summary.ImageCount += row.ImageCount
 		summary.ImagePixels += row.ImagePixels
@@ -703,19 +673,6 @@ func usageAssembleInferenceBreakdown(
 				}
 			}
 			if idx >= 0 && idx < nBuckets {
-				timeline[idx].EstimatedCost.CachedInput += row.EstimatedCachedInputCost
-				timeline[idx].EstimatedCost.Input += row.EstimatedInputCost
-				timeline[idx].EstimatedCost.Output += row.EstimatedOutputCost
-				timeline[idx].EstimatedCost.Image += row.EstimatedImageCost
-				timeline[idx].EstimatedCost.Audio += row.EstimatedAudioCost
-				timeline[idx].EstimatedCost.Video += row.EstimatedVideoCost
-				timeline[idx].EstimatedCost.Total += rowCost
-
-				timeline[idx].Tokens.CachedInput += row.CachedInputTokens
-				timeline[idx].Tokens.Input += row.InputTokens
-				timeline[idx].Tokens.Output += row.OutputTokens
-				timeline[idx].Tokens.Total += rowTokens
-
 				entry, hasEntry := bucketModels[idx][row.Model]
 				if !hasEntry {
 					entry = &accapi.UsageInferenceModelBucketValue{Model: row.Model}
@@ -727,11 +684,9 @@ func usageAssembleInferenceBreakdown(
 				entry.EstimatedCost.Image += row.EstimatedImageCost
 				entry.EstimatedCost.Audio += row.EstimatedAudioCost
 				entry.EstimatedCost.Video += row.EstimatedVideoCost
-				entry.EstimatedCost.Total += rowCost
 				entry.Tokens.CachedInput += row.CachedInputTokens
 				entry.Tokens.Input += row.InputTokens
 				entry.Tokens.Output += row.OutputTokens
-				entry.Tokens.Total += rowTokens
 			}
 		}
 	}
@@ -741,10 +696,10 @@ func usageAssembleInferenceBreakdown(
 		models = append(models, *summary)
 	}
 	slices.SortFunc(models, func(a, b accapi.UsageInferenceModelSummary) int {
-		if c := cmp.Compare(b.EstimatedCost.Total, a.EstimatedCost.Total); c != 0 {
+		if c := cmp.Compare(b.EstimatedCost, a.EstimatedCost); c != 0 {
 			return c
 		}
-		if c := cmp.Compare(b.Tokens.Total, a.Tokens.Total); c != 0 {
+		if c := cmp.Compare(usageInferenceTotalTokens(b.Tokens), usageInferenceTotalTokens(a.Tokens)); c != 0 {
 			return c
 		}
 		return cmp.Compare(a.Model, b.Model)
@@ -753,7 +708,7 @@ func usageAssembleInferenceBreakdown(
 	for i := 0; i < nBuckets; i++ {
 		byModel := make([]accapi.UsageInferenceModelBucketValue, 0, len(bucketModels[i]))
 		for _, entry := range bucketModels[i] {
-			if entry.EstimatedCost.Total != 0 || entry.Tokens.Total != 0 {
+			if entry.EstimatedCost != (accapi.UsageInferenceCostBreakdown{}) || entry.Tokens != (accapi.UsageInferenceTokenBreakdown{}) {
 				byModel = append(byModel, *entry)
 			}
 		}
@@ -765,16 +720,15 @@ func usageAssembleInferenceBreakdown(
 
 	return accapi.UsageInferenceBreakdown{
 		Available:              true,
-		EstimatedCost:          totalCost,
-		Tokens:                 totalTokens,
-		ImageCount:             totalImages,
-		ImagePixels:            totalPixels,
-		AudioMilliseconds:      totalAudioMs,
-		VideoSeconds:           totalVideoSec,
+		BucketDurationMs:       bucketDur.Milliseconds(),
 		CoFundedWorkspaceCount: coFundedCount,
 		HasUnpricedModels:      hasUnpriced,
 		HasVideoEstimate:       hasVideoEstimate,
 		Models:                 models,
 		Timeline:               timeline,
 	}
+}
+
+func usageInferenceTotalTokens(tokens accapi.UsageInferenceTokenBreakdown) int64 {
+	return tokens.CachedInput + tokens.Input + tokens.Output
 }

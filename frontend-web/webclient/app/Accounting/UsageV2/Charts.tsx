@@ -5,10 +5,8 @@ import {scaleBand, scaleLinear, scaleTime} from "d3-scale";
 import {area, curveMonotoneX, curveStepAfter, line, stack} from "d3-shape";
 import {axisBottom, axisLeft} from "d3-axis";
 import {pointer, select} from "d3-selection";
-import {timeFormat} from "d3-time-format";
 import {useD3} from "@/Utilities/d3";
-import {Icon} from "@/ui-components";
-import {UcxTableIconButtonClass} from "@/UCX/UcxBrowser";
+import {IconButton} from "@/ui-components/IconButton";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {doNothing} from "@/UtilityFunctions";
 import {colorNames} from "@/Accounting/Diagrams";
@@ -17,6 +15,7 @@ import {
     FrontendAccountingUnit,
 } from "@/Accounting/index";
 import {formatAmount} from "@/Accounting/Allocations/Model";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {injectStyle} from "@/Unstyled";
 import {
     UsageChildRow,
@@ -28,6 +27,7 @@ import {
     usageChildScopeMetrics,
     usageDropRiskDays,
     usageFormatShortDate,
+    usageFormatPercent,
     usageFormatValue,
 } from "./Api";
 
@@ -209,6 +209,56 @@ function hideUsageChartTooltip() {
     }
 }
 
+function appendUsageTooltipText(row: HTMLElement, label: string, value: string, emphasized = true): HTMLSpanElement {
+    const name = document.createElement("span");
+    const amount = document.createElement("span");
+    name.textContent = label;
+    amount.textContent = value;
+    amount.style.fontVariantNumeric = "tabular-nums";
+    if (emphasized) {
+        name.style.color = "var(--textSecondary)";
+        amount.style.fontWeight = "600";
+    }
+    row.append(name, amount);
+    return name;
+}
+
+export function appendUsageSeriesTooltip(content: HTMLElement, props: {
+    heading: string;
+    totalLabel: string;
+    total: number;
+    keys: readonly string[];
+    values: ReadonlyMap<string, number> | undefined;
+    colors: ReadonlyMap<string, string>;
+    labelForKey: (key: string) => string;
+    formatValue: (value: number) => string;
+}) {
+    const heading = document.createElement("div");
+    heading.style.cssText = "font-weight:700;margin-bottom:4px";
+    heading.textContent = props.heading;
+    const total = document.createElement("div");
+    total.style.cssText = "display:flex;justify-content:space-between;gap:12px;margin-bottom:6px;font-weight:600";
+    appendUsageTooltipText(total, props.totalLabel, props.formatValue(props.total), false);
+    content.replaceChildren(heading, total);
+
+    const items = props.keys
+        .map(key => ({key, value: props.values?.get(key) ?? 0}))
+        .filter(item => item.value > 0)
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 8);
+    for (const item of items) {
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex;align-items:center;gap:6px;font-size:12px";
+        const dot = document.createElement("span");
+        dot.style.cssText = "width:8px;height:8px;border-radius:2px;flex-shrink:0";
+        dot.style.background = props.colors.get(item.key) ?? "#888";
+        row.append(dot);
+        const label = appendUsageTooltipText(row, props.labelForKey(item.key), props.formatValue(item.value), false);
+        label.style.cssText = "flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+        content.append(row);
+    }
+}
+
 export function createUsageChartTooltip(content: HTMLElement): {
     moveListener: (ev: MouseEvent) => void;
     leaveListener: () => void;
@@ -258,14 +308,62 @@ export function leftMarginForMax(yMax: number): number {
     return Math.max(56, sample.length * 7 + 18);
 }
 
+export function formatCompactAxisNumber(value: number): string {
+    const abs = Math.abs(value);
+    const sign = value < 0 ? "-" : "";
+    const suffixes: [number, string][] = [
+        [1e12, "T"],
+        [1e9, "B"],
+        [1e6, "M"],
+        [1e3, "K"],
+    ];
+    for (const [threshold, suffix] of suffixes) {
+        if (abs >= threshold) {
+            const scaled = abs / threshold;
+            const precision = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
+            const formatted = formatNumber(scaled, {precision, removeTrailingZeros: true});
+            return `${sign}${formatted}${suffix}`;
+        }
+    }
+    return formatAmount(value);
+}
+
+export function leftMarginForCompactMax(yMax: number): number {
+    const sample = formatCompactAxisNumber(Math.ceil(yMax));
+    return Math.max(52, sample.length * 7 + 18);
+}
+
+export function buildUsageSeriesTotals(seriesKeys: readonly string[], bucketMaps: readonly ReadonlyMap<string, number>[]) {
+    const running = new Map<string, number>();
+    const cumulativeMaps: Map<string, number>[] = [];
+    const bucketTotals: number[] = [];
+    const cumulativeTotals: number[] = [];
+    let runningTotal = 0;
+
+    for (const bucket of bucketMaps) {
+        let bucketTotal = 0;
+        for (const key of seriesKeys) {
+            const value = bucket.get(key) ?? 0;
+            bucketTotal += value;
+            running.set(key, (running.get(key) ?? 0) + value);
+        }
+        runningTotal += bucketTotal;
+        bucketTotals.push(bucketTotal);
+        cumulativeTotals.push(runningTotal);
+        cumulativeMaps.push(new Map(running));
+    }
+    return {cumulativeMaps, bucketTotals, cumulativeTotals};
+}
+
 export function formatBucketTick(bucketDurationMs: number): (date: Date) => string {
+    const dayOptions: Intl.DateTimeFormatOptions = {month: "short", day: "numeric"};
     if (bucketDurationMs < 24 * 60 * 60 * 1000) {
-        return timeFormat("%b %d %H:%M");
+        return new Intl.DateTimeFormat(undefined, {...dayOptions, hour: "numeric", minute: "2-digit"}).format;
     }
     if (bucketDurationMs <= 7 * 24 * 60 * 60 * 1000) {
-        return timeFormat("%b %d");
+        return new Intl.DateTimeFormat(undefined, dayOptions).format;
     }
-    return timeFormat("%b %Y");
+    return new Intl.DateTimeFormat(undefined, {month: "short", year: "numeric"}).format;
 }
 
 export function buildSeriesColorMap(keys: string[]): Map<string, string> {
@@ -634,7 +732,7 @@ export function UsageConsumptionRateChart(props: {
                 totalRow.style.gap = "12px";
                 totalRow.style.marginBottom = "6px";
                 totalRow.style.fontWeight = "600";
-                totalRow.innerHTML = `<span>Period consumption</span><span>${usageFormatValue(unit, bucket.usageChange)}</span>`;
+                appendUsageTooltipText(totalRow, "Period consumption", usageFormatValue(unit, bucket.usageChange), false);
                 tooltipEl.append(totalRow);
 
                 if (seriesKeys.length > 0 && !(seriesKeys.length === 1 && seriesKeys[0] === "__total__")) {
@@ -734,8 +832,8 @@ export function UsageConsumptionBurnupChart(props: {
     const forecast = useMemo(() => {
         if (timeline.length === 0) return null;
         const dayMs = 24 * 60 * 60 * 1000;
-        const now = Date.now();
-        if (detail.validUntil < now - 7 * dayMs) return null;
+        const reportEnd = new Date(detail.validUntil);
+        if (reportEnd.toDateString() !== new Date().toDateString()) return null;
         if (detail.kpis.periodUsage <= 0) return null;
 
         const minTs = timeline[0].timestamp;
@@ -778,7 +876,6 @@ export function UsageConsumptionBurnupChart(props: {
             maxTs,
             forecastEndTs,
             lineEndTs,
-            depletionTs,
             expiryTs: expiryTs !== null && expiryTs > maxTs && expiryTs <= forecastEndTs ? expiryTs : null,
             burnRatePerMs,
             baseRetired,
@@ -1090,7 +1187,7 @@ export function UsageConsumptionBurnupChart(props: {
                     const added = forecast.burnRatePerMs * (clampedMs - forecast.maxTs);
                     const projActive = Math.min(forecast.startActive + forecast.activeBalance, forecast.startActive + added);
                     const projBalance = Math.max(0, forecast.startActive + forecast.activeBalance - projActive);
-                    const projPct = forecast.activeQuota > 0 ? ((projActive / forecast.activeQuota) * 100).toFixed(1) : "0.0";
+                    const projPct = forecast.activeQuota > 0 ? (projActive / forecast.activeQuota) * 100 : 0;
                     tooltipEl.innerHTML = "";
                     const head = document.createElement("div");
                     head.style.fontWeight = "700";
@@ -1099,7 +1196,7 @@ export function UsageConsumptionBurnupChart(props: {
                     tooltipEl.append(head);
 
                     const rows: [string, string][] = [
-                        ["Projected usage", `${usageFormatValue(unit, projActive)} (${projPct}%)`],
+                        ["Projected usage", `${usageFormatValue(unit, projActive)} (${usageFormatPercent(projPct)})`],
                         ["Active quota", usageFormatValue(unit, forecast.activeQuota)],
                         ["Projected balance", usageFormatValue(unit, projBalance)],
                     ];
@@ -1109,7 +1206,7 @@ export function UsageConsumptionBurnupChart(props: {
                         r.style.justifyContent = "space-between";
                         r.style.gap = "12px";
                         r.style.fontSize = "12px";
-                        r.innerHTML = `<span style="color: var(--textSecondary)">${label}</span><span style="font-variant-numeric: tabular-nums; font-weight: 600">${value}</span>`;
+                         appendUsageTooltipText(r, label, value);
                         tooltipEl.append(r);
                     }
                 }
@@ -1142,7 +1239,7 @@ export function UsageConsumptionBurnupChart(props: {
             const histKey = `hist:${idx}:${hoverEvents.map(e => `${e.timestamp}-${e.type}`).join(",")}`;
             if (histKey !== lastKey) {
                 lastKey = histKey;
-                const activeUtil = pt.activeQuota > 0 ? ((pt.activeUsage / pt.activeQuota) * 100).toFixed(1) : "0.0";
+                const activeUtil = pt.activeQuota > 0 ? (pt.activeUsage / pt.activeQuota) * 100 : 0;
                 tooltipEl.innerHTML = "";
                 const head = document.createElement("div");
                 head.style.fontWeight = "700";
@@ -1151,7 +1248,7 @@ export function UsageConsumptionBurnupChart(props: {
                 tooltipEl.append(head);
 
                 const rows: [string, string][] = [
-                    ["Active usage", `${usageFormatValue(unit, pt.activeUsage)} (${activeUtil}%)`],
+                    ["Active usage", `${usageFormatValue(unit, pt.activeUsage)} (${usageFormatPercent(activeUtil)})`],
                     ["Active quota", usageFormatValue(unit, pt.activeQuota)],
                 ];
                 if (includeRetired) {
@@ -1168,7 +1265,7 @@ export function UsageConsumptionBurnupChart(props: {
                     r.style.justifyContent = "space-between";
                     r.style.gap = "12px";
                     r.style.fontSize = "12px";
-                    r.innerHTML = `<span style="color: var(--textSecondary)">${label}</span><span style="font-variant-numeric: tabular-nums; font-weight: 600">${value}</span>`;
+                     appendUsageTooltipText(r, label, value);
                     tooltipEl.append(r);
                 }
 
@@ -1535,7 +1632,7 @@ export function UsageCapacityOccupancyChart(props: {
                     r.style.justifyContent = "space-between";
                     r.style.gap = "12px";
                     r.style.fontSize = "12px";
-                    r.innerHTML = `<span style="color: var(--textSecondary)">${label}</span><span style="font-variant-numeric: tabular-nums; font-weight: 600">${value}</span>`;
+                     appendUsageTooltipText(r, label, value);
                     tooltipEl.append(r);
                 }
 
@@ -1557,7 +1654,12 @@ export function UsageCapacityOccupancyChart(props: {
                         r.style.alignItems = "center";
                         r.style.gap = "6px";
                         r.style.fontSize = "12px";
-                        r.innerHTML = `<span style="width:8px;height:8px;border-radius:2px;background:${colorMap.get(item.key) ?? "#888"};flex-shrink:0"></span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${labelForKey(item.key, seriesMode)}</span><span style="font-variant-numeric: tabular-nums">${usageFormatValue(unit, item.val)}</span>`;
+                        const dot = document.createElement("span");
+                        dot.style.cssText = "width:8px;height:8px;border-radius:2px;flex-shrink:0";
+                        dot.style.backgroundColor = colorMap.get(item.key) ?? "#888";
+                        r.append(dot);
+                        const label = appendUsageTooltipText(r, labelForKey(item.key, seriesMode), usageFormatValue(unit, item.val), false);
+                        label.style.cssText = "flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
                         tooltipEl.append(r);
                     }
                 }
@@ -1626,7 +1728,7 @@ function collectHoverLifecycleEvents(
 ): UsageLifecycleEvent[] {
     const matched: UsageLifecycleEvent[] = [];
     for (const ev of events) {
-        if (ev.type === "upcoming_expire" || ev.timestamp < minTs || ev.timestamp > maxTs) continue;
+        if (ev.timestamp < minTs || ev.timestamp > maxTs) continue;
         const inBucket = ev.timestamp >= bucketStart && (isLastBucket ? ev.timestamp <= bucketEnd : ev.timestamp < bucketEnd);
         const nearCursor = Math.abs(xScale(new Date(ev.timestamp)) - mx) <= 10;
         if (inBucket || nearCursor) {
@@ -1700,7 +1802,7 @@ function drawLifecycleMarkers(
     minTs: number,
     maxTs: number,
 ) {
-    const visible = events.filter(ev => ev.type !== "upcoming_expire" && ev.timestamp >= minTs && ev.timestamp <= maxTs);
+    const visible = events.filter(ev => ev.timestamp >= minTs && ev.timestamp <= maxTs);
     if (visible.length === 0) return;
 
     const markers = g.append("g").attr("pointer-events", "none");
@@ -1798,7 +1900,7 @@ export function UsageUtilizationHistogram(props: {
                             }}
                         />
                     </div>
-                    <div className="hist-bucket-count">{b.count}</div>
+                    <div className="hist-bucket-count">{formatNumber(b.count)}</div>
                     <div className="hist-bucket-label">{displayLabel}</div>
                 </button>;
             })}
@@ -1840,6 +1942,7 @@ export function UsageSubProjectScatterChart(props: {
     rows: UsageChildRow[];
     accountingModel: AccountingModel;
     includeRetired?: boolean;
+    isHistorical?: boolean;
     unit: FrontendAccountingUnit;
     periodEnd: number;
     width: number;
@@ -1852,6 +1955,7 @@ export function UsageSubProjectScatterChart(props: {
         rows,
         accountingModel,
         includeRetired = false,
+        isHistorical = false,
         unit,
         periodEnd,
         width,
@@ -1875,7 +1979,7 @@ export function UsageSubProjectScatterChart(props: {
 
     const legendKeyFor = (row: UsageChildRow): string => {
         const m = usageChildScopeMetrics(row, accountingModel, includeRetired);
-        const hasDropRisk = usageDropRiskDays(row.nextQuotaDrop, accountingModel, periodEnd) !== null;
+        const hasDropRisk = !isHistorical && usageDropRiskDays(row.nextQuotaDrop, accountingModel, periodEnd) !== null;
         if (m.utilizationBucket === "over" || hasDropRisk) return "risk";
         if (m.utilizationBucket === "near_full") return "warning";
         if (m.utilizationBucket === "idle") return "idle";
@@ -1899,7 +2003,7 @@ export function UsageSubProjectScatterChart(props: {
         if (maxQuota <= 0) maxQuota = 1;
         const yCap = Math.min(150, Math.max(100, Math.ceil(maxUtil / 10) * 10));
 
-        const margin = {top: 18, right: 20, bottom: 42, left: 48};
+        const margin = {top: 18, right: 20, bottom: 42, left: 60};
         const innerW = Math.max(40, width - margin.left - margin.right);
         const innerH = Math.max(80, height - margin.top - margin.bottom);
 
@@ -1984,7 +2088,7 @@ export function UsageSubProjectScatterChart(props: {
                     tooltipEl.append(piEl);
                 }
 
-                const utilText = m.quota === 0 && m.usage > 0 ? "Over" : `${m.utilizationPercent.toFixed(1)}%`;
+                const utilText = m.quota === 0 && m.usage > 0 ? "Over" : usageFormatPercent(m.utilizationPercent);
                 const items: [string, string][] = [
                     [useLifetime ? "Lifetime usage" : "Active usage", usageFormatValue(unit, m.usage)],
                     [useLifetime ? "Lifetime quota" : "Active quota", usageFormatValue(unit, m.quota)],
@@ -1993,12 +2097,12 @@ export function UsageSubProjectScatterChart(props: {
                 if (useLifetime && d.retiredUsage > 0) {
                     items.push(["Retired usage", usageFormatValue(unit, d.retiredUsage)]);
                 }
-                const dropRiskDays = usageDropRiskDays(d.nextQuotaDrop, accountingModel, periodEnd);
+                const dropRiskDays = isHistorical ? null : usageDropRiskDays(d.nextQuotaDrop, accountingModel, periodEnd);
                 if (d.nextQuotaDrop && dropRiskDays !== null) {
                     if (isCapacity) {
-                        items.push(["Over quota in", `${dropRiskDays}d (drops to ${usageFormatValue(unit, d.nextQuotaDrop.quotaAfter)} on ${usageFormatShortDate(d.nextQuotaDrop.timestamp)})`]);
+                        items.push(["Over quota in", `${formatNumber(dropRiskDays)}d (drops to ${usageFormatValue(unit, d.nextQuotaDrop.quotaAfter)} on ${usageFormatShortDate(d.nextQuotaDrop.timestamp)})`]);
                     } else {
-                        items.push(["No quota in", `${dropRiskDays}d (expires ${usageFormatShortDate(d.nextQuotaDrop.timestamp)} with no renewal)`]);
+                        items.push(["No quota in", `${formatNumber(dropRiskDays)}d (expires ${usageFormatShortDate(d.nextQuotaDrop.timestamp)} with no renewal)`]);
                     }
                 }
                 for (const [label, value] of items) {
@@ -2007,7 +2111,7 @@ export function UsageSubProjectScatterChart(props: {
                     r.style.justifyContent = "space-between";
                     r.style.gap = "12px";
                     r.style.fontSize = "12px";
-                    r.innerHTML = `<span style="color: var(--textSecondary)">${label}</span><span style="font-variant-numeric: tabular-nums; font-weight: 600">${value}</span>`;
+                     appendUsageTooltipText(r, label, value);
                     tooltipEl.append(r);
                 }
                 tooltip.moveListener(ev);
@@ -2032,7 +2136,7 @@ export function UsageSubProjectScatterChart(props: {
             .tickFormat(d => formatAxisTick(Number(d)));
         const yAxis = axisLeft(yScale)
             .ticks(5)
-            .tickFormat(d => `${Number(d)}%`);
+            .tickFormat(d => `${formatNumber(Number(d))}%`);
 
         const gX = svg.append("g")
             .attr("transform", `translate(${margin.left},${margin.top + innerH})`)
@@ -2057,7 +2161,14 @@ export function UsageSubProjectScatterChart(props: {
             .style("fill", "var(--textSecondary)")
             .style("font-size", "11px")
             .text(`${useLifetime ? "Lifetime quota" : "Active quota"} (${unit.name})`);
-    }, [points, width, height, unit, isCapacity, useLifetime, accountingModel, includeRetired, periodEnd, pinnedSet, labelForChild, onTogglePin, highlightedLegend]);
+
+        g.append("text")
+            .attr("transform", `translate(${-margin.left + 12},${innerH / 2}) rotate(-90)`)
+            .attr("text-anchor", "middle")
+            .style("fill", "var(--textSecondary)")
+            .style("font-size", "11px")
+            .text("Utilization (% of quota)");
+    }, [points, width, height, unit, isCapacity, useLifetime, accountingModel, includeRetired, isHistorical, periodEnd, pinnedSet, labelForChild, onTogglePin, highlightedLegend]);
 
     const legendProps = (key: string) => ({
         "data-dimmed": highlightedLegend !== null && highlightedLegend !== key ? "true" : undefined,
@@ -2070,7 +2181,7 @@ export function UsageSubProjectScatterChart(props: {
         {points.length === 0 ?
             <div className="usage-empty-chart">{useLifetime ? "No sub-project quotas to plot." : "No active sub-project quotas to plot."}</div> :
             <svg ref={chartRef} width={width} height={height} style={{display: "block", maxWidth: "100%"}} />}
-        <div className="usage-legend" style={{paddingLeft: 48}}>
+        <div className="usage-legend" style={{paddingLeft: 60}}>
             <div className="usage-legend-item" {...legendProps("active")}>
                 <span className="usage-legend-swatch" style={{background: "var(--chart-blue-main)", borderRadius: "50%"}} />
                 <span>Active</span>
@@ -2081,7 +2192,9 @@ export function UsageSubProjectScatterChart(props: {
             </div>
             <div className="usage-legend-item" {...legendProps("risk")}>
                 <span className="usage-legend-swatch" style={{background: "var(--chart-red-main)", borderRadius: "50%"}} />
-                <span>{isCapacity ? "Over / expiry risk" : "Exhausted / expiry risk"}</span>
+                <span>{isHistorical
+                    ? (isCapacity ? "Over quota" : "Exhausted")
+                    : (isCapacity ? "Over / expiry risk" : "Exhausted / expiry risk")}</span>
             </div>
             <div className="usage-legend-item" {...legendProps("idle")}>
                 <span className="usage-legend-swatch" style={{background: "var(--textSecondary)", borderRadius: "50%"}} />
@@ -2105,16 +2218,11 @@ export function buildUsageExpiryMonthBuckets(
     rows: UsageChildRow[],
     accountingModel: AccountingModel,
     periodEnd: number,
-): {buckets: UsageExpiryMonthBucket[]; rowMonthKeys: Map<string, string>} {
+): {buckets: UsageExpiryMonthBucket[]; rowMonthKeys: Map<string, Set<string>>} {
     const grouped = new Map<string, UsageExpiryMonthBucket>();
-    const rawRowMonth = new Map<string, string>();
+    const rawRowMonths = new Map<string, Set<string>>();
 
-    for (const row of rows) {
-        if (row.isLocal || row.activeQuota <= 0) continue;
-        const target = row.nextQuotaDrop?.timestamp ?? row.nextExpiration;
-        if (target == null || target <= periodEnd) continue;
-        const mKey = usageExpiryMonthKey(target);
-        rawRowMonth.set(row.child, mKey);
+    const ensureBucket = (mKey: string): UsageExpiryMonthBucket => {
         let bucket = grouped.get(mKey);
         if (!bucket) {
             bucket = {
@@ -2128,19 +2236,65 @@ export function buildUsageExpiryMonthBuckets(
             };
             grouped.set(mKey, bucket);
         }
-        bucket.count++;
+        return bucket;
+    };
+
+    const addRowMonth = (child: string, mKey: string) => {
+        let set = rawRowMonths.get(child);
+        if (!set) {
+            set = new Set<string>();
+            rawRowMonths.set(child, set);
+        }
+        set.add(mKey);
+    };
+
+    for (const row of rows) {
+        if (row.isLocal || row.activeQuota <= 0) continue;
         const isAtRisk = usageDropRiskDays(row.nextQuotaDrop, accountingModel, periodEnd) !== null;
+        const dropRiskMonth = isAtRisk && row.nextQuotaDrop
+            ? usageExpiryMonthKey(row.nextQuotaDrop.timestamp)
+            : null;
+        const unspentBalance = Math.max(0, row.activeQuota - row.activeUsage);
+
+        const expirations = (row.upcomingExpirations ?? []).filter(exp => exp.timestamp > periodEnd && exp.quota > 0);
+        if (expirations.length > 0) {
+            const perMonth = new Map<string, number>();
+            for (const exp of expirations) {
+                const mKey = usageExpiryMonthKey(exp.timestamp);
+                perMonth.set(mKey, (perMonth.get(mKey) ?? 0) + exp.quota);
+            }
+            for (const [mKey, expiringQuota] of perMonth) {
+                addRowMonth(row.child, mKey);
+                const bucket = ensureBucket(mKey);
+                bucket.count++;
+                if (dropRiskMonth === mKey) {
+                    bucket.atRiskCount++;
+                    bucket.atRiskQuota += expiringQuota;
+                } else {
+                    bucket.safeQuota += expiringQuota;
+                }
+                bucket.totalBalance += Math.min(expiringQuota, unspentBalance);
+            }
+            continue;
+        }
+
+        const target = row.nextQuotaDrop?.timestamp ?? row.nextExpiration;
+        if (target == null || target <= periodEnd) continue;
+        const mKey = usageExpiryMonthKey(target);
+        addRowMonth(row.child, mKey);
+        const bucket = ensureBucket(mKey);
+        bucket.count++;
         if (isAtRisk) {
             bucket.atRiskCount++;
             bucket.atRiskQuota += row.activeQuota;
         } else {
             bucket.safeQuota += row.activeQuota;
         }
-        bucket.totalBalance += Math.max(0, row.activeQuota - row.activeUsage);
+        bucket.totalBalance += unspentBalance;
     }
 
     if (grouped.size === 0) {
-        return {buckets: [], rowMonthKeys: rawRowMonth};
+        return {buckets: [], rowMonthKeys: rawRowMonths};
     }
 
     const firstKey = usageExpiryMonthKey(periodEnd);
@@ -2202,9 +2356,13 @@ export function buildUsageExpiryMonthBuckets(
     }
 
     const coveredKeys = new Set(monthKeys);
-    const rowMonthKeys = new Map<string, string>();
-    for (const [child, mKey] of rawRowMonth) {
-        rowMonthKeys.set(child, coveredKeys.has(mKey) ? mKey : "later");
+    const rowMonthKeys = new Map<string, Set<string>>();
+    for (const [child, mKeys] of rawRowMonths) {
+        const mapped = new Set<string>();
+        for (const mKey of mKeys) {
+            mapped.add(coveredKeys.has(mKey) ? mKey : "later");
+        }
+        rowMonthKeys.set(child, mapped);
     }
     return {buckets, rowMonthKeys};
 }
@@ -2286,12 +2444,12 @@ export function UsageExpirationScheduleChart(props: {
                 tooltipEl.append(head);
 
                 const rows: [string, string][] = [
-                    ["Expiring sub-projects", `${d.count}`],
+                    ["Expiring sub-projects", formatNumber(d.count)],
                     ["Expiring active quota", usageFormatValue(unit, d.atRiskQuota + d.safeQuota)],
                 ];
                 if (d.atRiskCount > 0) {
                     const riskLabel = isCapacity ? "Over quota after expiry" : "No quota after expiry";
-                    rows.push([riskLabel, `${d.atRiskCount} (${usageFormatValue(unit, d.atRiskQuota)})`]);
+                    rows.push([riskLabel, `${formatNumber(d.atRiskCount)} (${usageFormatValue(unit, d.atRiskQuota)})`]);
                 }
                 if (!isCapacity) {
                     rows.push(["Current unspent balance", usageFormatValue(unit, d.totalBalance)]);
@@ -2302,7 +2460,7 @@ export function UsageExpirationScheduleChart(props: {
                     r.style.justifyContent = "space-between";
                     r.style.gap = "12px";
                     r.style.fontSize = "12px";
-                    r.innerHTML = `<span style="color: var(--textSecondary)">${label}</span><span style="font-variant-numeric: tabular-nums; font-weight: 600">${value}</span>`;
+                     appendUsageTooltipText(r, label, value);
                     tooltipEl.append(r);
                 }
                 tooltip.moveListener(ev);
@@ -2352,7 +2510,7 @@ export function UsageExpirationScheduleChart(props: {
                 .style("fill", "var(--textSecondary)")
                 .style("font-size", "10.5px")
                 .style("font-variant-numeric", "tabular-nums")
-                .text(`${d.count}`);
+                .text(formatNumber(d.count));
         });
 
         const useShortLabels = buckets.length > 6;
@@ -2510,7 +2668,6 @@ export function UsageCalendarHeatmap(props: {
 
         const eventsByDay = new Map<string, UsageLifecycleEvent[]>();
         for (const ev of detail.events) {
-            if (ev.type === "upcoming_expire") continue;
             const key = utcDayKey(ev.timestamp);
             const list = eventsByDay.get(key) ?? [];
             list.push(ev);
@@ -2627,7 +2784,6 @@ export function UsageCalendarHeatmap(props: {
             step,
             clamped,
             todayUtc,
-            hasAnyActivity: nonZero.length > 0,
         };
     }, [detail.validFrom, detail.validUntil, detail.dailyActivity, detail.timeline, detail.bucketDurationMs, detail.events, availW]);
 
@@ -2718,7 +2874,7 @@ export function UsageCalendarHeatmap(props: {
                     row.style.justifyContent = "space-between";
                     row.style.gap = "12px";
                     row.style.fontSize = "12px";
-                    row.innerHTML = `<span style="color: var(--textSecondary)">Consumption</span><span style="font-variant-numeric: tabular-nums; font-weight: 600">${usageFormatValue(unit, d.value)}</span>`;
+                    appendUsageTooltipText(row, "Consumption", usageFormatValue(unit, d.value));
                     tooltipEl.append(row);
                 }
 
@@ -2893,14 +3049,7 @@ function UsageChartDialogBody(props: {
     return <div className={ChartDialogStyle}>
         <div className="cd-header">
             <h3>{props.title}</h3>
-            <button
-                type="button"
-                className={UcxTableIconButtonClass}
-                aria-label="Close chart dialog"
-                onClick={() => dialogStore.success()}
-            >
-                <Icon name="heroXMark" size={18} />
-            </button>
+            <IconButton tooltip="Close chart dialog" icon="heroXMark" onClick={() => dialogStore.success()} />
         </div>
         <div ref={bodyRef} className="cd-body">
             {props.renderContent(size.width, size.height)}
@@ -2908,15 +3057,21 @@ function UsageChartDialogBody(props: {
     </div>;
 }
 
-export function openUsageChartDialog(
-    title: string,
-    renderContent: (width: number, height: number) => React.ReactNode,
-): void {
-    hideUsageChartTooltip();
-    dialogStore.addDialog(
-        <UsageChartDialogBody title={title} renderContent={renderContent} />,
-        doNothing,
-        true,
-        chartModalStyle,
-    );
+export function UsageChartExpandButton({title, renderContent}: {
+    title: string;
+    renderContent: (width: number, height: number) => React.ReactNode;
+}): React.ReactNode {
+    return <IconButton
+        tooltip={`Expand ${title.toLowerCase()} chart`}
+        icon="heroArrowsPointingOut"
+        onClick={() => {
+            hideUsageChartTooltip();
+            dialogStore.addDialog(
+                <UsageChartDialogBody title={title} renderContent={renderContent} />,
+                doNothing,
+                true,
+                chartModalStyle,
+            );
+        }}
+    />;
 }

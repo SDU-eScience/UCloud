@@ -605,8 +605,89 @@ func accountingScenarioRun(piUsername string, name string, launcherRun bool) (ac
 
 	if util.DevelopmentModeEnabled() && accountingScenarioLauncherCore() {
 		accountingScenarioSeedInferenceBreakdown(definition, productsByKey, primaryKey, result.Projects, now)
+		accountingScenarioSeedJobBreakdown(definition, productsByKey, primaryKey, result.Projects, now)
 	}
 	return result, nil
+}
+
+func accountingScenarioSeedJobBreakdown(
+	definition accountingScenarioDefinition,
+	productsByKey map[string]accapi.ProductV2,
+	primaryKey string,
+	projects map[string]string,
+	now time.Time,
+) {
+	type seedKey struct {
+		Provider string
+		Category string
+		IsGpu    bool
+		Owner    string
+		Day      string
+	}
+	totals := map[seedKey]float64{}
+	for _, step := range definition.Steps {
+		if step.Kind != "charge" || step.Quota <= 0 {
+			continue
+		}
+		pKey := step.Product
+		if pKey == "" {
+			pKey = primaryKey
+		}
+		product, ok := productsByKey[pKey]
+		if !ok || product.Category.ProductType != accapi.ProductTypeCompute {
+			continue
+		}
+		ownerRole := step.Owner
+		if ownerRole == "" {
+			ownerRole = "workspace"
+		}
+		ownerId := projects[ownerRole]
+		if ownerId == "" {
+			continue
+		}
+
+		computeHours := float64(step.Quota)
+		switch product.Category.AccountingFrequency {
+		case accapi.AccountingFrequencyPeriodicMinute:
+			computeHours = float64(step.Quota) / 60.0
+		case accapi.AccountingFrequencyPeriodicDay:
+			computeHours = float64(step.Quota) * 24.0
+		}
+		isGpu := strings.Contains(strings.ToLower(product.Category.AccountingUnit.Name), "gpu")
+		when := now.AddDate(0, 0, step.At).Add(time.Duration(step.AtMillis) * time.Millisecond)
+		dayStr := util.StartOfDayUTC(when).Format("2006-01-02")
+		key := seedKey{
+			Provider: product.Category.Provider,
+			Category: product.Category.Name,
+			IsGpu:    isGpu,
+			Owner:    ownerId,
+			Day:      dayStr,
+		}
+		totals[key] += computeHours
+	}
+
+	if len(totals) == 0 {
+		return
+	}
+
+	charges := make([]orcapi.JobUsageSeedCharge, 0, len(totals))
+	for key, hours := range totals {
+		charges = append(charges, orcapi.JobUsageSeedCharge{
+			Provider:     key.Provider,
+			Category:     key.Category,
+			IsGpu:        key.IsGpu,
+			Owner:        key.Owner,
+			Day:          key.Day,
+			ComputeHours: hours,
+		})
+	}
+
+	_, err := orcapi.JobUsageBreakdownSeedInternal.Invoke(orcapi.JobUsageBreakdownSeedInternalRequest{
+		Charges: charges,
+	})
+	if err != nil {
+		log.Warn("Could not seed compute jobs for scenario %s: %s", definition.Name, err.Error())
+	}
 }
 
 func accountingScenarioSeedInferenceBreakdown(

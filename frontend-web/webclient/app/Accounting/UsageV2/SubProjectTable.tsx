@@ -1,5 +1,6 @@
 import * as React from "react";
 import {useCallback, useLayoutEffect, useMemo, useState} from "react";
+import {format} from "date-fns";
 import {Button, Icon} from "@/ui-components";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import Warning from "@/ui-components/Warning";
@@ -19,13 +20,14 @@ import {formatNumber} from "@/Utilities/NumberFormatting";
 import {looksLikeUUID, shortUUID} from "@/UtilityFunctions";
 import {injectStyle} from "@/Unstyled";
 import {
-    USAGE_DROP_CRITICAL_DAYS,
+    USAGE_DROP_WARNING_DAYS,
     UsageChildRow,
-    UsageHistogramBucket,
     usageBuildChildHistogramBuckets,
     usageChildScopeMetrics,
     usageDaysUntil,
     usageDropRiskDays,
+    usageFormatDays,
+    usageFormatPercent,
     usageFormatShortDate,
     usageFormatValue,
 } from "./Api";
@@ -34,8 +36,9 @@ import {
     UsageSubProjectScatterChart,
     UsageUtilizationHistogram,
     buildUsageExpiryMonthBuckets,
-    openUsageChartDialog,
+    UsageChartExpandButton,
 } from "./Charts";
+import {UsageExpiryCell} from "./ExpiryCell";
 
 const TableWrapperStyle = injectStyle("usage-v2-subtable", k => `
     ${k} {
@@ -158,12 +161,14 @@ function formatChildDisplay(
 
 export function UsageSubProjectTable(props: {
     rows: UsageChildRow[];
-    utilizationBuckets: UsageHistogramBucket[];
     accountingModel: AccountingModel;
     unit: FrontendAccountingUnit;
     includeRetired: boolean;
+    isHistorical: boolean;
+    hasProductBreakdown?: boolean;
     hideLocal: boolean;
     periodEnd: number;
+    reportPeriod: {start: number; end: number};
     chartWidth: number;
     bucketFilter: string | null;
     onSelectBucket: (key: string | null) => void;
@@ -179,7 +184,7 @@ export function UsageSubProjectTable(props: {
     const [onlyCapacityDropRisk, setOnlyCapacityDropRisk] = useState(false);
     const [expiryMonthFilter, setExpiryMonthFilter] = useState<string | null>(null);
     const isCapacity = props.accountingModel === "CAPACITY";
-    const hasSubAllocators = useMemo(() => props.rows.some(r => r.isSubAllocator), [props.rows]);
+    const hasSubAllocators = useMemo(() => props.rows.some(row => row.subAllocator != null), [props.rows]);
     const pinnedSet = useMemo(() => new Set(props.pinnedChildren), [props.pinnedChildren]);
 
     const childProjectIds = useMemo(() => {
@@ -200,8 +205,10 @@ export function UsageSubProjectTable(props: {
     );
 
     const {buckets: expiryBuckets, rowMonthKeys} = useMemo(
-        () => buildUsageExpiryMonthBuckets(props.rows, props.accountingModel, props.periodEnd),
-        [props.rows, props.accountingModel, props.periodEnd],
+        () => props.isHistorical
+            ? {buckets: [], rowMonthKeys: new Map<string, Set<string>>()}
+            : buildUsageExpiryMonthBuckets(props.rows, props.accountingModel, props.periodEnd),
+        [props.isHistorical, props.rows, props.accountingModel, props.periodEnd],
     );
 
     const activeExpiryMonth = expiryMonthFilter && expiryBuckets.some(b => b.key === expiryMonthFilter)
@@ -209,10 +216,11 @@ export function UsageSubProjectTable(props: {
         : null;
 
     const capacityDropRows = useMemo(() => {
+        if (props.isHistorical) return [];
         return props.rows.filter(
             row => !row.isLocal && usageDropRiskDays(row.nextQuotaDrop, props.accountingModel, props.periodEnd) !== null,
         );
-    }, [props.accountingModel, props.periodEnd, props.rows]);
+    }, [props.isHistorical, props.accountingModel, props.periodEnd, props.rows]);
 
     const earliestCapacityDrop = useMemo(() => {
         let earliest: UsageChildRow | null = null;
@@ -225,10 +233,10 @@ export function UsageSubProjectTable(props: {
         return earliest;
     }, [capacityDropRows]);
 
-    const scopedHistogramBuckets = useMemo(() => {
-        if (isCapacity || !props.includeRetired) return props.utilizationBuckets;
-        return usageBuildChildHistogramBuckets(props.rows, props.accountingModel, true);
-    }, [isCapacity, props.includeRetired, props.utilizationBuckets, props.rows, props.accountingModel]);
+    const scopedHistogramBuckets = useMemo(
+        () => usageBuildChildHistogramBuckets(props.rows, props.accountingModel, props.includeRetired),
+        [props.rows, props.accountingModel, props.includeRetired],
+    );
 
     const filteredRows = useMemo(() => {
         const needle = query.trim().toLowerCase();
@@ -239,7 +247,7 @@ export function UsageSubProjectTable(props: {
                 if (row.isLocal || usageDropRiskDays(row.nextQuotaDrop, props.accountingModel, props.periodEnd) === null) return false;
             }
             if (activeExpiryMonth !== null) {
-                if (row.isLocal || rowMonthKeys.get(row.child) !== activeExpiryMonth) return false;
+                if (row.isLocal || !rowMonthKeys.get(row.child)?.has(activeExpiryMonth)) return false;
             }
             if (!row.isLocal) {
                 if (props.bucketFilter !== null) {
@@ -322,29 +330,31 @@ export function UsageSubProjectTable(props: {
             cols.push(
                 {
                     key: "child.localUsage",
-                    label: "Local usage",
+                    label: useLifetime ? "Active local usage" : "Local usage",
                     jsonPath: "localUsage",
                     sortType: TableColumnSortType.Number,
                     alignment: "right",
                 },
                 {
                     key: "child.subUsage",
-                    label: "Sub-children usage",
+                    label: useLifetime ? "Active sub-children usage" : "Sub-children usage",
                     jsonPath: "subUsage",
                     sortType: TableColumnSortType.Number,
                     alignment: "right",
                 },
             );
         }
-        cols.push({
-            key: "child.expiry",
-            label: "Next expiry",
-            jsonPath: "expiry",
-            sortType: TableColumnSortType.Number,
-            alignment: "right",
-        });
+        if (!props.isHistorical) {
+            cols.push({
+                key: "child.expiry",
+                label: "Next expiry",
+                jsonPath: "expiry",
+                sortType: TableColumnSortType.Number,
+                alignment: "right",
+            });
+        }
         return cols;
-    }, [isCapacity, props.includeRetired, hasSubAllocators]);
+    }, [isCapacity, props.includeRetired, hasSubAllocators, props.isHistorical]);
 
     const columnWidths = useMemo((): Record<string, number> => ({
         "child.pin": 40,
@@ -380,24 +390,26 @@ export function UsageSubProjectTable(props: {
         }
         cells.push(`${metrics.usage}`);
         if (isCapacity) {
-            cells.push(`${row.peakUsage}`);
+            cells.push(`${row.periodUsage}`);
         }
         cells.push(
             metrics.quotaKnown ? `${metrics.quota}` : "",
             metrics.quotaKnown ? `${metrics.utilizationPercent.toFixed(1)}` : "",
         );
         if (hasSubAllocators) {
-            const localVal = row.isSubAllocator && row.subAllocator ? row.subAllocator.directUsage : row.activeUsage;
-            const subVal = row.isSubAllocator && row.subAllocator ? row.subAllocator.downstreamUsage : -1;
+            const localVal = row.subAllocator?.directUsage ?? row.activeUsage;
+            const subVal = row.subAllocator?.downstreamUsage ?? -1;
             cells.push(
                 `${localVal}`,
                 subVal >= 0 ? `${subVal}` : "",
             );
         }
-        const expiryTarget = row.nextQuotaDrop?.timestamp ?? row.nextExpiration ?? Number.MAX_SAFE_INTEGER;
-        cells.push(`${expiryTarget}`);
+        if (!props.isHistorical) {
+            const expiryTarget = row.nextQuotaDrop?.timestamp ?? row.nextExpiration ?? Number.MAX_SAFE_INTEGER;
+            cells.push(`${expiryTarget}`);
+        }
         return {key, group: "", cells};
-    }), [filteredRows, projectInfo, pinnedSet, isCapacity, props.accountingModel, props.includeRetired, hasSubAllocators]);
+    }), [filteredRows, projectInfo, pinnedSet, isCapacity, props.accountingModel, props.includeRetired, hasSubAllocators, props.isHistorical]);
 
     useLayoutEffect(() => {
         store.apply({
@@ -417,13 +429,25 @@ export function UsageSubProjectTable(props: {
         if (context.column.key === "child.pin") {
             const pinned = pinnedSet.has(row.child);
             const canPinMore = pinned || props.pinnedChildren.length < 5;
-            return <TooltipV2 tooltip={pinned ? "Remove from chart" : (canPinMore ? "Show on chart" : "Maximum 5 pinned")}>
+            const pinTooltip = pinned
+                ? "Remove from pinned sub-projects"
+                : !canPinMore
+                    ? "Maximum 5 pinned"
+                    : props.hasProductBreakdown
+                        ? "Pin to usage chart (with Other) and filter breakdowns to pinned sub-projects"
+                        : "Pin to usage chart (shown alongside Other)";
+            const pinAriaLabel = pinned
+                ? "Unpin sub-project"
+                : props.hasProductBreakdown
+                    ? "Pin to chart and filter breakdowns"
+                    : "Pin to chart";
+            return <TooltipV2 tooltip={pinTooltip}>
                 <button
                     type="button"
                     className={UcxTableIconButtonClass}
                     disabled={!canPinMore}
                     aria-pressed={pinned}
-                    aria-label={pinned ? "Remove from chart" : "Show on chart"}
+                    aria-label={pinAriaLabel}
                     onClick={ev => {
                         ev.stopPropagation();
                         props.onTogglePin(row.child);
@@ -463,17 +487,17 @@ export function UsageSubProjectTable(props: {
                     title={tooltip}
                 />;
             }
-            const isOver = isCapacity && row.utilizationBucket === "over";
+            const isOver = isCapacity && usageChildScopeMetrics(row, props.accountingModel, props.includeRetired).utilizationBucket === "over";
             return <Amount
                 value={row.activeUsage * props.unit.balanceFactor}
                 unit={props.unit.name}
                 negative={isOver}
-                title={isCapacity ? "Current capacity in use." : "Usage charged against active quota."}
+                title={isCapacity ? "Capacity in use at the end of the report period." : "Usage charged against active quota."}
             />;
         }
         if (context.column.key === "child.peak") {
             return <Amount
-                value={row.peakUsage * props.unit.balanceFactor}
+                value={row.periodUsage * props.unit.balanceFactor}
                 unit={props.unit.name}
                 title="Peak capacity in use during the selected period."
             />;
@@ -500,7 +524,7 @@ export function UsageSubProjectTable(props: {
             return <Amount
                 value={row.activeQuota * props.unit.balanceFactor}
                 unit={props.unit.name}
-                title="Quota from allocations that are active now."
+                title="Quota from allocations active at the end of the report period."
             />;
         }
         if (context.column.key === "child.utilization") {
@@ -513,11 +537,11 @@ export function UsageSubProjectTable(props: {
             }
             const isOver = metrics.utilizationBucket === "over";
             return <span className="st-num" style={{color: isOver ? "var(--errorMain)" : undefined, fontWeight: isOver ? 600 : undefined}}>
-                {metrics.quota === 0 && metrics.usage > 0 ? "Over" : `${metrics.utilizationPercent.toFixed(1)}%`}
+                {metrics.quota === 0 && metrics.usage > 0 ? "Over" : usageFormatPercent(metrics.utilizationPercent)}
             </span>;
         }
         if (context.column.key === "child.localUsage") {
-            const localVal = row.isSubAllocator && row.subAllocator ? row.subAllocator.directUsage : row.activeUsage;
+            const localVal = row.subAllocator?.directUsage ?? row.activeUsage;
             return <Amount
                 value={localVal * props.unit.balanceFactor}
                 unit={props.unit.name}
@@ -525,11 +549,12 @@ export function UsageSubProjectTable(props: {
             />;
         }
         if (context.column.key === "child.subUsage") {
-            if (!row.isSubAllocator || !row.subAllocator) {
+            if (!row.subAllocator) {
                 return null;
             }
             const sub = row.subAllocator;
-            const tooltip = `Used by sub-children. Re-allocated: ${usageFormatValue(props.unit, sub.downstreamActiveAllocated)} (${sub.reallocatedPercent.toFixed(0)}% of active quota).`;
+            const reallocatedPercent = row.activeQuota > 0 ? (sub.downstreamActiveAllocated / row.activeQuota) * 100 : 0;
+            const tooltip = `Used by sub-children. Re-allocated: ${usageFormatValue(props.unit, sub.downstreamActiveAllocated)} (${usageFormatPercent(reallocatedPercent, 0)} of active quota).`;
             return <Amount
                 value={sub.downstreamUsage * props.unit.balanceFactor}
                 unit={props.unit.name}
@@ -537,38 +562,27 @@ export function UsageSubProjectTable(props: {
             />;
         }
         if (context.column.key === "child.expiry") {
-            const drop = row.nextQuotaDrop;
-            const riskDays = usageDropRiskDays(drop, props.accountingModel, props.periodEnd);
-            if (drop && riskDays !== null) {
-                const isCritical = riskDays < USAGE_DROP_CRITICAL_DAYS;
-                const label = isCapacity ? `Over quota in ${riskDays}d` : `No quota in ${riskDays}d`;
-                const tooltip = isCapacity
-                    ? `On ${usageFormatShortDate(drop.timestamp)}, active quota drops from ${usageFormatValue(props.unit, drop.quotaBefore)} to ${usageFormatValue(props.unit, drop.quotaAfter)}, below current usage of ${usageFormatValue(props.unit, row.activeUsage)}.`
-                    : `On ${usageFormatShortDate(drop.timestamp)}, active quota of ${usageFormatValue(props.unit, drop.quotaBefore)} expires with no renewal in place.`;
-                return <TooltipV2 tooltip={tooltip}>
-                    <span
-                        className="st-warn"
-                        style={{color: isCritical ? "var(--errorMain)" : "var(--warningMain)"}}
-                    >
-                        <Icon name="heroExclamationTriangle" size={14} color={isCritical ? "errorMain" : "warningMain"} />
-                        <span>{label}</span>
-                    </span>
-                </TooltipV2>;
-            }
-            const target = drop?.timestamp ?? row.nextExpiration;
-            if (target == null) return <span className="st-num" style={{color: "var(--textSecondary)"}}>—</span>;
-            const days = usageDaysUntil(target, props.periodEnd);
-            return <TooltipV2 tooltip={usageFormatShortDate(target)}>
-                <span className="st-num">{days}d</span>
-            </TooltipV2>;
+            return <UsageExpiryCell
+                drop={row.nextQuotaDrop}
+                nextExpiration={row.nextExpiration}
+                accountingModel={props.accountingModel}
+                unit={props.unit}
+                referenceTime={props.periodEnd}
+                activeUsage={row.activeUsage}
+                warningClassName="st-warn"
+                numberClassName="st-num"
+            />;
         }
         return context.cell;
-    }, [rowByKey, pinnedSet, props.pinnedChildren.length, props.onTogglePin, projectInfo, props.unit, props.periodEnd, props.accountingModel, props.includeRetired, isCapacity]);
+    }, [rowByKey, pinnedSet, props.pinnedChildren.length, props.onTogglePin, props.hasProductBreakdown, projectInfo, props.unit, props.periodEnd, props.accountingModel, props.includeRetired, isCapacity]);
 
     const onExport = useCallback(() => {
+        const useLifetime = props.includeRetired && !isCapacity;
         const data = filteredRows.map(row => {
             const info = formatChildDisplay(row, projectInfo);
-            const localVal = row.isSubAllocator && row.subAllocator ? row.subAllocator.directUsage : row.activeUsage;
+            const metrics = usageChildScopeMetrics(row, props.accountingModel, props.includeRetired);
+            const localVal = row.subAllocator?.directUsage ?? row.activeUsage;
+            const expiry = row.nextQuotaDrop?.timestamp ?? row.nextExpiration;
             return {
                 workspace: info.title,
                 pi: info.pi,
@@ -576,12 +590,14 @@ export function UsageSubProjectTable(props: {
                 periodUsage: row.periodUsage * props.unit.balanceFactor,
                 activeUsage: row.activeUsage * props.unit.balanceFactor,
                 lifetimeUsage: row.totalUsage * props.unit.balanceFactor,
-                activeQuota: row.activeQuota * props.unit.balanceFactor,
+                activeQuota: !row.isLocal && row.activeQuotaKnown !== false ? row.activeQuota * props.unit.balanceFactor : null,
+                lifetimeQuota: !row.isLocal && useLifetime && metrics.quotaKnown ? metrics.quota * props.unit.balanceFactor : null,
                 retiredUsage: row.retiredUsage * props.unit.balanceFactor,
-                utilizationPercent: Number(row.utilizationPercent.toFixed(1)),
+                utilizationPercent: !row.isLocal && metrics.quotaKnown ? Number(metrics.utilizationPercent.toFixed(1)) : null,
                 localUsage: localVal * props.unit.balanceFactor,
                 subChildrenUsage: (row.subAllocator?.downstreamUsage ?? 0) * props.unit.balanceFactor,
                 reallocatedQuota: (row.subAllocator?.downstreamActiveAllocated ?? 0) * props.unit.balanceFactor,
+                nextExpiry: expiry == null ? null : new Date(expiry).toISOString(),
             };
         });
 
@@ -594,23 +610,35 @@ export function UsageSubProjectTable(props: {
             {key: "activeQuota", value: `Active quota (${props.unit.name})`, defaultChecked: true},
             {key: "retiredUsage", value: `Retired usage (${props.unit.name})`, defaultChecked: true},
             {key: "utilizationPercent", value: "Utilization (%)", defaultChecked: true},
-            {key: "localUsage", value: `Local usage (${props.unit.name})`, defaultChecked: true},
-            {key: "subChildrenUsage", value: `Sub-children usage (${props.unit.name})`, defaultChecked: true},
-            {key: "reallocatedQuota", value: `Re-allocated quota (${props.unit.name})`, defaultChecked: true},
         ];
-        if (props.includeRetired && !isCapacity) {
-            headers.splice(5, 0, {key: "lifetimeUsage", value: `Lifetime usage (${props.unit.name})`, defaultChecked: true});
+        if (!props.isHistorical) {
+            headers.push({key: "nextExpiry", value: "Next expiry (UTC)", defaultChecked: true});
+        }
+        if (hasSubAllocators) {
+            headers.push(
+                {key: "localUsage", value: `Active local usage (${props.unit.name})`, defaultChecked: true},
+                {key: "subChildrenUsage", value: `Active sub-children usage (${props.unit.name})`, defaultChecked: true},
+                {key: "reallocatedQuota", value: `Re-allocated quota (${props.unit.name})`, defaultChecked: true},
+            );
+        }
+        if (useLifetime) {
+            headers.splice(5, 0,
+                {key: "lifetimeUsage", value: `Lifetime usage (${props.unit.name})`, defaultChecked: true},
+                {key: "lifetimeQuota", value: `Lifetime quota (${props.unit.name})`, defaultChecked: true},
+            );
         }
 
+        const start = format(props.reportPeriod.start, "yyyy-MM-dd");
+        const end = format(props.reportPeriod.end, "yyyy-MM-dd");
         exportUsage(
             data,
             headers,
             props.workspaceTitle,
             {
-                fileName: `usage-subprojects-${props.exportTitle.toLowerCase().replace(/\s+/g, "-")}`,
+                fileName: `usage-subprojects-${props.exportTitle.toLowerCase().replace(/\s+/g, "-")}-${start}-${end}`,
             },
         );
-    }, [filteredRows, projectInfo, props.unit, isCapacity, props.includeRetired, props.workspaceTitle, props.exportTitle]);
+    }, [filteredRows, projectInfo, props.unit, isCapacity, hasSubAllocators, props.accountingModel, props.includeRetired, props.isHistorical, props.workspaceTitle, props.exportTitle, props.reportPeriod]);
 
     const hasActiveFilters = query.trim() !== ""
         || props.bucketFilter !== null
@@ -643,35 +671,28 @@ export function UsageSubProjectTable(props: {
                 {hasScatterPoints ? (
                     <div className="st-chart-col">
                         <div className="st-chart-head">
-                            <h4>Quota vs. utilization</h4>
-                            <TooltipV2 tooltip="Expand chart">
-                                <button
-                                    type="button"
-                                    className={UcxTableIconButtonClass}
-                                    aria-label="Expand quota vs utilization chart"
-                                    onClick={() => openUsageChartDialog("Quota vs. utilization", (w, h) => (
-                                        <UsageSubProjectScatterChart
-                                            rows={props.rows}
-                                            accountingModel={props.accountingModel}
-                                            includeRetired={props.includeRetired}
-                                            unit={props.unit}
-                                            periodEnd={props.periodEnd}
-                                            width={w}
-                                            height={h}
-                                            pinnedChildren={props.pinnedChildren}
-                                            onTogglePin={props.onTogglePin}
-                                            labelForChild={labelForChild}
-                                        />
-                                    ))}
-                                >
-                                    <Icon name="heroArrowsPointingOut" size={15} />
-                                </button>
-                            </TooltipV2>
+                            <h4>Sub-project quota utilization</h4>
+                            <UsageChartExpandButton title="Sub-project quota utilization" renderContent={(w, h) =>
+                                <UsageSubProjectScatterChart
+                                    rows={props.rows}
+                                    accountingModel={props.accountingModel}
+                                    includeRetired={props.includeRetired}
+                                    isHistorical={props.isHistorical}
+                                    unit={props.unit}
+                                    periodEnd={props.periodEnd}
+                                    width={w}
+                                    height={h}
+                                    pinnedChildren={props.pinnedChildren}
+                                    onTogglePin={props.onTogglePin}
+                                    labelForChild={labelForChild}
+                                />
+                            } />
                         </div>
                         <UsageSubProjectScatterChart
                             rows={props.rows}
                             accountingModel={props.accountingModel}
                             includeRetired={props.includeRetired}
+                            isHistorical={props.isHistorical}
                             unit={props.unit}
                             periodEnd={props.periodEnd}
                             width={scatterWidth}
@@ -687,29 +708,20 @@ export function UsageSubProjectTable(props: {
                     <div className="st-chart-col">
                         <div className="st-chart-head">
                             <h4>Upcoming expirations</h4>
-                            <TooltipV2 tooltip="Expand chart">
-                                <button
-                                    type="button"
-                                    className={UcxTableIconButtonClass}
-                                    aria-label="Expand upcoming expirations chart"
-                                    onClick={() => openUsageChartDialog("Upcoming expirations", (w, h) => (
-                                        <UsageExpirationScheduleChart
-                                            buckets={expiryBuckets}
-                                            accountingModel={props.accountingModel}
-                                            unit={props.unit}
-                                            width={w}
-                                            height={h}
-                                            selectedMonth={activeExpiryMonth}
-                                            onSelectMonth={monthKey => {
-                                                setExpiryMonthFilter(monthKey);
-                                                dialogStore.success();
-                                            }}
-                                        />
-                                    ))}
-                                >
-                                    <Icon name="heroArrowsPointingOut" size={15} />
-                                </button>
-                            </TooltipV2>
+                            <UsageChartExpandButton title="Upcoming expirations" renderContent={(w, h) =>
+                                <UsageExpirationScheduleChart
+                                    buckets={expiryBuckets}
+                                    accountingModel={props.accountingModel}
+                                    unit={props.unit}
+                                    width={w}
+                                    height={h}
+                                    selectedMonth={activeExpiryMonth}
+                                    onSelectMonth={monthKey => {
+                                        setExpiryMonthFilter(monthKey);
+                                        dialogStore.success();
+                                    }}
+                                />
+                            } />
                         </div>
                         <UsageExpirationScheduleChart
                             buckets={expiryBuckets}
@@ -753,24 +765,24 @@ export function UsageSubProjectTable(props: {
                     capacityDropRows.length === 1 ? <>
                         <b>Upcoming quota drop:</b>{" "}
                         <b>{formatChildDisplay(earliestCapacityDrop, projectInfo).title}</b> will be over quota and lose write access in{" "}
-                        <b>{usageDaysUntil(earliestCapacityDrop.nextQuotaDrop.timestamp, props.periodEnd)} days</b>{" "}
+                        <b>{usageFormatDays(usageDaysUntil(earliestCapacityDrop.nextQuotaDrop.timestamp, props.periodEnd) ?? 0)}</b>{" "}
                         ({usageFormatShortDate(earliestCapacityDrop.nextQuotaDrop.timestamp)}) unless renewed or reduced.
                     </> : <>
                         <b>Upcoming quota drop:</b>{" "}
-                        <b>{formatNumber(capacityDropRows.length)} sub-projects</b> will be over quota and lose write access within 90 days
-                        (earliest in <b>{usageDaysUntil(earliestCapacityDrop.nextQuotaDrop.timestamp, props.periodEnd)} days</b>,{" "}
+                        <b>{formatNumber(capacityDropRows.length)} sub-projects</b> will be over quota and lose write access within {usageFormatDays(USAGE_DROP_WARNING_DAYS)}{" "}
+                        (earliest in <b>{usageFormatDays(usageDaysUntil(earliestCapacityDrop.nextQuotaDrop.timestamp, props.periodEnd) ?? 0)}</b>,{" "}
                         {usageFormatShortDate(earliestCapacityDrop.nextQuotaDrop.timestamp)}).
                     </>
                 ) : (
                     capacityDropRows.length === 1 ? <>
                         <b>Upcoming quota drop:</b>{" "}
                         <b>{formatChildDisplay(earliestCapacityDrop, projectInfo).title}</b> will run out of active quota in{" "}
-                        <b>{usageDaysUntil(earliestCapacityDrop.nextQuotaDrop.timestamp, props.periodEnd)} days</b>{" "}
+                        <b>{usageFormatDays(usageDaysUntil(earliestCapacityDrop.nextQuotaDrop.timestamp, props.periodEnd) ?? 0)}</b>{" "}
                         ({usageFormatShortDate(earliestCapacityDrop.nextQuotaDrop.timestamp)}) with no renewal in place.
                     </> : <>
                         <b>Upcoming quota drop:</b>{" "}
-                        <b>{formatNumber(capacityDropRows.length)} sub-projects</b> will run out of active quota within 90 days with no renewal in place
-                        (earliest in <b>{usageDaysUntil(earliestCapacityDrop.nextQuotaDrop.timestamp, props.periodEnd)} days</b>,{" "}
+                        <b>{formatNumber(capacityDropRows.length)} sub-projects</b> will run out of active quota within {usageFormatDays(USAGE_DROP_WARNING_DAYS)} with no renewal in place
+                        (earliest in <b>{usageFormatDays(usageDaysUntil(earliestCapacityDrop.nextQuotaDrop.timestamp, props.periodEnd) ?? 0)}</b>,{" "}
                         {usageFormatShortDate(earliestCapacityDrop.nextQuotaDrop.timestamp)}).
                     </>
                 )}

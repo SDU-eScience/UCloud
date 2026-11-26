@@ -1846,10 +1846,9 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                             </div>
                         </TableHeaderCell> : null}
                         {columns.map(col => {
-                            const sort = store.sortFor(stateKey);
                             const isSortColumn = sort !== null && sort.columnKey === col.key;
                             return <TableHeaderCell key={col.key} role="columnheader" textAlign={col.alignment}>
-                                <span
+                                {props.sorted === false ? <span>{col.label}</span> : <span
                                     className="streamed-table-header-label"
                                     data-sort-active={isSortColumn ? "true" : undefined}
                                     tabIndex={0}
@@ -1877,7 +1876,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                         /> :
                                         null
                                     }
-                                </span>
+                                </span>}
                                 <div
                                     className="streamed-table-resize-handle"
                                     onPointerDown={event => startColumnResize(col.key, event)}

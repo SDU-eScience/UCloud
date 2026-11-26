@@ -24,10 +24,10 @@ import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {useMaxContentWidth} from "@/Utilities/StylingUtilities";
 import {projectInfoTitle, useProjectInfos} from "@/Project/InfoCache";
-import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {exportUsage} from "@/Accounting/Usage";
 import {PeriodFilter} from "@/Accounting/Allocations/Controls";
-import {rangeBounds} from "@/Accounting/Allocations/Model";
+import type {PeriodPreset} from "@/Accounting/Allocations/Controls";
+import {calendarYearRange, rangeBounds} from "@/Accounting/Allocations/Model";
 import type {DateRange} from "@/Accounting/Allocations/Model";
 import {formatNumber} from "@/Utilities/NumberFormatting";
 import {
@@ -39,11 +39,12 @@ import {
     usageExplainUnit,
     usageFormatNumber,
     usageFormatShortDate,
+    usageFormatDays,
+    usageFormatPercent,
     usageFormatValue,
     usageOverviewRetrieve,
     usageProductKey,
 } from "@/Accounting/UsageV2/Api";
-import {UcxTableIconButtonClass} from "@/UCX/UcxBrowser";
 import {UsagePortfolioOverview} from "@/Accounting/UsageV2/PortfolioOverview";
 import {
     ConsumptionSeriesMode,
@@ -51,10 +52,11 @@ import {
     UsageCapacityOccupancyChart,
     UsageConsumptionBurnupChart,
     UsageConsumptionRateChart,
-    openUsageChartDialog,
+    UsageChartExpandButton,
 } from "@/Accounting/UsageV2/Charts";
 import {UsageSubProjectTable} from "@/Accounting/UsageV2/SubProjectTable";
 import {UsageInferenceBreakdownSection} from "@/Accounting/UsageV2/InferenceBreakdown";
+import {UsageJobBreakdownSection} from "@/Accounting/UsageV2/JobBreakdown";
 
 function defaultUsageDateRange(now = Date.now()): DateRange {
     const current = new Date(now);
@@ -63,6 +65,36 @@ function defaultUsageDateRange(now = Date.now()): DateRange {
         end: new Date(current.getFullYear(), current.getMonth() + 1, 0),
     };
 }
+
+const USAGE_PERIOD_PRESETS: PeriodPreset[] = [
+    {
+        label: "Last month",
+        range: now => ({
+            start: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+            end: new Date(now.getFullYear(), now.getMonth(), 0),
+        }),
+    },
+    {
+        label: "Last 3 months",
+        range: now => ({
+            start: new Date(now.getFullYear(), now.getMonth() - 2, 1),
+            end: new Date(now.getFullYear(), now.getMonth() + 1, 0),
+        }),
+    },
+    {
+        label: "Year to date",
+        range: now => ({
+            start: new Date(now.getFullYear(), 0, 1),
+            end: new Date(now.getFullYear(), now.getMonth() + 1, 0),
+        }),
+    },
+    {
+        label: "Last year",
+        range: now => calendarYearRange(now.getFullYear() - 1),
+    },
+];
+
+const INCOMPLETE_HISTORY_CUTOFF = Date.UTC(2026, 0, 28);
 
 const PageStyle = injectStyle("usage-v2-page", k => `
     ${k} .usage-controls {
@@ -370,15 +402,15 @@ const UsagePage: React.FunctionComponent = () => {
 
     const [overviewGroups, setOverviewGroups] = useState<UsageUnitGroup[]>([]);
     const [overviewHasData, setOverviewHasData] = useState(false);
-    const [overviewLoading, setOverviewLoading] = useState(true);
+    const [overviewLoadedKey, setOverviewLoadedKey] = useState<string | null>(null);
     const [overviewError, setOverviewError] = useState<string | null>(null);
 
     const [selectedUnitKey, setSelectedUnitKey] = useState<string | null>(null);
     const [selectedProductKeys, setSelectedProductKeys] = useState<string[]>([]);
     const [pinnedChildren, setPinnedChildren] = useState<string[]>([]);
 
-    const [detail, setDetail] = useState<UsageDetailResponse | null>(null);
-    const [detailLoading, setDetailLoading] = useState(false);
+    const [loadedDetail, setDetail] = useState<UsageDetailResponse | null>(null);
+    const [loadedDetailContextKey, setLoadedDetailContextKey] = useState<string | null>(null);
     const [detailError, setDetailError] = useState<string | null>(null);
     const [detailFetchedKey, setDetailFetchedKey] = useState<string | null>(null);
 
@@ -386,13 +418,20 @@ const UsagePage: React.FunctionComponent = () => {
     const [highlightedKey, setHighlightedKey] = useState<string | null>(null);
     const [bucketFilter, setBucketFilter] = useState<string | null>(null);
 
-    const normalizedPeriod = useMemo(() => {
+    const {requestPeriod, normalizedPeriod} = useMemo(() => {
         const bounds = rangeBounds(dateRange);
         const now = Date.now();
         const start = bounds.start ?? (now - 90 * 24 * 60 * 60 * 1000);
-        const end = Math.min(now, bounds.end ?? now);
-        return {start, end: Math.max(start, end)};
+        const rawEnd = bounds.end ?? now;
+        const clampedEnd = Math.min(now, rawEnd);
+        return {
+            requestPeriod: {start, end: Math.max(start, rawEnd)},
+            normalizedPeriod: {start, end: Math.max(start, clampedEnd)},
+        };
     }, [dateRange]);
+
+    const overviewKey = JSON.stringify([projectId, requestPeriod]);
+    const overviewLoading = overviewLoadedKey !== overviewKey;
 
     const detailSignature = useCallback((
         pId: string | undefined,
@@ -402,17 +441,16 @@ const UsagePage: React.FunctionComponent = () => {
         products: string[],
         pinned: string[],
     ): string => {
-        return `${pId ?? ""}|${start}|${end}|${unitKey}|${products.join(",")}|${pinned.join(",")}`;
+        return JSON.stringify([pId, start, end, unitKey, products, pinned]);
     }, []);
 
     useEffect(() => {
         let cancelled = false;
-        setOverviewLoading(true);
         setOverviewError(null);
 
         callAPI(usageOverviewRetrieve({
-            start: normalizedPeriod.start,
-            end: normalizedPeriod.end,
+            start: requestPeriod.start,
+            end: requestPeriod.end,
             initialUnitGroupKey: selectedUnitKey ?? undefined,
         }))
             .then(res => {
@@ -420,31 +458,40 @@ const UsagePage: React.FunctionComponent = () => {
                 const groups = res.unitGroups ?? [];
                 setOverviewGroups(groups);
                 setOverviewHasData(res.hasData ?? false);
-                setOverviewLoading(false);
+                setOverviewLoadedKey(overviewKey);
 
                 const nextUnitKey = (selectedUnitKey && groups.some(g => g.key === selectedUnitKey))
                     ? selectedUnitKey
                     : (groups.length > 0 ? groups[0].key : null);
                 setSelectedUnitKey(nextUnitKey);
 
-                if (res.initialDetail && nextUnitKey && res.initialDetail.unitGroupKey === nextUnitKey) {
+                if (res.initialDetail && nextUnitKey && res.initialDetail.unitGroupKey === nextUnitKey &&
+                    selectedProductKeys.length === 0 && pinnedChildren.length === 0) {
                     setDetail(res.initialDetail);
+                    setLoadedDetailContextKey(JSON.stringify([projectId, nextUnitKey]));
                     setDetailError(null);
-                    setDetailLoading(false);
-                    setSelectedProductKeys([]);
-                    setPinnedChildren([]);
                     setDetailFetchedKey(detailSignature(
                         projectId,
-                        normalizedPeriod.start,
-                        normalizedPeriod.end,
+                        requestPeriod.start,
+                        requestPeriod.end,
                         nextUnitKey,
                         [],
                         [],
                     ));
-                } else if (!nextUnitKey) {
-                    setDetail(null);
+                } else {
+                    if (selectedUnitKey !== nextUnitKey) {
+                        setDetail(null);
+                        setLoadedDetailContextKey(null);
+                    }
                     setDetailFetchedKey(null);
                 }
+                const products = groups.find(group => group.key === nextUnitKey)?.products ?? [];
+                const availableProducts = new Set(products.map(product => usageProductKey(product.category)));
+                setSelectedProductKeys(prev => {
+                    if (selectedUnitKey !== nextUnitKey) return prev.length === 0 ? prev : [];
+                    const valid = prev.filter(key => availableProducts.has(key));
+                    return valid.length === prev.length ? prev : valid;
+                });
             })
             .catch(err => {
                 if (cancelled) return;
@@ -453,14 +500,15 @@ const UsagePage: React.FunctionComponent = () => {
                 setOverviewHasData(false);
                 setSelectedUnitKey(null);
                 setDetail(null);
+                setLoadedDetailContextKey(null);
                 setDetailFetchedKey(null);
-                setOverviewLoading(false);
+                setOverviewLoadedKey(overviewKey);
             });
 
         return () => {
             cancelled = true;
         };
-    }, [projectId, normalizedPeriod]);
+    }, [overviewKey, projectId, requestPeriod]);
 
     useEffect(() => {
         setSelectedProductKeys([]);
@@ -468,6 +516,9 @@ const UsagePage: React.FunctionComponent = () => {
         setSeriesModeOverride(null);
         setHighlightedKey(null);
         setBucketFilter(null);
+        setDetail(null);
+        setLoadedDetailContextKey(null);
+        setDetailFetchedKey(null);
     }, [projectId]);
 
     useEffect(() => {
@@ -478,30 +529,29 @@ const UsagePage: React.FunctionComponent = () => {
     }, [selectedUnitKey]);
 
     const activeGroup = useMemo(
-        () => overviewGroups.find(g => g.key === selectedUnitKey) ?? null,
-        [overviewGroups, selectedUnitKey],
+        () => overviewLoading ? null : overviewGroups.find(g => g.key === selectedUnitKey) ?? null,
+        [overviewLoading, overviewGroups, selectedUnitKey],
     );
 
-    useEffect(() => {
-        if (!activeGroup) {
-            setDetail(null);
-            return;
-        }
-
-        const sig = detailSignature(
+    const activeDetailContextKey = activeGroup ? JSON.stringify([projectId, activeGroup.key]) : null;
+    const activeDetailKey = activeGroup
+        ? detailSignature(
             projectId,
-            normalizedPeriod.start,
-            normalizedPeriod.end,
+            requestPeriod.start,
+            requestPeriod.end,
             activeGroup.key,
             selectedProductKeys,
             pinnedChildren,
-        );
-        if (detailFetchedKey === sig) {
-            return;
-        }
+        )
+        : null;
+    const detailLoading = activeDetailKey !== null && detailFetchedKey !== activeDetailKey;
+    const detail = activeDetailContextKey !== null && loadedDetailContextKey === activeDetailContextKey
+        ? loadedDetail
+        : null;
 
+    useEffect(() => {
+        if (!activeGroup || !activeDetailKey || !detailLoading) return;
         let cancelled = false;
-        setDetailLoading(true);
         setDetailError(null);
 
         const productFilters: ProductCategoryId[] = selectedProductKeys.map(key => {
@@ -513,8 +563,8 @@ const UsagePage: React.FunctionComponent = () => {
         });
 
         callAPI(usageDetailRetrieve({
-            start: normalizedPeriod.start,
-            end: normalizedPeriod.end,
+            start: requestPeriod.start,
+            end: requestPeriod.end,
             unitGroupKey: activeGroup.key,
             products: productFilters,
             pinnedChildren,
@@ -522,20 +572,21 @@ const UsagePage: React.FunctionComponent = () => {
             .then(res => {
                 if (cancelled) return;
                 setDetail(res);
-                setDetailFetchedKey(sig);
-                setDetailLoading(false);
+                setLoadedDetailContextKey(JSON.stringify([projectId, activeGroup.key]));
+                setDetailFetchedKey(activeDetailKey);
             })
             .catch(err => {
                 if (cancelled) return;
                 setDetailError(errorMessageOrDefault(err, "Could not load usage details"));
                 setDetail(null);
-                setDetailLoading(false);
+                setLoadedDetailContextKey(null);
+                setDetailFetchedKey(activeDetailKey);
             });
 
         return () => {
             cancelled = true;
         };
-    }, [projectId, normalizedPeriod, activeGroup, selectedProductKeys, pinnedChildren, detailFetchedKey, detailSignature]);
+    }, [projectId, requestPeriod, activeGroup, selectedProductKeys, pinnedChildren, activeDetailKey, detailLoading]);
 
     const chartChildProjectIds = useMemo(() => {
         if (!detail) return [];
@@ -610,25 +661,38 @@ const UsagePage: React.FunctionComponent = () => {
 
     const handleTogglePin = useCallback((child: string) => {
         setHighlightedKey(null);
-        setPinnedChildren(prev => {
-            if (prev.includes(child)) {
-                return prev.filter(c => c !== child);
-            }
-            if (prev.length >= 5) return prev;
-            return [...prev, child];
-        });
-    }, []);
+        if (pinnedChildren.includes(child)) {
+            setPinnedChildren(prev => prev.filter(c => c !== child));
+        } else if (pinnedChildren.length < 5) {
+            setSeriesModeOverride("total");
+            setPinnedChildren(prev => prev.length < 5 && !prev.includes(child) ? [...prev, child] : prev);
+        }
+    }, [pinnedChildren]);
 
+    const workspace = project.fetch();
+    const workspaceReady = !projectId || workspace.id === projectId;
+    const workspaceName = projectId && workspace.specification.title ? workspace.specification.title : "My workspace";
     const exportAll = useCallback(() => {
-        let workspaceName = project.fetch().specification.title;
-        if (workspaceName === "") workspaceName = "My workspace";
+        if (!workspaceReady || overviewLoading || !detail) return;
         const slug = workspaceName.toLowerCase().replace(/\s+/g, "-");
+        const units = Object.fromEntries(overviewGroups.map(group => {
+            const unit = usageExplainUnit(group.unitAndFrequency, group.productType);
+            return [group.key, {displayUnit: unit.name, multiplyRawAccountingAmountsBy: unit.balanceFactor}];
+        }));
         exportUsage(
-            [{period: normalizedPeriod, overview: overviewGroups, detail}],
+            [{
+                period: normalizedPeriod,
+                units,
+                overview: overviewGroups,
+                detail,
+                scope: {workspace: workspaceName, includeRetired, products: selectedProductKeys, pinnedChildren},
+            }],
             [
                 {key: "period", value: "Period", defaultChecked: true},
-                {key: "overview", value: "Overview", defaultChecked: true},
-                {key: "detail", value: "Active view detail", defaultChecked: true},
+                {key: "units", value: "Unit conversions for raw accounting amounts", defaultChecked: true},
+                {key: "scope", value: "Selected scope", defaultChecked: true},
+                {key: "overview", value: "Overview (raw accounting units)", defaultChecked: true},
+                {key: "detail", value: "Selected detail (raw accounting units)", defaultChecked: true},
             ],
             workspaceName,
             {
@@ -636,9 +700,13 @@ const UsagePage: React.FunctionComponent = () => {
                 fileName: `usage-report-${slug}`,
             },
         );
-    }, [project, normalizedPeriod, overviewGroups, detail]);
+    }, [workspaceReady, workspaceName, normalizedPeriod, overviewGroups, overviewLoading, detail, includeRetired, selectedProductKeys, pinnedChildren]);
 
-    if (project.fetch().status.personalProviderProjectFor != null) {
+    const now = Date.now();
+    const maxReportDate = new Date(now);
+    const isHistorical = (rangeBounds(dateRange).end ?? now) < now;
+
+    if (projectId && workspaceReady && workspace.status.personalProviderProjectFor != null) {
         return <MainContainer
             main={<>
                 <Heading.h2>Unavailable for this project</Heading.h2>
@@ -654,12 +722,13 @@ const UsagePage: React.FunctionComponent = () => {
     const hideLocal = !canConsumeResources && (detail?.kpis.localUsageAtEnd ?? 0) === 0 && (detail?.kpis.periodLocalUsage ?? 0) === 0;
 
     const hasMultipleProducts = (detail?.productsCovered?.length ?? 0) > 1;
-    const subProjectCount = detail?.subProjectSummary?.totalCount ?? 0;
+    const subProjects = detail?.children.filter(row => !row.isLocal) ?? [];
+    const subProjectCount = subProjects.length;
     const isLargeGrantAllocator = subProjectCount > 20;
     const isCapacityGroup = (activeGroup?.accountingModel ?? detail?.accountingModel) === "CAPACITY";
     const effectiveIncludeRetired = !isCapacityGroup && includeRetired;
 
-    const effectiveSeriesMode: ConsumptionSeriesMode = useMemo(() => {
+    const effectiveSeriesMode = ((): ConsumptionSeriesMode => {
         if (seriesModeOverride !== null) {
             if (seriesModeOverride === "product" && !hasMultipleProducts) {
                 return subProjectCount > 0 && !isLargeGrantAllocator ? "child" : "total";
@@ -674,14 +743,12 @@ const UsagePage: React.FunctionComponent = () => {
         if (subProjectCount > 0) return "child";
         if (hasMultipleProducts) return "product";
         return "total";
-    }, [seriesModeOverride, hasMultipleProducts, subProjectCount, isLargeGrantAllocator, pinnedChildren.length]);
+    })();
 
     const chartWidth = Math.max(360, maxContentWidth - 20);
     const twoColCharts = chartWidth >= 920;
-    const rateChartWidth = twoColCharts ? Math.floor((chartWidth - 24) / 2) : chartWidth;
-    const burnupChartWidth = twoColCharts ? Math.floor((chartWidth - 24) / 2) : chartWidth;
-    const rateChartHeight = twoColCharts ? 250 : Math.max(240, Math.min(310, Math.round(chartWidth * 0.27)));
-    const burnupChartHeight = twoColCharts ? 250 : Math.max(240, Math.min(310, Math.round(chartWidth * 0.27)));
+    const pairedChartWidth = twoColCharts ? Math.floor((chartWidth - 24) / 2) : chartWidth;
+    const pairedChartHeight = twoColCharts ? 250 : Math.max(240, Math.min(310, Math.round(chartWidth * 0.27)));
     const capacityChartHeight = Math.max(250, Math.min(320, Math.round(chartWidth * 0.27)));
 
     const renderFocusContent = () => {
@@ -692,16 +759,14 @@ const UsagePage: React.FunctionComponent = () => {
         const fmt = (v: number) => usageFormatValue(unit, v);
         const fmtNum = (v: number) => usageFormatNumber(unit, v);
 
-        const alignedStart = getStartOfDay(new Date(normalizedPeriod.start)).getTime();
-        const alignedEnd = getStartOfDay(new Date(normalizedPeriod.end)).getTime();
-        const periodDays = Math.max(1, Math.floor((alignedEnd - alignedStart) / (1000 * 60 * 60 * 24)));
+        const periodDays = Math.max(1, (normalizedPeriod.end - normalizedPeriod.start + 1) / (24 * 60 * 60 * 1000));
         const burnRatePerDay = kpis.periodUsage / periodDays;
 
         const remainingActive = Math.max(0, kpis.activeQuotaAtEnd - kpis.activeUsageAtEnd);
         const activeBalance = Math.max(0, Math.min(remainingActive, kpis.maxUsableAtEnd));
         const daysToDepletion = burnRatePerDay > 0 ? Math.floor(activeBalance / burnRatePerDay) : null;
-        const daysToExpiry = usageDaysUntil(kpis.nextMeaningfulExpiration, normalizedPeriod.end);
-        const dropRiskDays = usageDropRiskDays(kpis.nextQuotaDrop ?? undefined, detail.accountingModel, normalizedPeriod.end);
+        const daysToExpiry = usageDaysUntil(kpis.nextMeaningfulExpiration, now);
+        const dropRiskDays = usageDropRiskDays(kpis.nextQuotaDrop ?? undefined, detail.accountingModel, now);
 
         const activeUtilPct = kpis.activeQuotaAtEnd > 0
             ? (kpis.activeUsageAtEnd / kpis.activeQuotaAtEnd) * 100
@@ -723,7 +788,8 @@ const UsagePage: React.FunctionComponent = () => {
             : null;
 
         const showBreakdownSwitcher = hasMultipleProducts || subProjectCount > 0;
-        const hasSubAllocators = detail.subProjectSummary.subAllocatorCount > 0;
+        const subAllocators = subProjects.flatMap(row => row.subAllocator ? [row.subAllocator] : []);
+        const downstreamActiveAllocated = subAllocators.reduce((total, row) => total + row.downstreamActiveAllocated, 0);
 
         const spentTooltip = !hideLocal && subProjectCount > 0
             ? `Local: ${fmt(kpis.periodLocalUsage)}, Sub-projects: ${fmt(kpis.periodChildrenUsage)}`
@@ -765,45 +831,109 @@ const UsagePage: React.FunctionComponent = () => {
                 ? "var(--warningMain)"
                 : "var(--chart-blue-main)";
 
-        const inferenceSection = detail.inferenceBreakdown ? (
+        const productSpecificSection = detail.inferenceBreakdown ? (
             <UsageInferenceBreakdownSection
                 breakdown={detail.inferenceBreakdown}
-                bucketDurationMs={detail.bucketDurationMs}
+                bucketDurationMs={detail.inferenceBreakdown.bucketDurationMs ?? detail.bucketDurationMs}
                 unit={unit}
                 twoColCharts={twoColCharts}
-                rateChartWidth={rateChartWidth}
-                burnupChartWidth={burnupChartWidth}
-                rateChartHeight={rateChartHeight}
-                burnupChartHeight={burnupChartHeight}
+                chartWidth={pairedChartWidth}
+                chartHeight={pairedChartHeight}
+                pinnedChildren={pinnedChildren}
+                onClearPinned={() => setPinnedChildren([])}
+            />
+        ) : detail.jobBreakdown ? (
+            <UsageJobBreakdownSection
+                breakdown={detail.jobBreakdown}
+                bucketDurationMs={detail.jobBreakdown.bucketDurationMs ?? detail.bucketDurationMs}
+                unit={unit}
+                twoColCharts={twoColCharts}
+                chartWidth={pairedChartWidth}
+                chartHeight={pairedChartHeight}
                 pinnedChildren={pinnedChildren}
                 onClearPinned={() => setPinnedChildren([])}
             />
         ) : null;
 
-        return <Flex flexDirection="column" gap="16px">
+        const spentKpi = <TooltipV2 tooltip={spentTooltip}>
+            <div className="usage-kpi-item">
+                <div className="usage-kpi-title">
+                    <span>Spent in period</span>
+                </div>
+                <div className="usage-kpi-value-row">
+                    <span className="usage-kpi-primary">{fmtNum(kpis.periodUsage)}</span>
+                    <span className="usage-kpi-unit">{unit.name}</span>
+                </div>
+                <div className="usage-kpi-detail">Avg {fmt(burnRatePerDay)}/day</div>
+            </div>
+        </TooltipV2>;
+
+        const seriesModeControls = <>
+            {pinnedChildren.length > 0 ? (
+                <Button color="ghost" onClick={() => setPinnedChildren([])}>
+                    Clear pinned ({formatNumber(pinnedChildren.length)})
+                </Button>
+            ) : null}
+            {showBreakdownSwitcher ? (
+                <div className="usage-mode-row">
+                    <button
+                        type="button"
+                        className="usage-mode-button"
+                        aria-pressed={effectiveSeriesMode === "total"}
+                        onClick={() => setSeriesModeOverride("total")}
+                    >
+                        {pinnedChildren.length > 0 ? "Pinned" : "Total"}
+                    </button>
+                    {hasMultipleProducts ? (
+                        <button
+                            type="button"
+                            className="usage-mode-button"
+                            aria-pressed={effectiveSeriesMode === "product"}
+                            onClick={() => setSeriesModeOverride("product")}
+                        >
+                            By product
+                        </button>
+                    ) : null}
+                    {subProjectCount > 0 ? (
+                        <button
+                            type="button"
+                            className="usage-mode-button"
+                            aria-pressed={effectiveSeriesMode === "child"}
+                            onClick={() => setSeriesModeOverride("child")}
+                        >
+                            {isLargeGrantAllocator ? "Top sub-projects" : "By sub-project"}
+                        </button>
+                    ) : null}
+                </div>
+            ) : null}
+        </>;
+
+        const periodEndLabel = usageFormatShortDate(detail.validUntil);
+        const hasProductBreakdown = Boolean(detail.inferenceBreakdown || detail.jobBreakdown);
+
+        return <Flex flexDirection="column" gap="16px" style={{opacity: detailLoading ? 0.65 : 1, transition: "opacity 120ms ease"}}>
             {kpis.upstreamCapped ? (
                 <Warning mb="0px">
-                    <b>Limited by parent project:</b> Only <b>{fmt(kpis.maxUsableAtEnd)}</b> of the {fmt(remainingActive)} remaining balance can currently be used, because a parent project does not have enough quota left.
+                    <b>Limited by parent project:</b> Only <b>{fmt(kpis.maxUsableAtEnd)}</b> of the {fmt(remainingActive)} remaining balance {isHistorical ? "was usable at period end" : "can currently be used"}, because a parent project {isHistorical ? "did" : "does"} not have enough quota left.
                 </Warning>
             ) : null}
 
             {isCapacity && capacityExcess > 0 ? (
                 <Warning mb="0px">
-                    <b>Over active quota:</b> Current usage ({fmt(kpis.activeUsageAtEnd)}) exceeds active quota ({fmt(kpis.activeQuotaAtEnd)}) by{" "}
+                    <b>Over active quota:</b> {isHistorical ? "Usage at period end" : "Current usage"} ({fmt(kpis.activeUsageAtEnd)}) exceeds active quota ({fmt(kpis.activeQuotaAtEnd)}) by{" "}
                     <b>{fmt(capacityExcess)}</b>.
                 </Warning>
             ) : null}
 
-            {kpis.nextQuotaDrop && dropRiskDays !== null ? (
+            {!isHistorical && kpis.nextQuotaDrop && dropRiskDays !== null ? (
                 <Warning mb="0px">
                     {isCapacity ? <>
                         <b>Upcoming quota drop:</b> On <b>{usageFormatShortDate(kpis.nextQuotaDrop.timestamp)}</b> (in{" "}
-                        <b>{formatNumber(dropRiskDays)} days</b>), active quota drops from{" "}
-                        {fmt(kpis.nextQuotaDrop.quotaBefore)} to <b>{fmt(kpis.nextQuotaDrop.quotaAfter)}</b>, which is below current usage of{" "}
-                        <b>{fmt(kpis.activeUsageAtEnd)}</b>.
+                        <b>{usageFormatDays(dropRiskDays)}</b>), active quota drops from{" "}
+                        {fmt(kpis.nextQuotaDrop.quotaBefore)} to <b>{fmt(kpis.nextQuotaDrop.quotaAfter)}</b>, which is below current usage.
                     </> : <>
                         <b>Upcoming quota drop:</b> On <b>{usageFormatShortDate(kpis.nextQuotaDrop.timestamp)}</b> (in{" "}
-                        <b>{formatNumber(dropRiskDays)} days</b>), active quota of{" "}
+                        <b>{usageFormatDays(dropRiskDays)}</b>), active quota of{" "}
                         <b>{fmt(kpis.nextQuotaDrop.quotaBefore)}</b> expires with no renewal in place.
                     </>}
                 </Warning>
@@ -814,9 +944,9 @@ const UsagePage: React.FunctionComponent = () => {
                     <TooltipV2 tooltip={capacityUsageTooltip}>
                         <div className="usage-kpi-item">
                             <div className="usage-kpi-title">
-                                <span>Current usage</span>
+                                <span>{isHistorical ? "Usage at period end" : "Current usage"}</span>
                                 <span style={{color: capacityExcess > 0 ? "var(--errorMain)" : undefined}}>
-                                    {capacityExcess > 0 ? "Over quota" : `${activeUtilPct.toFixed(1)}%`}
+                                    {capacityExcess > 0 ? "Over quota" : usageFormatPercent(activeUtilPct)}
                                 </span>
                             </div>
                             <div className="usage-kpi-value-row">
@@ -834,14 +964,14 @@ const UsagePage: React.FunctionComponent = () => {
                                     }}
                                 />
                             </div>
-                            <div className="usage-kpi-detail">Peak {fmt(kpis.peakUsage)}</div>
+                            <div className="usage-kpi-detail">Peak {fmt(kpis.periodUsage)}</div>
                         </div>
                     </TooltipV2>
 
                     <TooltipV2 tooltip={balanceTooltip}>
                         <div className="usage-kpi-item">
                             <div className="usage-kpi-title">
-                                <span>Active quota</span>
+                                <span>{isHistorical ? "Active quota at period end" : "Active quota"}</span>
                             </div>
                             <div className="usage-kpi-value-row">
                                 <span className="usage-kpi-primary">{fmtNum(kpis.activeQuotaAtEnd)}</span>
@@ -850,45 +980,38 @@ const UsagePage: React.FunctionComponent = () => {
                             <div className="usage-kpi-detail" style={{color: capacityExcess > 0 ? "var(--errorMain)" : (kpis.upstreamCapped ? "var(--warningMain)" : undefined)}}>
                                 {capacityExcess > 0
                                     ? `Exceeds by ${fmt(capacityExcess)}`
-                                    : `Balance ${fmt(activeBalance)}`}
+                                    : isHistorical
+                                        ? `Balance ${fmt(activeBalance)} as of ${periodEndLabel}`
+                                        : `Balance ${fmt(activeBalance)}`}
                             </div>
                         </div>
                     </TooltipV2>
 
-                    <TooltipV2 tooltip={kpis.nextQuotaDrop ? usageFormatShortDate(kpis.nextQuotaDrop.timestamp) : undefined}>
-                        <div className="usage-kpi-item">
-                            <div className="usage-kpi-title">
-                                <span>Next quota drop</span>
+                    {!isHistorical ? (
+                        <TooltipV2 tooltip={kpis.nextQuotaDrop ? usageFormatShortDate(kpis.nextQuotaDrop.timestamp) : undefined}>
+                            <div className="usage-kpi-item">
+                                <div className="usage-kpi-title">
+                                    <span>Next quota drop</span>
+                                </div>
+                                <div className="usage-kpi-value-row">
+                                    <span className="usage-kpi-primary">
+                                        {kpis.nextQuotaDrop ? usageFormatDays(usageDaysUntil(kpis.nextQuotaDrop.timestamp, now) ?? 0) : "None"}
+                                    </span>
+                                </div>
+                                <div className="usage-kpi-detail">
+                                    {kpis.nextQuotaDrop ? `Drops to ${fmt(kpis.nextQuotaDrop.quotaAfter)}` : "—"}
+                                </div>
                             </div>
-                            <div className="usage-kpi-value-row">
-                                <span className="usage-kpi-primary">
-                                    {kpis.nextQuotaDrop ? `${formatNumber(usageDaysUntil(kpis.nextQuotaDrop.timestamp, normalizedPeriod.end) ?? 0)} days` : "None"}
-                                </span>
-                            </div>
-                            <div className="usage-kpi-detail">
-                                {kpis.nextQuotaDrop ? `Drops to ${fmt(kpis.nextQuotaDrop.quotaAfter)}` : "—"}
-                            </div>
-                        </div>
-                    </TooltipV2>
+                        </TooltipV2>
+                    ) : null}
                 </> : isLifetimeConsumption ? <>
-                    <TooltipV2 tooltip={spentTooltip}>
-                        <div className="usage-kpi-item">
-                            <div className="usage-kpi-title">
-                                <span>Spent in period</span>
-                            </div>
-                            <div className="usage-kpi-value-row">
-                                <span className="usage-kpi-primary">{fmtNum(kpis.periodUsage)}</span>
-                                <span className="usage-kpi-unit">{unit.name}</span>
-                            </div>
-                            <div className="usage-kpi-detail">Avg {fmt(burnRatePerDay)}/day</div>
-                        </div>
-                    </TooltipV2>
+                    {spentKpi}
 
                     <TooltipV2 tooltip={`Active: ${fmt(kpis.activeUsageAtEnd)}, Retired: ${fmt(kpis.retiredUsageAtEnd)}`}>
                         <div className="usage-kpi-item">
                             <div className="usage-kpi-title">
-                                <span>Lifetime usage</span>
-                                <span>{totalUtilPct.toFixed(1)}%</span>
+                                <span>{isHistorical ? "Lifetime usage at period end" : "Lifetime usage"}</span>
+                                <span>{usageFormatPercent(totalUtilPct)}</span>
                             </div>
                             <div className="usage-kpi-value-row">
                                 <span className="usage-kpi-primary">{fmtNum(kpis.totalUsageAtEnd)}</span>
@@ -914,14 +1037,14 @@ const UsagePage: React.FunctionComponent = () => {
                     <TooltipV2 tooltip={`Active quota: ${fmt(kpis.activeQuotaAtEnd)}, Expired quota: ${fmt(expiredQuota)}, Balance: ${fmt(activeBalance)}`}>
                         <div className="usage-kpi-item">
                             <div className="usage-kpi-title">
-                                <span>Lifetime quota</span>
+                                <span>{isHistorical ? "Lifetime quota at period end" : "Lifetime quota"}</span>
                             </div>
                             <div className="usage-kpi-value-row">
                                 <span className="usage-kpi-primary">{fmtNum(kpis.quotaAtEnd)}</span>
                                 <span className="usage-kpi-unit">{unit.name}</span>
                             </div>
                             <div className="usage-kpi-detail">
-                                Active {fmt(kpis.activeQuotaAtEnd)}
+                                {isHistorical ? `As of ${periodEndLabel} · Active ${fmt(kpis.activeQuotaAtEnd)}` : `Active ${fmt(kpis.activeQuotaAtEnd)}`}
                             </div>
                         </div>
                     </TooltipV2>
@@ -930,7 +1053,7 @@ const UsagePage: React.FunctionComponent = () => {
                         <div className="usage-kpi-item">
                             <div className="usage-kpi-title">
                                 <span>Expired unused</span>
-                                {expiredQuota > 0 ? <span>{expiredUnusedPct.toFixed(1)}% unspent</span> : null}
+                                {expiredQuota > 0 ? <span>{usageFormatPercent(expiredUnusedPct)} unspent</span> : null}
                             </div>
                             <div className="usage-kpi-value-row">
                                 <span className="usage-kpi-primary">{fmtNum(expiredUnused)}</span>
@@ -942,24 +1065,13 @@ const UsagePage: React.FunctionComponent = () => {
                         </div>
                     </TooltipV2>
                 </> : <>
-                    <TooltipV2 tooltip={spentTooltip}>
-                        <div className="usage-kpi-item">
-                            <div className="usage-kpi-title">
-                                <span>Spent in period</span>
-                            </div>
-                            <div className="usage-kpi-value-row">
-                                <span className="usage-kpi-primary">{fmtNum(kpis.periodUsage)}</span>
-                                <span className="usage-kpi-unit">{unit.name}</span>
-                            </div>
-                            <div className="usage-kpi-detail">Avg {fmt(burnRatePerDay)}/day</div>
-                        </div>
-                    </TooltipV2>
+                    {spentKpi}
 
                     <TooltipV2 tooltip={balanceTooltip}>
                         <div className="usage-kpi-item">
                             <div className="usage-kpi-title">
-                                <span>Active usage</span>
-                                <span>{activeUtilPct.toFixed(1)}%</span>
+                                <span>{isHistorical ? "Active usage at period end" : "Active usage"}</span>
+                                <span>{usageFormatPercent(activeUtilPct)}</span>
                             </div>
                             <div className="usage-kpi-value-row">
                                 <span className="usage-kpi-primary">{fmtNum(kpis.activeUsageAtEnd)}</span>
@@ -980,10 +1092,10 @@ const UsagePage: React.FunctionComponent = () => {
                         </div>
                     </TooltipV2>
 
-                    <TooltipV2 tooltip={quotaExpiryTooltip}>
+                    <TooltipV2 tooltip={isHistorical ? undefined : quotaExpiryTooltip}>
                         <div className="usage-kpi-item">
                             <div className="usage-kpi-title">
-                                <span>Active quota</span>
+                                <span>{isHistorical ? "Active quota at period end" : "Active quota"}</span>
                             </div>
                             <div className="usage-kpi-value-row">
                                 <span className="usage-kpi-primary">{fmtNum(kpis.activeQuotaAtEnd)}</span>
@@ -992,23 +1104,27 @@ const UsagePage: React.FunctionComponent = () => {
                             <div className="usage-kpi-detail" style={{color: kpis.upstreamCapped ? "var(--warningMain)" : undefined}}>
                                 {kpis.upstreamCapped
                                     ? `Usable balance ${fmt(kpis.maxUsableAtEnd)}`
-                                    : daysToExpiry !== null
-                                        ? `Next expiry ${formatNumber(daysToExpiry)}d`
-                                        : "No upcoming expiry"}
+                                    : isHistorical
+                                        ? `As of ${periodEndLabel}`
+                                        : daysToExpiry !== null
+                                            ? `Next expiry ${formatNumber(daysToExpiry)}d`
+                                            : "No upcoming expiry"}
                             </div>
                         </div>
                     </TooltipV2>
 
                     <div className="usage-kpi-item">
                         <div className="usage-kpi-title">
-                            <span>Est. runway</span>
+                            <TooltipV2 tooltip="Usable balance divided by average daily usage in the selected period. The estimate assumes quota stays unchanged.">
+                                <span>Est. balance runway</span>
+                            </TooltipV2>
                         </div>
                         <div className="usage-kpi-value-row">
                             <span className="usage-kpi-primary">
-                                {daysToDepletion === null ? "—" : `${formatNumber(daysToDepletion)} days`}
+                                {daysToDepletion === null ? "—" : usageFormatDays(daysToDepletion)}
                             </span>
                         </div>
-                        <div className="usage-kpi-detail">{runwaySub}</div>
+                        <div className="usage-kpi-detail">{isHistorical ? "At the selected period’s burn rate" : runwaySub}</div>
                     </div>
                 </>}
 
@@ -1018,8 +1134,8 @@ const UsagePage: React.FunctionComponent = () => {
                             <div className="usage-kpi-title">
                                 <span>{isLifetimeConsumption ? "Total granted to children" : "Granted to children"}</span>
                                 {isLifetimeConsumption
-                                    ? (kpis.quotaAtEnd > 0 ? <span>{overCommitTotal.toFixed(1)}x of quota</span> : null)
-                                    : (kpis.activeQuotaAtEnd > 0 ? <span>{overCommitActive.toFixed(1)}x of quota</span> : null)}
+                                    ? (kpis.quotaAtEnd > 0 ? <span>{formatNumber(overCommitTotal, {precision: 1})}x of quota</span> : null)
+                                    : (kpis.activeQuotaAtEnd > 0 ? <span>{formatNumber(overCommitActive, {precision: 1})}x of quota</span> : null)}
                             </div>
                             <div className="usage-kpi-value-row">
                                 <span className="usage-kpi-primary">
@@ -1043,17 +1159,17 @@ const UsagePage: React.FunctionComponent = () => {
                     </TooltipV2>
                 ) : null}
 
-                {hasSubAllocators ? (
+                {subAllocators.length > 0 ? (
                     <div className="usage-kpi-item">
                         <div className="usage-kpi-title">
                             <span>Re-allocated to sub-children</span>
                         </div>
                         <div className="usage-kpi-value-row">
-                            <span className="usage-kpi-primary">{fmtNum(kpis.downstreamActiveAllocated)}</span>
+                            <span className="usage-kpi-primary">{fmtNum(downstreamActiveAllocated)}</span>
                             <span className="usage-kpi-unit">{unit.name}</span>
                         </div>
                         <div className="usage-kpi-detail">
-                            By {formatNumber(detail.subProjectSummary.subAllocatorCount)} sub-allocator{detail.subProjectSummary.subAllocatorCount === 1 ? "" : "s"}
+                            By {formatNumber(subAllocators.length)} sub-allocator{subAllocators.length === 1 ? "" : "s"}
                         </div>
                     </div>
                 ) : null}
@@ -1064,43 +1180,7 @@ const UsagePage: React.FunctionComponent = () => {
                     <div className="usage-section-head">
                         <h3>Usage over time</h3>
                         <Flex alignItems="center" gap="8px" flexWrap="wrap">
-                            {pinnedChildren.length > 0 ? (
-                                <Button color="ghost" onClick={() => setPinnedChildren([])}>
-                                    Clear pinned ({pinnedChildren.length})
-                                </Button>
-                            ) : null}
-                            {showBreakdownSwitcher ? (
-                                <div className="usage-mode-row">
-                                    <button
-                                        type="button"
-                                        className="usage-mode-button"
-                                        aria-pressed={effectiveSeriesMode === "total"}
-                                        onClick={() => setSeriesModeOverride("total")}
-                                    >
-                                        {pinnedChildren.length > 0 ? "Pinned" : "Total"}
-                                    </button>
-                                    {hasMultipleProducts ? (
-                                        <button
-                                            type="button"
-                                            className="usage-mode-button"
-                                            aria-pressed={effectiveSeriesMode === "product"}
-                                            onClick={() => setSeriesModeOverride("product")}
-                                        >
-                                            By product
-                                        </button>
-                                    ) : null}
-                                    {subProjectCount > 0 ? (
-                                        <button
-                                            type="button"
-                                            className="usage-mode-button"
-                                            aria-pressed={effectiveSeriesMode === "child"}
-                                            onClick={() => setSeriesModeOverride("child")}
-                                        >
-                                            {isLargeGrantAllocator ? "Top sub-projects" : "By sub-project"}
-                                        </button>
-                                    ) : null}
-                                </div>
-                            ) : null}
+                            {seriesModeControls}
                         </Flex>
                     </div>
                     <UsageCapacityOccupancyChart
@@ -1137,72 +1217,27 @@ const UsagePage: React.FunctionComponent = () => {
                             <div className="usage-section-head">
                                 <h3>Consumption rate</h3>
                                 <Flex alignItems="center" gap="8px" flexWrap="wrap">
-                                    {pinnedChildren.length > 0 ? (
-                                        <Button color="ghost" onClick={() => setPinnedChildren([])}>
-                                            Clear pinned ({pinnedChildren.length})
-                                        </Button>
-                                    ) : null}
-                                    {showBreakdownSwitcher ? (
-                                        <div className="usage-mode-row">
-                                            <button
-                                                type="button"
-                                                className="usage-mode-button"
-                                                aria-pressed={effectiveSeriesMode === "total"}
-                                                onClick={() => setSeriesModeOverride("total")}
-                                            >
-                                                {pinnedChildren.length > 0 ? "Pinned" : "Total"}
-                                            </button>
-                                            {hasMultipleProducts ? (
-                                                <button
-                                                    type="button"
-                                                    className="usage-mode-button"
-                                                    aria-pressed={effectiveSeriesMode === "product"}
-                                                    onClick={() => setSeriesModeOverride("product")}
-                                                >
-                                                    By product
-                                                </button>
-                                            ) : null}
-                                            {subProjectCount > 0 ? (
-                                                <button
-                                                    type="button"
-                                                    className="usage-mode-button"
-                                                    aria-pressed={effectiveSeriesMode === "child"}
-                                                    onClick={() => setSeriesModeOverride("child")}
-                                                >
-                                                    {isLargeGrantAllocator ? "Top sub-projects" : "By sub-project"}
-                                                </button>
-                                            ) : null}
-                                        </div>
-                                    ) : null}
-                                    <TooltipV2 tooltip="Expand chart">
-                                        <button
-                                            type="button"
-                                            className={UcxTableIconButtonClass}
-                                            aria-label="Expand consumption rate chart"
-                                            onClick={() => openUsageChartDialog("Consumption rate", (w, h) => (
-                                                <UsageConsumptionRateChart
-                                                    detail={detail}
-                                                    unit={unit}
-                                                    width={w}
-                                                    height={h}
-                                                    seriesMode={effectiveSeriesMode}
-                                                    pinnedChildren={pinnedChildren}
-                                                    highlightedKey={null}
-                                                    onHighlightKey={() => void 0}
-                                                    labelForKey={labelForKey}
-                                                />
-                                            ))}
-                                        >
-                                            <Icon name="heroArrowsPointingOut" size={15} />
-                                        </button>
-                                    </TooltipV2>
+                                    {seriesModeControls}
+                                    <UsageChartExpandButton title="Consumption rate" renderContent={(w, h) =>
+                                        <UsageConsumptionRateChart
+                                            detail={detail}
+                                            unit={unit}
+                                            width={w}
+                                            height={h}
+                                            seriesMode={effectiveSeriesMode}
+                                            pinnedChildren={pinnedChildren}
+                                            highlightedKey={null}
+                                            onHighlightKey={() => void 0}
+                                            labelForKey={labelForKey}
+                                        />
+                                    } />
                                 </Flex>
                             </div>
                             <UsageConsumptionRateChart
                                 detail={detail}
                                 unit={unit}
-                                width={rateChartWidth}
-                                height={rateChartHeight}
+                                width={pairedChartWidth}
+                                height={pairedChartHeight}
                                 seriesMode={effectiveSeriesMode}
                                 pinnedChildren={pinnedChildren}
                                 highlightedKey={highlightedKey}
@@ -1214,33 +1249,24 @@ const UsagePage: React.FunctionComponent = () => {
                         <div className="usage-chart-col">
                             <div className="usage-section-head">
                                 <h3>{effectiveIncludeRetired ? "Lifetime cumulative usage" : "Cumulative usage"}</h3>
-                                <TooltipV2 tooltip="Expand chart">
-                                    <button
-                                        type="button"
-                                        className={UcxTableIconButtonClass}
-                                        aria-label="Expand cumulative usage chart"
-                                        onClick={() => openUsageChartDialog(
-                                            effectiveIncludeRetired ? "Lifetime cumulative usage" : "Cumulative usage",
-                                            (w, h) => (
-                                                <UsageConsumptionBurnupChart
-                                                    detail={detail}
-                                                    unit={unit}
-                                                    width={w}
-                                                    height={h}
-                                                    includeRetired={effectiveIncludeRetired}
-                                                />
-                                            ),
-                                        )}
-                                    >
-                                        <Icon name="heroArrowsPointingOut" size={15} />
-                                    </button>
-                                </TooltipV2>
+                                <UsageChartExpandButton
+                                    title={effectiveIncludeRetired ? "Lifetime cumulative usage" : "Cumulative usage"}
+                                    renderContent={(w, h) =>
+                                        <UsageConsumptionBurnupChart
+                                            detail={detail}
+                                            unit={unit}
+                                            width={w}
+                                            height={h}
+                                            includeRetired={effectiveIncludeRetired}
+                                        />
+                                    }
+                                />
                             </div>
                             <UsageConsumptionBurnupChart
                                 detail={detail}
                                 unit={unit}
-                                width={burnupChartWidth}
-                                height={burnupChartHeight}
+                                width={pairedChartWidth}
+                                height={pairedChartHeight}
                                 includeRetired={effectiveIncludeRetired}
                             />
                         </div>
@@ -1252,12 +1278,14 @@ const UsagePage: React.FunctionComponent = () => {
                 <section className="usage-section">
                     <UsageSubProjectTable
                         rows={detail.children ?? []}
-                        utilizationBuckets={detail.subProjectSummary.utilizationBuckets ?? []}
                         accountingModel={detail.accountingModel}
                         unit={unit}
                         includeRetired={effectiveIncludeRetired}
+                        isHistorical={isHistorical}
+                        hasProductBreakdown={hasProductBreakdown}
                         hideLocal={hideLocal}
-                        periodEnd={normalizedPeriod.end}
+                        periodEnd={isHistorical ? normalizedPeriod.end : now}
+                        reportPeriod={normalizedPeriod}
                         chartWidth={chartWidth}
                         bucketFilter={bucketFilter}
                         onSelectBucket={setBucketFilter}
@@ -1269,11 +1297,11 @@ const UsagePage: React.FunctionComponent = () => {
                         exportTitle={(detail.productsCovered?.length ?? 0) === 1
                             ? productCategoryDisplayName(detail.productsCovered[0])
                             : detail.title}
-                        workspaceTitle={project.fetch().specification.title}
-                        beforeSubProjects={inferenceSection}
+                        workspaceTitle={workspaceReady ? workspaceName : ""}
+                        beforeSubProjects={productSpecificSection}
                     />
                 </section>
-            ) : inferenceSection}
+            ) : productSpecificSection}
         </Flex>;
     };
 
@@ -1281,7 +1309,7 @@ const UsagePage: React.FunctionComponent = () => {
         main={<div className={PageStyle}>
             <Flex flexDirection="column" gap="20px">
                 <Flex alignItems="center" gap="12px" flexWrap="wrap">
-                    <h3 className="title" style={{margin: 0}}>Usage report</h3>
+                    <h3 style={{margin: 0}}>Usage report</h3>
                     <Box flexGrow={1} />
                     <ProjectSwitcher />
                 </Flex>
@@ -1290,25 +1318,28 @@ const UsagePage: React.FunctionComponent = () => {
                     <PeriodFilter
                         value={dateRange}
                         onChange={setDateRange}
+                        title="Report period"
+                        ariaLabel="Choose report period"
+                        presets={USAGE_PERIOD_PRESETS}
+                        maxDate={maxReportDate}
                     />
 
                     <Box flexGrow={1} />
 
-                    <Button height={35} onClick={exportAll} disabled={overviewGroups.length === 0}>
+                    <Button height={35} onClick={exportAll} disabled={!workspaceReady || overviewLoading || detailLoading || !detail || overviewGroups.length === 0}>
                         <Icon name="heroArrowDownTray" mr={8} />
                         Export all
                     </Button>
                 </div>
 
-                {(normalizedPeriod.start < new Date("2026-01-28").getTime() ||
-                    normalizedPeriod.end < new Date("2026-01-28").getTime()) ? (
+                {normalizedPeriod.start < INCOMPLETE_HISTORY_CUTOFF ? (
                     <Warning mb="0px">
-                        Data prior to 28/01/2026 is incomplete due to the historic data being produced by an older
+                        Data prior to {usageFormatShortDate(INCOMPLETE_HISTORY_CUTOFF, "UTC")} is incomplete due to the historic data being produced by an older
                         version of UCloud.
                     </Warning>
                 ) : null}
 
-                {overviewLoading ? (
+                {overviewLoading || !workspaceReady ? (
                     <HexSpin />
                 ) : overviewError ? (
                     <div>{overviewError}</div>
@@ -1321,8 +1352,9 @@ const UsagePage: React.FunctionComponent = () => {
                         unitGroups={overviewGroups}
                         selectedUnitKey={selectedUnitKey}
                         selectedProductKeys={selectedProductKeys}
-                        includeRetired={effectiveIncludeRetired}
-                        periodEnd={normalizedPeriod.end}
+                        includeRetired={includeRetired}
+                        isHistorical={isHistorical}
+                        periodEnd={isHistorical ? normalizedPeriod.end : now}
                         onSelectUnit={handleSelectUnit}
                         onToggleProduct={handleToggleOverviewProduct}
                     />
@@ -1346,7 +1378,7 @@ const UsagePage: React.FunctionComponent = () => {
                             })}
                         </div>
 
-                        <Flex ml="auto" mb="6px" alignItems="center" gap="16px" flexWrap="wrap">
+                        <Flex ml="auto" alignItems="center" gap="16px" flexWrap="wrap">
                             <TooltipV2
                                 tooltip={isCapacityGroup
                                     ? "Lifetime usage only applies to consumption-based resources. Capacity resources always show current usage."
@@ -1363,9 +1395,7 @@ const UsagePage: React.FunctionComponent = () => {
                                         className="usage-toggle-label"
                                         data-active={!effectiveIncludeRetired ? "true" : undefined}
                                         disabled={isCapacityGroup}
-                                        onClick={() => {
-                                            if (!isCapacityGroup) setIncludeRetired(false);
-                                        }}
+                                        onClick={() => setIncludeRetired(false)}
                                     >
                                         Active usage
                                     </button>
@@ -1384,9 +1414,7 @@ const UsagePage: React.FunctionComponent = () => {
                                         className="usage-toggle-label"
                                         data-active={effectiveIncludeRetired ? "true" : undefined}
                                         disabled={isCapacityGroup}
-                                        onClick={() => {
-                                            if (!isCapacityGroup) setIncludeRetired(true);
-                                        }}
+                                        onClick={() => setIncludeRetired(true)}
                                     >
                                         Lifetime usage
                                     </button>
@@ -1444,7 +1472,7 @@ const UsagePage: React.FunctionComponent = () => {
 
                     {detailLoading && !detail ? (
                         <HexSpin />
-                    ) : detailError ? (
+                    ) : detailError && !detailLoading ? (
                         <div>{detailError}</div>
                     ) : detail && !detail.hasData ? (
                         <div>No usage data for this period.</div>

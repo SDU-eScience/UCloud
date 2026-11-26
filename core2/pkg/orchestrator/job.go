@@ -108,6 +108,8 @@ func initJobs() {
 
 	go jobNotificationsLoopSendPending()
 
+	jobInitUsageBreakdown()
+
 	orcapi.JobsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
 		created, err := JobCreate(info.Actor, request)
 		if err != nil {

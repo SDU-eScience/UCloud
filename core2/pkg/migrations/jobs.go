@@ -16,3 +16,29 @@ func jobsV1() db.MigrationScript {
 		},
 	}
 }
+
+func jobsV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "jobsV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create index if not exists resource_jobs_project_created_idx
+					on provider.resource (project, created_at)
+					where type = 'job' and project is not null
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create index if not exists resource_jobs_user_created_idx
+					on provider.resource (created_by, created_at)
+					where type = 'job' and project is null
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

@@ -3,9 +3,12 @@ package accounting
 import (
 	"cmp"
 	"fmt"
+	"math"
 	"slices"
+	"strings"
 	"time"
 
+	"golang.org/x/text/currency"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
@@ -19,25 +22,22 @@ type usageAllocWindow struct {
 	RetiredQuota int64
 	RetiredUsage int64
 	Retired      bool
-	Active       bool
 }
 
 type usageSubAllocatorLive struct {
-	ActiveDownstreamCount     int
 	DownstreamActiveAllocated int64
 	DirectUsage               int64
 	DownstreamUsage           int64
 }
 
 type usageLiveChildInfo struct {
-	ChildWalletId     AccWalletId
-	ChildKey          string
 	TreeUsage         int64
 	ActiveUsage       int64
 	ActiveQuota       int64
 	Quota             int64
 	RetiredUsage      int64
 	NextExpiration    util.Option[time.Time]
+	AllAllocations    []usageAllocWindow
 	ActiveAllocations []usageAllocWindow
 	IsSubAllocator    bool
 	SubAllocator      usageSubAllocatorLive
@@ -87,8 +87,6 @@ type usageChildAccumulator struct {
 	IsLocal            bool
 	IsSubAllocator     bool
 	PeriodUsage        int64
-	CurrentUsage       int64
-	PeakUsage          int64
 	ActiveUsage        int64
 	ActiveQuota        int64
 	Quota              int64
@@ -115,16 +113,18 @@ func usageResolveActorReference(info rpc.RequestInfo) string {
 	return reference
 }
 
-func usageNormalizeRequestWindow(startMs uint64, endMs uint64, now time.Time) (time.Time, time.Time) {
+func usageNormalizeRequestWindow(startMs uint64, endMs uint64, now time.Time) (time.Time, time.Time, bool) {
 	startTime := fndapi.TimeFromUnixMilli(startMs).Time().UTC()
-	endTime := fndapi.TimeFromUnixMilli(endMs).Time().UTC()
+	rawEndTime := fndapi.TimeFromUnixMilli(endMs).Time().UTC()
+	includeLive := !rawEndTime.Before(now)
+	endTime := rawEndTime
 	if endTime.After(now) {
 		endTime = now
 	}
 	if endTime.Before(startTime) {
 		endTime = startTime
 	}
-	return startTime, endTime
+	return startTime, endTime, includeLive
 }
 
 func usageDescribeUnitGroup(cat accapi.ProductCategory) usageUnitGroupDescriptor {
@@ -137,26 +137,61 @@ func usageDescribeUnitGroup(cat accapi.ProductCategory) usageUnitGroupDescriptor
 		}
 	}
 
-	title := cat.AccountingUnit.NamePlural
-	if title == "" {
-		title = cat.AccountingUnit.Name
+	unit := cat.AccountingUnit
+	if unit.NamePlural == "" {
+		unit.NamePlural = unit.Name
 	}
+	unitName := unit.NamePlural
 	if cat.AccountingFrequency.IsPeriodic() && cat.AccountingUnit.DisplayFrequencySuffix {
 		suffix := "days"
 		if desiredFreq == accapi.AccountingFrequencyPeriodicHour {
 			suffix = "hours"
 		}
-		title = fmt.Sprintf("%s-%s", cat.AccountingUnit.Name, suffix)
+		unitName = fmt.Sprintf("%s-%s", cat.AccountingUnit.Name, suffix)
+	}
+
+	title := unitName
+	currencyCode := strings.ToUpper(unit.Name)
+	_, currencyErr := currency.ParseISO(currencyCode)
+	if currencyErr == nil && currencyCode != "XXX" && currencyCode != "XTS" {
+		productType := strings.ToLower(string(cat.ProductType))
+		productLabel := productType
+		if productLabel != "" {
+			productLabel = strings.ToUpper(productType[:1]) + productType[1:]
+		}
+		switch cat.ProductType {
+		case accapi.ProductTypeInference:
+			productLabel = "AI inference"
+		case accapi.ProductTypeIngress:
+			productLabel = "Links"
+		case accapi.ProductTypeNetworkIp:
+			productLabel = "IPs"
+		case accapi.ProductTypePrivateNetwork:
+			productLabel = "Private network"
+		case accapi.ProductTypePrivateNetworkIp:
+			productLabel = "Private network IPs"
+		}
+		title = fmt.Sprintf("%s (%s)", productLabel, currencyCode)
+		unit.Name = currencyCode
+		unit.NamePlural = currencyCode
+	} else {
+		switch cat.ProductType {
+		case accapi.ProductTypeStorage:
+			if !cat.AccountingFrequency.IsPeriodic() || !cat.AccountingUnit.DisplayFrequencySuffix {
+				unitName = cat.AccountingUnit.Name
+			}
+			title = fmt.Sprintf("Storage (%s)", unitName)
+		case accapi.ProductTypeInference:
+			title = "AI " + unitName
+		}
 	}
 
 	key := fmt.Sprintf(
-		"%s/%s/%s/%t/%t/%s/%s",
+		"%s/%s/%s/%t/%s",
 		cat.AccountingModel,
-		cat.AccountingUnit.Name,
+		unit.Name,
 		desiredFreq,
-		cat.AccountingUnit.FloatingPoint,
 		cat.AccountingUnit.DisplayFrequencySuffix,
-		cat.Provider,
 		cat.ProductType,
 	)
 
@@ -165,7 +200,7 @@ func usageDescribeUnitGroup(cat accapi.ProductCategory) usageUnitGroupDescriptor
 		BaseTitle:       title,
 		AccountingModel: cat.AccountingModel,
 		ProductType:     cat.ProductType,
-		Unit:            cat.AccountingUnit,
+		Unit:            unit,
 	}
 }
 
@@ -266,7 +301,6 @@ func usageCollectLiveWalletState(
 				RetiredQuota: alloc.RetiredQuota,
 				RetiredUsage: alloc.RetiredUsage,
 				Retired:      alloc.Retired,
-				Active:       alloc.Active,
 			})
 			if alloc.Active && !alloc.Retired && alloc.Quota > minMeaningful {
 				if !nextExpiry.Present || alloc.End.Before(nextExpiry.Value) {
@@ -306,24 +340,28 @@ func usageCollectLiveWalletState(
 				childActiveUsage = group.TreeUsage
 			}
 			childActiveQuota := lInternalGroupTotalQuotaFromActiveAllocations(b, group)
-			childQuota := lInternalGroupTotalQuotaContributing(b, group)
+			childQuota := lUsageGroupTotalGrantedQuota(b, group)
 			childExpiry := usageFindNextMeaningfulExpiration(b, group)
 
+			var childAllAllocs []usageAllocWindow
 			var childAllocs []usageAllocWindow
 			for allocId := range group.Allocations {
 				alloc := b.AllocationsById[allocId]
-				if alloc == nil || !alloc.Committed || alloc.Retired || !alloc.End.After(now) || alloc.Quota <= 0 {
+				if alloc == nil || !alloc.Committed {
 					continue
 				}
-				childAllocs = append(childAllocs, usageAllocWindow{
+				win := usageAllocWindow{
 					Start:        alloc.Start,
 					End:          alloc.End,
 					Quota:        alloc.Quota,
 					RetiredQuota: alloc.RetiredQuota,
 					RetiredUsage: alloc.RetiredUsage,
 					Retired:      alloc.Retired,
-					Active:       alloc.Active,
-				})
+				}
+				childAllAllocs = append(childAllAllocs, win)
+				if !alloc.Retired && alloc.End.After(now) && alloc.Quota > 0 {
+					childAllocs = append(childAllocs, win)
+				}
 			}
 
 			isSubAllocator := false
@@ -350,7 +388,6 @@ func usageCollectLiveWalletState(
 				}
 				subAgg.DownstreamUsage += grandActiveUsage
 				if grandActiveQuota > 0 || grandActiveUsage > 0 {
-					subAgg.ActiveDownstreamCount++
 					subAgg.DownstreamActiveAllocated += grandActiveQuota
 				}
 			}
@@ -363,14 +400,13 @@ func usageCollectLiveWalletState(
 
 			childrenByWallet[childId] = owner.Reference
 			children[owner.Reference] = usageLiveChildInfo{
-				ChildWalletId:     childId,
-				ChildKey:          owner.Reference,
 				TreeUsage:         group.TreeUsage,
 				ActiveUsage:       childActiveUsage,
 				ActiveQuota:       childActiveQuota,
 				Quota:             childQuota,
 				RetiredUsage:      childRetired,
 				NextExpiration:    childExpiry,
+				AllAllocations:    childAllAllocs,
 				ActiveAllocations: childAllocs,
 				IsSubAllocator:    isSubAllocator,
 				SubAllocator:      subAgg,
@@ -385,10 +421,10 @@ func usageCollectLiveWalletState(
 		LocalUsage:               w.LocalUsage,
 		ActiveUsage:              activeUsage,
 		RetiredUsage:             retiredTotal,
-		Quota:                    lInternalWalletTotalQuotaContributing(b, w),
+		Quota:                    lUsageWalletTotalGrantedQuota(b, w),
 		ActiveQuota:              activeQuota,
 		MaxUsable:                lInternalMaxUsable(b, now, w),
-		TotalAllocated:           lInternalWalletTotalAllocatedContributing(b, w),
+		TotalAllocated:           lUsageWalletTotalGrantedAllocated(b, w),
 		ActiveAllocated:          lUsageWalletActiveAllocated(b, w),
 		NextMeaningfulExpiration: nextExpiry,
 		IncomingAllocations:      incoming,
@@ -462,7 +498,11 @@ func usageBuildActorUnitGroups(
 			continue
 		}
 
-		reports := usageRetrieveHistoricReports(startTime, endTime, cand.WalletId)
+		reportFetchUntil := util.StartOfDayUTC(endTime).AddDate(0, 0, 1)
+		reports := usageRetrieveHistoricReports(startTime, reportFetchUntil, cand.WalletId)
+		for len(reports) > 0 && reports[len(reports)-1].ValidFrom.After(endTime) {
+			reports = reports[:len(reports)-1]
+		}
 		hasAllocOrUsage := len(live.IncomingAllocations) > 0 || live.TotalUsage > 0 || live.TotalAllocated > 0
 		if !hasAllocOrUsage {
 			continue
@@ -476,13 +516,13 @@ func usageBuildActorUnitGroups(
 			}
 			groupsByKey[desc.Key] = entry
 		} else {
+			entry.Descriptor.Unit.FloatingPoint = entry.Descriptor.Unit.FloatingPoint || desc.Unit.FloatingPoint
+			entry.Descriptor.Unit.NamePlural = min(entry.Descriptor.Unit.NamePlural, desc.Unit.NamePlural)
+			entry.Descriptor.BaseTitle = min(entry.Descriptor.BaseTitle, desc.BaseTitle)
 			if cand.Category.AccountingFrequency.IsPeriodic() &&
 				entry.GroupFrequency.IsPeriodic() &&
 				cand.Category.AccountingFrequency.ToSeconds() < entry.GroupFrequency.ToSeconds() {
 				entry.GroupFrequency = cand.Category.AccountingFrequency
-			}
-			if usageProductTypePriority(cand.Category.ProductType) < usageProductTypePriority(entry.Descriptor.ProductType) {
-				entry.Descriptor.ProductType = cand.Category.ProductType
 			}
 		}
 
@@ -506,6 +546,9 @@ func usageBuildActorUnitGroups(
 					scale = max(int64(1), cat.AccountingFrequency.ToSeconds()/denom)
 				}
 			}
+			if entry.Descriptor.Unit.FloatingPoint && !cat.AccountingUnit.FloatingPoint {
+				scale *= 1_000_000
+			}
 			entry.Wallets[i].ScaleFactor = scale
 		}
 
@@ -513,30 +556,10 @@ func usageBuildActorUnitGroups(
 			if c := cmp.Compare(a.Live.Category.Provider, b.Live.Category.Provider); c != 0 {
 				return c
 			}
-			if c := cmp.Compare(
-				usageProductTypePriority(a.Live.Category.ProductType),
-				usageProductTypePriority(b.Live.Category.ProductType),
-			); c != 0 {
-				return c
-			}
 			return cmp.Compare(a.Live.Category.Name, b.Live.Category.Name)
 		})
 
 		result = append(result, entry)
-	}
-
-	titleCounts := map[string]int{}
-	for _, entry := range result {
-		titleCounts[entry.Descriptor.BaseTitle]++
-	}
-	for _, entry := range result {
-		if titleCounts[entry.Descriptor.BaseTitle] > 1 {
-			modelLabel := "Consumption"
-			if entry.Descriptor.AccountingModel == accapi.AccountingModelCapacity {
-				modelLabel = "Capacity"
-			}
-			entry.Descriptor.BaseTitle = fmt.Sprintf("%s (%s)", entry.Descriptor.BaseTitle, modelLabel)
-		}
 	}
 
 	slices.SortFunc(result, func(a, b *usageUnitGroupEntry) int {
@@ -549,7 +572,10 @@ func usageBuildActorUnitGroups(
 		if c := cmp.Compare(a.Descriptor.AccountingModel, b.Descriptor.AccountingModel); c != 0 {
 			return c
 		}
-		return cmp.Compare(a.Descriptor.BaseTitle, b.Descriptor.BaseTitle)
+		if c := cmp.Compare(a.Descriptor.BaseTitle, b.Descriptor.BaseTitle); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Descriptor.Key, b.Descriptor.Key)
 	})
 
 	return result
@@ -584,11 +610,30 @@ func usageAllocRetiredUsageAt(allocs []usageAllocWindow, isCapacity bool, at tim
 	return sum
 }
 
+func usageAllocTotalQuotaAt(allocs []usageAllocWindow, isCapacity bool, at time.Time) int64 {
+	if isCapacity {
+		return usageAllocActiveQuotaAt(allocs, at)
+	}
+	sum := int64(0)
+	for _, alloc := range allocs {
+		if alloc.Start.After(at) {
+			continue
+		}
+		if alloc.Retired && alloc.RetiredQuota > 0 {
+			sum += alloc.RetiredQuota
+		} else {
+			sum += alloc.Quota
+		}
+	}
+	return sum
+}
+
 func usageHydrateWalletSeries(
 	w usageWalletWithScale,
 	startTime time.Time,
 	endTime time.Time,
 	now time.Time,
+	includeLive bool,
 ) ([]internalUsageWalletSample, bool) {
 	isCapacity := w.Live.Category.AccountingModel == accapi.AccountingModelCapacity
 	scale := w.ScaleFactor
@@ -597,20 +642,37 @@ func usageHydrateWalletSeries(
 
 	for _, r := range w.Reports {
 		if r.Format >= usageReportFormatV2 && len(r.UsageOverTime.WalletSeries) > 0 {
-			for _, pt := range r.UsageOverTime.WalletSeries {
+			for i, pt := range r.UsageOverTime.WalletSeries {
+				if pt.Timestamp.After(endTime) {
+					continue
+				}
+				totalAllocated := pt.TotalAllocated
+				if totalAllocated == nil && i == len(r.UsageOverTime.WalletSeries)-1 {
+					totalAllocated = &r.Kpis.TotalAllocatedAtEnd
+				}
+				if totalAllocated != nil {
+					totalAllocated = util.Pointer(*totalAllocated * scale)
+				}
+				sampleQuota := pt.Quota
+				if !isCapacity {
+					grantedQuota := usageAllocTotalQuotaAt(w.Live.IncomingAllocations, isCapacity, pt.Timestamp)
+					if grantedQuota > sampleQuota {
+						sampleQuota = grantedQuota
+					}
+				}
 				samples = append(samples, internalUsageWalletSample{
 					Timestamp:        pt.Timestamp,
 					TotalUsage:       pt.TotalUsage * scale,
 					LocalUsage:       pt.LocalUsage * scale,
 					ActiveUsage:      pt.ActiveUsage * scale,
 					RetiredUsage:     pt.RetiredUsage * scale,
-					Quota:            pt.Quota * scale,
+					Quota:            sampleQuota * scale,
 					ActiveQuota:      pt.ActiveQuota * scale,
 					MaxUsable:        pt.MaxUsable * scale,
 					ActiveAllocated:  pt.ActiveAllocated * scale,
+					TotalAllocated:   totalAllocated,
 					UsageChange:      pt.UsageChange * scale,
 					LocalUsageChange: pt.LocalUsageChange * scale,
-					FlowShift:        pt.FlowShift * scale,
 				})
 			}
 			continue
@@ -628,6 +690,13 @@ func usageHydrateWalletSeries(
 		if !isCapacity {
 			startActiveUsage = max(int64(0), r.Kpis.TotalUsageAtStart-startRetired)
 		}
+		startQuota := r.Kpis.QuotaAtStart
+		if !isCapacity {
+			grantedStartQuota := usageAllocTotalQuotaAt(w.Live.IncomingAllocations, isCapacity, r.ValidFrom)
+			if grantedStartQuota > startQuota {
+				startQuota = grantedStartQuota
+			}
+		}
 
 		samples = append(samples, internalUsageWalletSample{
 			Timestamp:       r.ValidFrom,
@@ -635,13 +704,17 @@ func usageHydrateWalletSeries(
 			LocalUsage:      r.Kpis.LocalUsageAtStart * scale,
 			ActiveUsage:     startActiveUsage * scale,
 			RetiredUsage:    startRetired * scale,
-			Quota:           r.Kpis.QuotaAtStart * scale,
+			Quota:           startQuota * scale,
 			ActiveQuota:     startActiveQuota * scale,
 			MaxUsable:       r.Kpis.MaxUsableAtStart * scale,
 			ActiveAllocated: r.Kpis.TotalAllocatedAtStart * scale,
+			TotalAllocated:  util.Pointer(r.Kpis.TotalAllocatedAtStart * scale),
 		})
 
 		for _, pt := range r.UsageOverTime.Absolute {
+			if pt.Timestamp.After(endTime) {
+				continue
+			}
 			retiredAt := usageAllocRetiredUsageAt(w.Live.IncomingAllocations, isCapacity, pt.Timestamp)
 			if retiredAt > pt.Usage {
 				retiredAt = pt.Usage
@@ -654,22 +727,32 @@ func usageHydrateWalletSeries(
 			if !isCapacity {
 				activeUsageAt = max(int64(0), pt.Usage-retiredAt)
 			}
+			quotaAt := pt.Quota
+			if !isCapacity {
+				grantedQuotaAt := usageAllocTotalQuotaAt(w.Live.IncomingAllocations, isCapacity, pt.Timestamp)
+				if grantedQuotaAt > quotaAt {
+					quotaAt = grantedQuotaAt
+				}
+			}
 			samples = append(samples, internalUsageWalletSample{
 				Timestamp:       pt.Timestamp,
 				TotalUsage:      pt.Usage * scale,
 				LocalUsage:      r.Kpis.LocalUsageAtEnd * scale,
 				ActiveUsage:     activeUsageAt * scale,
 				RetiredUsage:    retiredAt * scale,
-				Quota:           pt.Quota * scale,
+				Quota:           quotaAt * scale,
 				ActiveQuota:     activeQuotaAt * scale,
 				MaxUsable:       r.Kpis.MaxUsableAtEnd * scale,
 				ActiveAllocated: r.Kpis.TotalAllocatedAtEnd * scale,
 			})
 		}
 
-		endTs := r.ValidUntil.GetOrDefault(r.ValidFrom.Add(24 * time.Hour))
+		endTs := r.ValidUntil.GetOrDefault(r.ValidFrom.Add(24*time.Hour - time.Millisecond))
 		if endTs.After(now) {
 			endTs = now
+		}
+		if endTs.After(endTime) {
+			continue
 		}
 		endRetired := usageAllocRetiredUsageAt(w.Live.IncomingAllocations, isCapacity, endTs)
 		if endRetired > r.Kpis.TotalUsageAtEnd {
@@ -683,16 +766,24 @@ func usageHydrateWalletSeries(
 		if !isCapacity {
 			endActiveUsage = max(int64(0), r.Kpis.TotalUsageAtEnd-endRetired)
 		}
+		endQuota := r.Kpis.QuotaAtEnd
+		if !isCapacity {
+			grantedEndQuota := usageAllocTotalQuotaAt(w.Live.IncomingAllocations, isCapacity, endTs)
+			if grantedEndQuota > endQuota {
+				endQuota = grantedEndQuota
+			}
+		}
 		samples = append(samples, internalUsageWalletSample{
 			Timestamp:       endTs,
 			TotalUsage:      r.Kpis.TotalUsageAtEnd * scale,
 			LocalUsage:      r.Kpis.LocalUsageAtEnd * scale,
 			ActiveUsage:     endActiveUsage * scale,
 			RetiredUsage:    endRetired * scale,
-			Quota:           r.Kpis.QuotaAtEnd * scale,
+			Quota:           endQuota * scale,
 			ActiveQuota:     endActiveQuota * scale,
 			MaxUsable:       r.Kpis.MaxUsableAtEnd * scale,
 			ActiveAllocated: r.Kpis.TotalAllocatedAtEnd * scale,
+			TotalAllocated:  util.Pointer(r.Kpis.TotalAllocatedAtEnd * scale),
 		})
 	}
 
@@ -700,7 +791,6 @@ func usageHydrateWalletSeries(
 		return nil, false
 	}
 
-	includeLive := !endTime.Before(now.Add(-4 * time.Hour))
 	if includeLive {
 		ts := endTime
 		if ts.After(now) {
@@ -716,6 +806,7 @@ func usageHydrateWalletSeries(
 			ActiveQuota:     w.Live.ActiveQuota * scale,
 			MaxUsable:       w.Live.MaxUsable * scale,
 			ActiveAllocated: w.Live.ActiveAllocated * scale,
+			TotalAllocated:  util.Pointer(w.Live.TotalAllocated * scale),
 		})
 	}
 
@@ -844,7 +935,7 @@ func usageBuildBucketStarts(startTime time.Time, endTime time.Time, dur time.Dur
 	}
 	var buckets []time.Time
 	cursor := aligned
-	for !cursor.After(endTime) {
+	for cursor.Before(endTime) {
 		buckets = append(buckets, cursor)
 		cursor = cursor.Add(dur)
 		if len(buckets) > 400 {
@@ -855,6 +946,21 @@ func usageBuildBucketStarts(startTime time.Time, endTime time.Time, dur time.Dur
 		buckets = append(buckets, aligned)
 	}
 	return buckets
+}
+
+func usageBucketEnd(start time.Time, duration time.Duration, end time.Time) time.Time {
+	bucketEnd := start.Add(duration)
+	if bucketEnd.After(end) {
+		return end
+	}
+	return bucketEnd
+}
+
+func usageBucketStart(aligned time.Time, start time.Time) time.Time {
+	if aligned.Before(start) {
+		return start
+	}
+	return aligned
 }
 
 func usageFindBucketIndex(buckets []time.Time, dur time.Duration, ts time.Time) int {
@@ -909,11 +1015,13 @@ func usageFindNextQuotaDrop(
 		return sum
 	}
 
+	const usageQuotaDropTolerance = 5 * time.Minute
+
 	var prevChecked time.Time
 	hasPrev := false
 	firstDrop := util.OptNone[accapi.UsageQuotaDrop]()
 	for _, endTs := range endTimes {
-		if hasPrev && endTs.Sub(prevChecked) < 24*time.Hour {
+		if hasPrev && endTs.Sub(prevChecked) < usageQuotaDropTolerance {
 			continue
 		}
 		prevChecked = endTs
@@ -927,7 +1035,7 @@ func usageFindNextQuotaDrop(
 		if beforeTs.Equal(now) && currentActiveQuota > quotaBefore {
 			quotaBefore = currentActiveQuota
 		}
-		afterTs := endTs.Add(24 * time.Hour)
+		afterTs := endTs.Add(usageQuotaDropTolerance)
 		quotaAfter := quotaAt(afterTs)
 		if quotaAfter < quotaBefore {
 			hasConsequence := (isCapacity && currentUsage > quotaAfter) || (!isCapacity && quotaBefore > 0 && quotaAfter == 0)
@@ -957,11 +1065,12 @@ func usageComputeNextQuotaDrop(
 	wallets []usageWalletWithScale,
 	now time.Time,
 	isCapacity bool,
-	currentActiveQuota int64,
-	currentUsage int64,
 ) util.Option[accapi.UsageQuotaDrop] {
 	var scaled []usageAllocWindow
+	var currentActiveQuota, currentUsage int64
 	for _, w := range wallets {
+		currentActiveQuota += w.Live.ActiveQuota * w.ScaleFactor
+		currentUsage += w.Live.ActiveUsage * w.ScaleFactor
 		for _, alloc := range w.Live.IncomingAllocations {
 			if alloc.Retired || !alloc.End.After(now) || alloc.Quota <= 0 {
 				continue
@@ -978,7 +1087,6 @@ func usageComputeLifecycleEvents(
 	wallets []usageWalletWithScale,
 	startTime time.Time,
 	endTime time.Time,
-	now time.Time,
 ) []accapi.UsageLifecycleEvent {
 	type eventKey struct {
 		DayUtc     int64
@@ -999,22 +1107,13 @@ func usageComputeLifecycleEvents(
 		existing, ok := grouped[key]
 		if !ok {
 			existing = &accapi.UsageLifecycleEvent{
-				Timestamp:  fndapi.Timestamp(day),
-				Type:       evType,
-				QuotaDelta: 0,
-				Count:      0,
-				ProductKey: productKey,
+				Timestamp: fndapi.Timestamp(day),
+				Type:      evType,
 			}
 			grouped[key] = existing
 		}
 		existing.QuotaDelta += quotaDelta
-		existing.Count++
 	}
-
-	var earliestUpcoming time.Time
-	hasUpcoming := false
-	upcomingDelta := int64(0)
-	upcomingCount := 0
 
 	for _, w := range wallets {
 		pKey := ""
@@ -1038,34 +1137,14 @@ func usageComputeLifecycleEvents(
 					evType = "retire"
 				}
 				addEvent(alloc.End, evType, -scaledQuota, pKey)
-			} else if alloc.Active && !alloc.Retired && alloc.End.After(endTime) && alloc.End.After(now) {
-				if !hasUpcoming || alloc.End.Before(earliestUpcoming) {
-					earliestUpcoming = alloc.End
-					hasUpcoming = true
-					upcomingDelta = -scaledQuota
-					upcomingCount = 1
-				} else if util.StartOfDayUTC(alloc.End).Equal(util.StartOfDayUTC(earliestUpcoming)) {
-					upcomingDelta -= scaledQuota
-					upcomingCount++
-				}
 			}
 		}
 	}
 
-	events := make([]accapi.UsageLifecycleEvent, 0, len(grouped)+1)
+	events := make([]accapi.UsageLifecycleEvent, 0, len(grouped))
 	for _, ev := range grouped {
 		events = append(events, *ev)
 	}
-	if hasUpcoming {
-		events = append(events, accapi.UsageLifecycleEvent{
-			Timestamp:  fndapi.Timestamp(util.StartOfDayUTC(earliestUpcoming)),
-			Type:       "upcoming_expire",
-			QuotaDelta: upcomingDelta,
-			Count:      upcomingCount,
-			ProductKey: "",
-		})
-	}
-
 	slices.SortFunc(events, func(a, b accapi.UsageLifecycleEvent) int {
 		if c := a.Timestamp.Time().Compare(b.Timestamp.Time()); c != 0 {
 			return c
@@ -1084,7 +1163,6 @@ type usageOverviewSummary struct {
 	RetiredUsage int64
 	Quota        int64
 	TotalUsage   int64
-	PeakUsage    int64
 	Sparkline    []accapi.UsageSparklinePoint
 }
 
@@ -1092,6 +1170,8 @@ func usageAggregatePeakByBucket(
 	series [][]internalUsageWalletSample,
 	buckets []time.Time,
 	dur time.Duration,
+	startTime time.Time,
+	endTime time.Time,
 ) []int64 {
 	peaks := make([]int64, len(buckets))
 	if len(buckets) == 0 {
@@ -1118,14 +1198,19 @@ func usageAggregatePeakByBucket(
 	}
 
 	for bucketIdx, bucketStart := range buckets {
-		bucketEnd := bucketStart.Add(dur)
-		advanceTo(bucketStart)
+		bucketEnd := usageBucketEnd(bucketStart, dur, endTime)
+		advanceTo(usageBucketStart(bucketStart, startTime))
 		peaks[bucketIdx] = sumValues()
 
 		var timestamps []time.Time
 		for i, samples := range series {
-			for j := cursors[i]; j < len(samples) && samples[j].Timestamp.Before(bucketEnd); j++ {
-				timestamps = append(timestamps, samples[j].Timestamp)
+			for j := cursors[i]; j < len(samples); j++ {
+				ts := samples[j].Timestamp
+				isFinalPoint := bucketIdx == len(buckets)-1 && ts.Equal(bucketEnd)
+				if !ts.Before(bucketEnd) && !isFinalPoint {
+					break
+				}
+				timestamps = append(timestamps, ts)
 			}
 		}
 		slices.SortFunc(timestamps, func(a, b time.Time) int {
@@ -1149,12 +1234,65 @@ func usageAggregatePeakByBucket(
 	return peaks
 }
 
+func usageComputeTimeWeightedAvgUsage(
+	series [][]internalUsageWalletSample,
+	startTime time.Time,
+	endTime time.Time,
+) int64 {
+	totalAvg := 0.0
+	for _, samples := range series {
+		if len(samples) == 0 {
+			continue
+		}
+		var curVal int64
+		var curTs time.Time
+		hasVal := false
+		weightedSum := 0.0
+		coveredSeconds := 0.0
+		for _, s := range samples {
+			if s.Timestamp.After(endTime) {
+				break
+			}
+			if !s.Timestamp.After(startTime) {
+				curVal = s.ActiveUsage
+				curTs = startTime
+				hasVal = true
+				continue
+			}
+			if hasVal {
+				dt := s.Timestamp.Sub(curTs).Seconds()
+				if dt > 0 {
+					weightedSum += float64(curVal) * dt
+					coveredSeconds += dt
+				}
+			}
+			curVal = s.ActiveUsage
+			curTs = s.Timestamp
+			hasVal = true
+		}
+		if hasVal && curTs.Before(endTime) {
+			dt := endTime.Sub(curTs).Seconds()
+			if dt > 0 {
+				weightedSum += float64(curVal) * dt
+				coveredSeconds += dt
+			}
+		}
+		if coveredSeconds > 0 {
+			totalAvg += weightedSum / coveredSeconds
+		} else if hasVal {
+			totalAvg += float64(curVal)
+		}
+	}
+	return int64(math.Round(totalAvg))
+}
+
 func usageSummarizeWalletsForOverview(
 	wallets []usageWalletWithScale,
 	isCapacity bool,
 	startTime time.Time,
 	endTime time.Time,
 	now time.Time,
+	includeLive bool,
 	sparkBuckets []time.Time,
 	sparkDur time.Duration,
 ) usageOverviewSummary {
@@ -1169,7 +1307,7 @@ func usageSummarizeWalletsForOverview(
 	}
 
 	for _, w := range wallets {
-		samples, hasData := usageHydrateWalletSeries(w, startTime, endTime, now)
+		samples, hasData := usageHydrateWalletSeries(w, startTime, endTime, now, includeLive)
 		series = append(series, samples)
 		if hasData {
 			summary.HasData = true
@@ -1242,11 +1380,14 @@ func usageSummarizeWalletsForOverview(
 		summary.TotalUsage += endSample.TotalUsage
 	}
 
-	peaks := usageAggregatePeakByBucket(series, sparkBuckets, sparkDur)
-	for i, bStart := range sparkBuckets {
-		if peaks[i] > summary.PeakUsage {
-			summary.PeakUsage = peaks[i]
+	if isCapacity {
+		peaks := usageAggregatePeakByBucket(series, sparkBuckets, sparkDur, startTime, endTime)
+		summary.PeriodUsage = 0
+		for _, peak := range peaks {
+			summary.PeriodUsage = max(summary.PeriodUsage, peak)
 		}
+	}
+	for i, bStart := range sparkBuckets {
 		val := bucketChange[i]
 		if isCapacity {
 			val = bucketUsage[i]
@@ -1258,10 +1399,6 @@ func usageSummarizeWalletsForOverview(
 		}
 	}
 
-	if isCapacity {
-		summary.PeriodUsage = summary.PeakUsage
-	}
-
 	return summary
 }
 
@@ -1271,7 +1408,7 @@ func usageHandleOverviewRetrieve(
 ) (accapi.UsageOverviewResponse, *util.HttpError) {
 	now := time.Now().UTC()
 	reference := usageResolveActorReference(info)
-	startTime, endTime := usageNormalizeRequestWindow(request.Start, request.End, now)
+	startTime, endTime, includeLive := usageNormalizeRequestWindow(request.Start, request.End, now)
 
 	entries := usageBuildActorUnitGroups(now, reference, startTime, endTime, request.InitialUnitGroupKey.GetOrDefault(""), false)
 	sparkDur := usageChooseBucketDuration(startTime, endTime, 24)
@@ -1288,6 +1425,7 @@ func usageHandleOverviewRetrieve(
 			startTime,
 			endTime,
 			now,
+			includeLive,
 			sparkBuckets,
 			sparkDur,
 		)
@@ -1296,16 +1434,19 @@ func usageHandleOverviewRetrieve(
 		}
 
 		nextExpiry := util.OptNone[fndapi.Timestamp]()
-		for _, w := range entry.Wallets {
-			if !w.Live.NextMeaningfulExpiration.Present {
-				continue
+		nextQuotaDrop := util.OptNone[accapi.UsageQuotaDrop]()
+		if includeLive {
+			for _, w := range entry.Wallets {
+				if !w.Live.NextMeaningfulExpiration.Present {
+					continue
+				}
+				exp := fndapi.Timestamp(w.Live.NextMeaningfulExpiration.Value)
+				if !nextExpiry.Present || exp.Time().Before(nextExpiry.Value.Time()) {
+					nextExpiry.Set(exp)
+				}
 			}
-			exp := fndapi.Timestamp(w.Live.NextMeaningfulExpiration.Value)
-			if !nextExpiry.Present || exp.Time().Before(nextExpiry.Value.Time()) {
-				nextExpiry.Set(exp)
-			}
+			nextQuotaDrop = usageComputeNextQuotaDrop(entry.Wallets, now, isCapacity)
 		}
-		nextQuotaDrop := usageComputeNextQuotaDrop(entry.Wallets, now, isCapacity, summary.ActiveQuota, summary.ActiveUsage)
 
 		products := make([]accapi.UsageProductSummary, 0, len(entry.Wallets))
 		for _, w := range entry.Wallets {
@@ -1316,21 +1457,19 @@ func usageHandleOverviewRetrieve(
 				startTime,
 				endTime,
 				now,
+				includeLive,
 				sparkBuckets,
 				sparkDur,
 			)
 
 			productNextExpiry := util.OptNone[fndapi.Timestamp]()
-			if w.Live.NextMeaningfulExpiration.Present {
-				productNextExpiry.Set(fndapi.Timestamp(w.Live.NextMeaningfulExpiration.Value))
+			productNextQuotaDrop := util.OptNone[accapi.UsageQuotaDrop]()
+			if includeLive {
+				if w.Live.NextMeaningfulExpiration.Present {
+					productNextExpiry.Set(fndapi.Timestamp(w.Live.NextMeaningfulExpiration.Value))
+				}
+				productNextQuotaDrop = usageComputeNextQuotaDrop(single, now, isCapacity)
 			}
-			productNextQuotaDrop := usageComputeNextQuotaDrop(
-				single,
-				now,
-				isCapacity,
-				productSummary.ActiveQuota,
-				productSummary.ActiveUsage,
-			)
 
 			products = append(products, accapi.UsageProductSummary{
 				Category:                 w.Live.Category,
@@ -1340,7 +1479,6 @@ func usageHandleOverviewRetrieve(
 				RetiredUsage:             productSummary.RetiredUsage,
 				Quota:                    productSummary.Quota,
 				TotalUsage:               productSummary.TotalUsage,
-				PeakUsage:                productSummary.PeakUsage,
 				NextMeaningfulExpiration: productNextExpiry,
 				NextQuotaDrop:            productNextQuotaDrop,
 				Sparkline:                util.NonNilSlice(productSummary.Sparkline),
@@ -1362,7 +1500,6 @@ func usageHandleOverviewRetrieve(
 			RetiredUsage:             summary.RetiredUsage,
 			Quota:                    summary.Quota,
 			TotalUsage:               summary.TotalUsage,
-			PeakUsage:                summary.PeakUsage,
 			NextMeaningfulExpiration: nextExpiry,
 			NextQuotaDrop:            nextQuotaDrop,
 			Sparkline:                util.NonNilSlice(summary.Sparkline),
@@ -1392,7 +1529,7 @@ func usageHandleOverviewRetrieve(
 				}
 			}
 		}
-		initialDetail.Set(usageBuildDetailResponse(initialEntry, nil, nil, startTime, endTime, now))
+		initialDetail.Set(usageBuildDetailResponse(initialEntry, nil, nil, startTime, endTime, now, includeLive))
 	}
 
 	return accapi.UsageOverviewResponse{
@@ -1402,96 +1539,13 @@ func usageHandleOverviewRetrieve(
 	}, nil
 }
 
-func usageClassifyUtilizationBucket(
-	isCapacity bool,
-	periodUsage int64,
-	activeUsage int64,
-	activeQuota int64,
-	quotaKnown bool,
-) (float64, string) {
-	if !quotaKnown {
-		return 0.0, "unknown"
-	}
-	if activeQuota <= 0 {
-		if activeUsage > 0 {
-			return 100.0, "over"
-		}
-		return 0.0, "idle"
-	}
-
-	pct := (float64(activeUsage) / float64(activeQuota)) * 100.0
-	if pct >= 100.0 {
-		return pct, "over"
-	}
-	if activeUsage == 0 && (!isCapacity && periodUsage == 0) {
-		return 0.0, "idle"
-	}
-	if activeUsage == 0 && isCapacity {
-		return 0.0, "idle"
-	}
-	if pct < 25.0 {
-		return pct, "low"
-	}
-	if pct < 75.0 {
-		return pct, "medium"
-	}
-	if pct < 90.0 {
-		return pct, "high"
-	}
-	return pct, "near_full"
-}
-
-var usageHistogramBucketDefinitions = []struct {
-	Key   string
-	Label string
-}{
-	{Key: "idle", Label: "0% (Idle)"},
-	{Key: "low", Label: "1–25%"},
-	{Key: "medium", Label: "25–75%"},
-	{Key: "high", Label: "75–90%"},
-	{Key: "near_full", Label: "90–100%"},
-	{Key: "over", Label: "Exhausted / Over"},
-}
-
-func usageBuildHistogramBuckets(rows []accapi.UsageChildRow) []accapi.UsageHistogramBucket {
-	defs := usageHistogramBucketDefinitions
-
-	indexByKey := map[string]int{}
-	buckets := make([]accapi.UsageHistogramBucket, len(defs))
-	for i, d := range defs {
-		indexByKey[d.Key] = i
-		buckets[i] = accapi.UsageHistogramBucket{
-			Key:   d.Key,
-			Label: d.Label,
-		}
-	}
-
-	for _, row := range rows {
-		if row.IsLocal {
-			continue
-		}
-		idx, ok := indexByKey[row.UtilizationBucket]
-		if !ok {
-			continue
-		}
-		buckets[idx].Count++
-		buckets[idx].TotalPeriodUsage += row.PeriodUsage
-		buckets[idx].TotalActiveQuota += row.ActiveQuota
-	}
-
-	return buckets
-}
-
 func usageEmptyDetailResponse() accapi.UsageDetailResponse {
 	return accapi.UsageDetailResponse{
 		ProductsCovered: []accapi.ProductCategory{},
 		Timeline:        []accapi.UsageTimelineBucket{},
 		DailyActivity:   []accapi.UsageDailyActivityPoint{},
 		Events:          []accapi.UsageLifecycleEvent{},
-		SubProjectSummary: accapi.UsageSubProjectSummary{
-			UtilizationBuckets: []accapi.UsageHistogramBucket{},
-		},
-		Children: []accapi.UsageChildRow{},
+		Children:        []accapi.UsageChildRow{},
 	}
 }
 
@@ -1501,7 +1555,7 @@ func usageHandleDetailRetrieve(
 ) (accapi.UsageDetailResponse, *util.HttpError) {
 	now := time.Now().UTC()
 	reference := usageResolveActorReference(info)
-	startTime, endTime := usageNormalizeRequestWindow(request.Start, request.End, now)
+	startTime, endTime, includeLive := usageNormalizeRequestWindow(request.Start, request.End, now)
 
 	entries := usageBuildActorUnitGroups(now, reference, startTime, endTime, request.UnitGroupKey, request.UnitGroupKey == "")
 	var target *usageUnitGroupEntry
@@ -1518,7 +1572,7 @@ func usageHandleDetailRetrieve(
 		return usageEmptyDetailResponse(), nil
 	}
 
-	return usageBuildDetailResponse(target, request.Products, request.PinnedChildren, startTime, endTime, now), nil
+	return usageBuildDetailResponse(target, request.Products, request.PinnedChildren, startTime, endTime, now, includeLive), nil
 }
 
 func usageAccumulateReportDailyActivity(
@@ -1584,6 +1638,7 @@ func usageBuildDetailResponse(
 	startTime time.Time,
 	endTime time.Time,
 	now time.Time,
+	includeLive bool,
 ) accapi.UsageDetailResponse {
 	// Select the products requested by the caller.
 	productFilter := map[string]util.Empty{}
@@ -1628,11 +1683,10 @@ func usageBuildDetailResponse(
 		return response
 	}
 
-	// Load report samples for the selected products.
 	samplesByWallet := make([][]internalUsageWalletSample, 0, len(selectedWallets))
 	hasData := false
 	for _, w := range selectedWallets {
-		samples, walletHasData := usageHydrateWalletSeries(w, startTime, endTime, now)
+		samples, walletHasData := usageHydrateWalletSeries(w, startTime, endTime, now, includeLive)
 		if walletHasData {
 			hasData = true
 		}
@@ -1643,26 +1697,27 @@ func usageBuildDetailResponse(
 	}
 	response.HasData = true
 
-	// Build the timeline buckets.
 	nBuckets := len(bucketStarts)
 	timeline := make([]accapi.UsageTimelineBucket, nBuckets)
 	for i, bStart := range bucketStarts {
 		timeline[i] = accapi.UsageTimelineBucket{
-			Timestamp:    fndapi.Timestamp(bStart),
-			EndTimestamp: fndapi.Timestamp(bStart.Add(bucketDur)),
+			Timestamp:    fndapi.Timestamp(usageBucketStart(bStart, startTime)),
+			EndTimestamp: fndapi.Timestamp(usageBucketEnd(bStart, bucketDur, endTime)),
 		}
 	}
-	peaks := usageAggregatePeakByBucket(samplesByWallet, bucketStarts, bucketDur)
+	peaks := usageAggregatePeakByBucket(samplesByWallet, bucketStarts, bucketDur, startTime, endTime)
 
 	bucketByProductChange := make([]map[string]int64, nBuckets)
 	bucketByProductUsage := make([]map[string]int64, nBuckets)
 	bucketByChildChange := make([]map[string]int64, nBuckets)
 	bucketByChildUsage := make([]map[string]int64, nBuckets)
+	bucketByChildPeak := make([]map[string]int64, nBuckets)
 	for i := 0; i < nBuckets; i++ {
 		bucketByProductChange[i] = map[string]int64{}
 		bucketByProductUsage[i] = map[string]int64{}
 		bucketByChildChange[i] = map[string]int64{}
 		bucketByChildUsage[i] = map[string]int64{}
+		bucketByChildPeak[i] = map[string]int64{}
 	}
 
 	childAccum := map[string]*usageChildAccumulator{}
@@ -1681,14 +1736,13 @@ func usageBuildDetailResponse(
 	kpis := accapi.UsageDetailKpis{}
 	for i := range peaks {
 		timeline[i].PeakUsage = peaks[i]
-		if peaks[i] > kpis.PeakUsage {
-			kpis.PeakUsage = peaks[i]
+		if isCapacity {
+			kpis.PeriodUsage = max(kpis.PeriodUsage, peaks[i])
 		}
 	}
 
-	// Load daily activity around the requested period.
 	dailyChangeByDay := map[int64]int64{}
-	useLiveEnd := !endTime.Before(now.Add(-4 * time.Hour))
+	useLiveEnd := includeLive
 	startDay := util.StartOfDayUTC(startTime)
 	endDay := util.StartOfDayUTC(endTime)
 	nowDay := util.StartOfDayUTC(now)
@@ -1735,9 +1789,6 @@ func usageBuildDetailResponse(
 			if idx >= 0 {
 				timeline[idx].UsageChange += d.UsageChange
 				timeline[idx].FlowShift += d.FlowShift
-				if d.ChildKey == "" {
-					timeline[idx].LocalUsageChange += d.UsageChange
-				}
 				bucketByProductChange[idx][pKey] += d.UsageChange
 				bucketByChildChange[idx][d.ChildKey] += d.UsageChange
 			}
@@ -1758,8 +1809,6 @@ func usageBuildDetailResponse(
 			if hasSample {
 				timeline[i].ActiveUsage += lastSample.ActiveUsage
 				timeline[i].RetiredUsage += lastSample.RetiredUsage
-				timeline[i].TotalUsage += lastSample.TotalUsage
-				timeline[i].LocalUsage += lastSample.LocalUsage
 				timeline[i].ActiveQuota += lastSample.ActiveQuota
 				timeline[i].Quota += lastSample.Quota
 				timeline[i].MaxUsable += lastSample.MaxUsable
@@ -1768,29 +1817,26 @@ func usageBuildDetailResponse(
 			}
 		}
 
-		var startSample internalUsageWalletSample
 		var endSample internalUsageWalletSample
 		if len(samples) > 0 {
-			startSample = samples[0]
 			endSample = samples[len(samples)-1]
 		}
-		kpis.ActiveUsageAtStart += startSample.ActiveUsage
 		kpis.ActiveUsageAtEnd += endSample.ActiveUsage
-		kpis.ActiveQuotaAtStart += startSample.ActiveQuota
 		kpis.ActiveQuotaAtEnd += endSample.ActiveQuota
-		kpis.RetiredUsageAtStart += startSample.RetiredUsage
 		kpis.RetiredUsageAtEnd += endSample.RetiredUsage
-		kpis.TotalUsageAtStart += startSample.TotalUsage
 		kpis.TotalUsageAtEnd += endSample.TotalUsage
-		kpis.QuotaAtStart += startSample.Quota
 		kpis.QuotaAtEnd += endSample.Quota
-		kpis.LocalUsageAtStart += startSample.LocalUsage
 		kpis.LocalUsageAtEnd += endSample.LocalUsage
 		kpis.MaxUsableAtEnd += endSample.MaxUsable
 		kpis.ActiveAllocatedAtEnd += endSample.ActiveAllocated
-		kpis.TotalAllocatedAtEnd += w.Live.TotalAllocated * scale
+		for i := len(samples) - 1; i >= 0; i-- {
+			if samples[i].TotalAllocated != nil {
+				kpis.TotalAllocatedAtEnd += *samples[i].TotalAllocated
+				break
+			}
+		}
 
-		if w.Live.NextMeaningfulExpiration.Present {
+		if includeLive && w.Live.NextMeaningfulExpiration.Present {
 			exp := fndapi.Timestamp(w.Live.NextMeaningfulExpiration.Value)
 			if !kpis.NextMeaningfulExpiration.Present || exp.Time().Before(kpis.NextMeaningfulExpiration.Value.Time()) {
 				kpis.NextMeaningfulExpiration.Set(exp)
@@ -1799,12 +1845,10 @@ func usageBuildDetailResponse(
 
 		if endSample.LocalUsage > 0 || kpis.PeriodLocalUsage > 0 {
 			localAcc := ensureChild("")
-			localAcc.CurrentUsage += endSample.LocalUsage
 			localAcc.ActiveUsage += endSample.LocalUsage
 			localAcc.TotalUsage += endSample.LocalUsage
 		}
 
-		// Load per-child snapshots for the selected period.
 		childSnapshotsByDay := map[string][]usageChildDaySnapshotAt{}
 		for _, r := range w.Reports {
 			dayTs := r.ValidUntil.GetOrDefault(r.ValidFrom.Add(24 * time.Hour))
@@ -1832,7 +1876,7 @@ func usageBuildDetailResponse(
 				Val int64
 			}{}
 			for _, pt := range r.UsageOverTime.ChildrenAbsolute {
-				if !pt.Child.Present {
+				if !pt.Child.Present || pt.Timestamp.After(endTime) {
 					continue
 				}
 				key := usageResolveChildKey(w, pt.Child)
@@ -1851,17 +1895,29 @@ func usageBuildDetailResponse(
 				}
 			}
 			for key, obs := range latestPerChild {
+				retiredAt := int64(0)
+				activeAt := obs.Val
+				if !isCapacity {
+					liveChild, hasChild := w.Live.Children[key]
+					if hasChild {
+						retiredAt = usageAllocRetiredUsageAt(liveChild.AllAllocations, isCapacity, obs.Ts)
+						if retiredAt > obs.Val {
+							retiredAt = obs.Val
+						}
+						activeAt = max(int64(0), obs.Val-retiredAt)
+					}
+				}
 				childSnapshotsByDay[key] = append(childSnapshotsByDay[key], usageChildDaySnapshotAt{
 					Timestamp: obs.Ts,
 					Snap: internalUsageChildDaySnapshot{
-						TreeUsage:   obs.Val,
-						ActiveUsage: obs.Val,
+						TreeUsage:    obs.Val,
+						ActiveUsage:  activeAt,
+						RetiredUsage: retiredAt,
 					},
 				})
 			}
 		}
 
-		// Accumulate per-child usage into the timeline buckets.
 		allChildKeys := map[string]util.Empty{}
 		for key := range w.Live.Children {
 			allChildKeys[key] = util.Empty{}
@@ -1882,10 +1938,19 @@ func usageBuildDetailResponse(
 			hasSnap := false
 			for i, bStart := range bucketStarts {
 				bEnd := bStart.Add(bucketDur)
+				bucketPeak := int64(0)
+				if hasSnap {
+					bucketPeak = lastChildUsage
+				}
 				for snapIdx < len(snaps) && !snaps[snapIdx].Timestamp.After(bEnd) {
-					val := snaps[snapIdx].Snap.ActiveUsage * scale
-					if !isCapacity && val == 0 && snaps[snapIdx].Snap.TreeUsage > 0 {
-						val = snaps[snapIdx].Snap.TreeUsage * scale
+					snap := snaps[snapIdx].Snap
+					val := snap.ActiveUsage * scale
+					if !isCapacity && val == 0 && snap.RetiredUsage == 0 && snap.TreeUsage > 0 {
+						val = snap.TreeUsage * scale
+					}
+					snapPeak := max(snap.PeakUsage, snap.ActiveUsage) * scale
+					if snapPeak > bucketPeak {
+						bucketPeak = snapPeak
 					}
 					lastChildUsage = val
 					hasSnap = true
@@ -1893,15 +1958,23 @@ func usageBuildDetailResponse(
 				}
 				if hasSnap {
 					bucketByChildUsage[i][childKey] += lastChildUsage
+					if useLiveEnd && hasLive && i == nBuckets-1 {
+						liveVal := liveChild.ActiveUsage * scale
+						if liveVal > bucketPeak {
+							bucketPeak = liveVal
+						}
+					}
+					bucketByChildPeak[i][childKey] += bucketPeak
 				} else if useLiveEnd && hasLive && i == nBuckets-1 {
-					bucketByChildUsage[i][childKey] += liveChild.ActiveUsage * scale
+					liveVal := liveChild.ActiveUsage * scale
+					bucketByChildUsage[i][childKey] += liveVal
+					bucketByChildPeak[i][childKey] += liveVal
 				}
 			}
 
 			acc := ensureChild(childKey)
 			if useLiveEnd && hasLive {
 				acc.HasQuotaSample = true
-				acc.CurrentUsage += liveChild.ActiveUsage * scale
 				acc.ActiveUsage += liveChild.ActiveUsage * scale
 				acc.ActiveQuota += liveChild.ActiveQuota * scale
 				acc.Quota += liveChild.Quota * scale
@@ -1917,21 +1990,26 @@ func usageBuildDetailResponse(
 					scaledAlloc.Quota = alloc.Quota * scale
 					acc.ActiveAllocations = append(acc.ActiveAllocations, scaledAlloc)
 				}
+				acc.SubAllocator.DirectUsage += liveChild.SubAllocator.DirectUsage * scale
+				acc.SubAllocator.DownstreamUsage += liveChild.SubAllocator.DownstreamUsage * scale
 				if liveChild.IsSubAllocator {
 					acc.IsSubAllocator = true
-					acc.SubAllocator.ActiveDownstreamCount += liveChild.SubAllocator.ActiveDownstreamCount
 					acc.SubAllocator.DownstreamActiveAllocated += liveChild.SubAllocator.DownstreamActiveAllocated * scale
-					acc.SubAllocator.DirectUsage += liveChild.SubAllocator.DirectUsage * scale
-					acc.SubAllocator.DownstreamUsage += liveChild.SubAllocator.DownstreamUsage * scale
 				}
 			} else if len(snaps) > 0 {
 				lastEntry := snaps[len(snaps)-1]
 				last := lastEntry.Snap
 				acc.HasQuotaSample = true
-				acc.CurrentUsage += last.ActiveUsage * scale
 				acc.ActiveUsage += last.ActiveUsage * scale
 				acc.ActiveQuota += last.ActiveQuota * scale
-				acc.Quota += last.Quota * scale
+				snapQuota := last.Quota
+				if !isCapacity && hasLive && lastEntry.QuotaKnown {
+					grantedChildQuota := usageAllocTotalQuotaAt(liveChild.AllAllocations, isCapacity, lastEntry.Timestamp)
+					if grantedChildQuota > snapQuota {
+						snapQuota = grantedChildQuota
+					}
+				}
+				acc.Quota += snapQuota * scale
 				if !lastEntry.ActiveQuotaKnown {
 					acc.ActiveQuotaUnknown = true
 				}
@@ -1940,42 +2018,42 @@ func usageBuildDetailResponse(
 				}
 				acc.RetiredUsage += last.RetiredUsage * scale
 				acc.TotalUsage += last.TreeUsage * scale
-				if hasLive && liveChild.IsSubAllocator {
-					acc.IsSubAllocator = true
-				}
 			}
 		}
 	}
 
-	// Finalize KPIs for capacity-based products.
 	if isCapacity {
-		sumOccupancy := int64(0)
-		for _, pt := range timeline {
-			sumOccupancy += pt.ActiveUsage
-		}
-		if nBuckets > 0 {
-			kpis.AvgUsage = sumOccupancy / int64(nBuckets)
-		}
-		kpis.PeriodUsage = kpis.PeakUsage
+		kpis.AvgUsage = usageComputeTimeWeightedAvgUsage(samplesByWallet, startTime, endTime)
 		kpis.PeriodLocalUsage = kpis.LocalUsageAtEnd
 		kpis.PeriodChildrenUsage = max(int64(0), kpis.TotalUsageAtEnd-kpis.LocalUsageAtEnd)
 	}
 
 	kpis.UpstreamCapped = kpis.ActiveQuotaAtEnd > 0 && (kpis.ActiveUsageAtEnd+kpis.MaxUsableAtEnd) < kpis.ActiveQuotaAtEnd
-	kpis.NextQuotaDrop = usageComputeNextQuotaDrop(selectedWallets, now, isCapacity, kpis.ActiveQuotaAtEnd, kpis.ActiveUsageAtEnd)
+	if includeLive {
+		kpis.NextQuotaDrop = usageComputeNextQuotaDrop(selectedWallets, now, isCapacity)
+	}
 
-	// Build child rows and the sub-project summary.
 	childPeaks := map[string]int64{}
+	peakSource := bucketByChildUsage
+	if isCapacity {
+		peakSource = bucketByChildPeak
+	}
 	for i := 0; i < nBuckets; i++ {
-		for key, usage := range bucketByChildUsage[i] {
+		for key, usage := range peakSource[i] {
 			if usage > childPeaks[key] {
 				childPeaks[key] = usage
 			}
 		}
 	}
+	if isCapacity {
+		for i := 0; i < nBuckets; i++ {
+			if localUsage, ok := bucketByChildUsage[i][""]; ok && localUsage > childPeaks[""] {
+				childPeaks[""] = localUsage
+			}
+		}
+	}
 
 	childRows := make([]accapi.UsageChildRow, 0, len(childAccum))
-	subSummary := accapi.UsageSubProjectSummary{}
 	for _, acc := range childAccum {
 		childPeak := childPeaks[acc.Child]
 		if isCapacity {
@@ -1989,66 +2067,62 @@ func usageBuildDetailResponse(
 
 		activeQuotaKnown := acc.IsLocal || (acc.HasQuotaSample && !acc.ActiveQuotaUnknown)
 		quotaKnown := acc.IsLocal || (acc.HasQuotaSample && !acc.QuotaUnknown)
-		utilPct, utilBucket := usageClassifyUtilizationBucket(
-			isCapacity,
-			acc.PeriodUsage,
-			acc.ActiveUsage,
-			acc.ActiveQuota,
-			activeQuotaKnown,
-		)
-
-		if !acc.IsLocal {
-			subSummary.TotalCount++
-			if acc.IsSubAllocator {
-				subSummary.SubAllocatorCount++
-				kpis.DownstreamActiveAllocated += acc.SubAllocator.DownstreamActiveAllocated
-			}
-		}
 
 		subOpt := util.OptNone[accapi.UsageSubAllocatorAggregate]()
 		if acc.IsSubAllocator {
-			reallocatedPct := 0.0
-			if acc.ActiveQuota > 0 {
-				reallocatedPct = (float64(acc.SubAllocator.DownstreamActiveAllocated) / float64(acc.ActiveQuota)) * 100.0
-			}
 			subOpt.Set(accapi.UsageSubAllocatorAggregate{
-				ActiveDownstreamCount:     acc.SubAllocator.ActiveDownstreamCount,
 				DownstreamActiveAllocated: acc.SubAllocator.DownstreamActiveAllocated,
-				ReallocatedPercent:        reallocatedPct,
 				DirectUsage:               acc.SubAllocator.DirectUsage,
 				DownstreamUsage:           acc.SubAllocator.DownstreamUsage,
 			})
 		}
 
 		nextExpOpt := util.OptNone[fndapi.Timestamp]()
-		if acc.NextExpiration.Present {
-			nextExpOpt.Set(fndapi.Timestamp(acc.NextExpiration.Value))
-		}
-
 		nextDropOpt := util.OptNone[accapi.UsageQuotaDrop]()
-		if !acc.IsLocal && len(acc.ActiveAllocations) > 0 {
-			nextDropOpt = usageFindNextQuotaDrop(acc.ActiveAllocations, now, isCapacity, acc.ActiveQuota, acc.ActiveUsage)
+		var upcomingExpirations []accapi.UsageQuotaExpiration
+		if includeLive {
+			if acc.NextExpiration.Present {
+				nextExpOpt.Set(fndapi.Timestamp(acc.NextExpiration.Value))
+			}
+			if !acc.IsLocal && len(acc.ActiveAllocations) > 0 {
+				nextDropOpt = usageFindNextQuotaDrop(acc.ActiveAllocations, now, isCapacity, acc.ActiveQuota, acc.ActiveUsage)
+				expByEnd := map[int64]int64{}
+				for _, alloc := range acc.ActiveAllocations {
+					if alloc.Retired || !alloc.End.After(now) || alloc.Quota <= 0 {
+						continue
+					}
+					expByEnd[alloc.End.UnixMilli()] += alloc.Quota
+				}
+				if len(expByEnd) > 0 {
+					upcomingExpirations = make([]accapi.UsageQuotaExpiration, 0, len(expByEnd))
+					for tsMs, quota := range expByEnd {
+						upcomingExpirations = append(upcomingExpirations, accapi.UsageQuotaExpiration{
+							Timestamp: fndapi.TimeFromUnixMilli(uint64(tsMs)),
+							Quota:     quota,
+						})
+					}
+					slices.SortFunc(upcomingExpirations, func(a, b accapi.UsageQuotaExpiration) int {
+						return a.Timestamp.Time().Compare(b.Timestamp.Time())
+					})
+				}
+			}
 		}
 
 		childRows = append(childRows, accapi.UsageChildRow{
-			Child:              acc.Child,
-			IsLocal:            acc.IsLocal,
-			IsSubAllocator:     acc.IsSubAllocator,
-			PeriodUsage:        acc.PeriodUsage,
-			CurrentUsage:       acc.CurrentUsage,
-			PeakUsage:          childPeak,
-			ActiveUsage:        acc.ActiveUsage,
-			ActiveQuota:        acc.ActiveQuota,
-			ActiveQuotaKnown:   activeQuotaKnown,
-			Quota:              acc.Quota,
-			QuotaKnown:         quotaKnown,
-			RetiredUsage:       acc.RetiredUsage,
-			TotalUsage:         acc.TotalUsage,
-			UtilizationPercent: utilPct,
-			UtilizationBucket:  utilBucket,
-			NextExpiration:     nextExpOpt,
-			NextQuotaDrop:      nextDropOpt,
-			SubAllocator:       subOpt,
+			Child:               acc.Child,
+			IsLocal:             acc.IsLocal,
+			PeriodUsage:         acc.PeriodUsage,
+			ActiveUsage:         acc.ActiveUsage,
+			ActiveQuota:         acc.ActiveQuota,
+			ActiveQuotaKnown:    activeQuotaKnown,
+			Quota:               acc.Quota,
+			QuotaKnown:          quotaKnown,
+			RetiredUsage:        acc.RetiredUsage,
+			TotalUsage:          acc.TotalUsage,
+			NextExpiration:      nextExpOpt,
+			NextQuotaDrop:       nextDropOpt,
+			UpcomingExpirations: upcomingExpirations,
+			SubAllocator:        subOpt,
 		})
 	}
 
@@ -2064,8 +2138,6 @@ func usageBuildDetailResponse(
 		}
 		return cmp.Compare(a.Child, b.Child)
 	})
-
-	subSummary.UtilizationBuckets = usageBuildHistogramBuckets(childRows)
 
 	// Build per-bucket series for products and children.
 	pinnedSet := map[string]util.Empty{}
@@ -2149,7 +2221,7 @@ func usageBuildDetailResponse(
 		timeline[i].ByChild = byChild
 	}
 
-	events := usageComputeLifecycleEvents(selectedWallets, startTime, endTime, now)
+	events := usageComputeLifecycleEvents(selectedWallets, startTime, endTime)
 
 	// Build the daily activity series.
 	dailyActivity := make([]accapi.UsageDailyActivityPoint, 0, len(dailyChangeByDay))
@@ -2166,20 +2238,33 @@ func usageBuildDetailResponse(
 		return a.Timestamp.Time().Compare(b.Timestamp.Time())
 	})
 
-	// Build the final response.
+	breakdownBucketDur := bucketDur
+	breakdownBucketStarts := bucketStarts
+	if breakdownBucketDur < 24*time.Hour {
+		breakdownBucketDur = 24 * time.Hour
+		breakdownBucketStarts = usageBuildBucketStarts(startTime, endTime, breakdownBucketDur)
+	}
+
 	response.Kpis = kpis
 	response.Timeline = util.NonNilSlice(timeline)
 	response.DailyActivity = util.NonNilSlice(dailyActivity)
 	response.Events = util.NonNilSlice(events)
-	response.SubProjectSummary = subSummary
 	response.Children = util.NonNilSlice(childRows)
 	response.InferenceBreakdown = usageBuildInferenceBreakdown(
 		selectedWallets,
 		pinnedChildren,
 		startTime,
 		endTime,
-		bucketStarts,
-		bucketDur,
+		breakdownBucketStarts,
+		breakdownBucketDur,
+	)
+	response.JobBreakdown = usageBuildJobBreakdown(
+		selectedWallets,
+		pinnedChildren,
+		startTime,
+		endTime,
+		breakdownBucketStarts,
+		breakdownBucketDur,
 	)
 	return response
 }

@@ -101,13 +101,17 @@ function UsageExport<T extends object>(
         let text = "";
         switch (format) {
             case "csv": {
-                text = headers.map(it => it.value).join(delimiter) + "\n";
+                const escapeCsvField = (value: string) => `"${value.replace(/"/g, "\"\"")}"`;
+                text = headers.map(it => {
+                    const needsQuote = it.value.includes("\"") || it.value.includes(delimiter) || it.value.includes("\n") || it.value.includes("\r");
+                    return needsQuote ? escapeCsvField(it.value) : it.value;
+                }).join(delimiter) + "\n";
 
                 for (const el of chartData) {
                     for (const [idx, header] of headers.entries()) {
                         let val = `${el[header.key]}`;
                         if (val === "undefined" || val === "null") val = "";
-                        text += `"${val}"`;
+                        text += escapeCsvField(val);
                         if (idx !== headers.length - 1) text += delimiter;
                     }
                     text += "\n";

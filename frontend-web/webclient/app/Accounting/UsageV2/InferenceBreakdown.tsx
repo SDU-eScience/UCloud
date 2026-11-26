@@ -17,23 +17,38 @@ import {formatNumber} from "@/Utilities/NumberFormatting";
 import {injectStyle} from "@/Unstyled";
 import {
     UsageInferenceBreakdown,
+    UsageInferenceCostBreakdown,
     UsageInferenceModelSummary,
     UsageInferenceTimelineBucket,
+    UsageInferenceTokenBreakdown,
+    usageFormatPercent,
     usageFormatValue,
 } from "./Api";
 import {
     ChartShellStyle,
+    appendUsageSeriesTooltip,
     buildSeriesColorMap,
+    buildUsageSeriesTotals,
     createUsageChartTooltip,
     formatAxisTick,
     formatBucketTick,
+    formatCompactAxisNumber,
+    leftMarginForCompactMax,
     leftMarginForMax,
-    openUsageChartDialog,
+    UsageChartExpandButton,
     styleAxes,
 } from "./Charts";
 
 type InferenceMetric = "cost" | "tokens";
 type InferenceGroupBy = "model" | "type";
+
+function totalInferenceTokens(tokens: UsageInferenceTokenBreakdown): number {
+    return tokens.cachedInput + tokens.input + tokens.output;
+}
+
+function totalInferenceCost(cost: UsageInferenceCostBreakdown): number {
+    return cost.cachedInput + cost.input + cost.output + cost.image + cost.audio + cost.video;
+}
 
 const InferenceStyle = injectStyle("usage-v2-inference", k => `
     ${k} .inf-title-wrap {
@@ -180,40 +195,16 @@ const TYPE_COLORS: Record<string, string> = {
     video: "var(--chart-red-main)",
 };
 
-function formatSiNumber(value: number): string {
-    const abs = Math.abs(value);
-    const sign = value < 0 ? "-" : "";
-    const suffixes: [number, string][] = [
-        [1e12, "T"],
-        [1e9, "B"],
-        [1e6, "M"],
-        [1e3, "K"],
-    ];
-    for (const [threshold, suffix] of suffixes) {
-        if (abs >= threshold) {
-            const scaled = abs / threshold;
-            const formatted = scaled >= 100
-                ? `${Math.round(scaled)}`
-                : scaled >= 10
-                    ? scaled.toFixed(1).replace(/\.0$/, "")
-                    : scaled.toFixed(2).replace(/\.?0+$/, "");
-            return `${sign}${formatted}${suffix}`;
-        }
-    }
-    return formatAmount(value);
-}
-
 function formatInferenceAxisTick(metric: InferenceMetric, value: number): string {
     if (metric === "tokens") {
-        return formatSiNumber(value);
+        return formatCompactAxisNumber(value);
     }
     return formatAxisTick(value);
 }
 
 function leftMarginForInferenceMax(metric: InferenceMetric, yMax: number): number {
     if (metric === "tokens") {
-        const sample = formatSiNumber(Math.ceil(yMax));
-        return Math.max(52, sample.length * 7 + 18);
+        return leftMarginForCompactMax(yMax);
     }
     return leftMarginForMax(yMax);
 }
@@ -263,13 +254,14 @@ function buildInferenceSeriesData(
     selectedModels: ReadonlySet<string>,
 ): InferenceSeriesData {
     const hasFilter = selectedModels.size > 0;
+    const componentValue = hasFilter ? (value: number) => Math.max(0, value) : (value: number) => value;
     const rawModelTotals = new Map<string, number>();
 
     if (groupBy === "model") {
         for (const bucket of timeline) {
             for (const item of bucket.byModel) {
                 if (hasFilter && !selectedModels.has(item.model)) continue;
-                const val = Math.max(0, metric === "cost" ? item.estimatedCost.total : item.tokens.total);
+                const val = Math.max(0, metric === "cost" ? totalInferenceCost(item.estimatedCost) : totalInferenceTokens(item.tokens));
                 if (val > 0) {
                     rawModelTotals.set(item.model, (rawModelTotals.get(item.model) ?? 0) + val);
                 }
@@ -298,33 +290,20 @@ function buildInferenceSeriesData(
             let audio = 0;
             let video = 0;
 
-            if (hasFilter) {
-                for (const item of bucket.byModel) {
-                    if (!selectedModels.has(item.model)) continue;
-                    if (metric === "cost") {
-                        input += Math.max(0, item.estimatedCost.input);
-                        cachedInput += Math.max(0, item.estimatedCost.cachedInput);
-                        output += Math.max(0, item.estimatedCost.output);
-                        image += Math.max(0, item.estimatedCost.image);
-                        audio += Math.max(0, item.estimatedCost.audio);
-                        video += Math.max(0, item.estimatedCost.video);
-                    } else {
-                        input += Math.max(0, item.tokens.input);
-                        cachedInput += Math.max(0, item.tokens.cachedInput);
-                        output += Math.max(0, item.tokens.output);
-                    }
+            for (const item of bucket.byModel) {
+                if (hasFilter && !selectedModels.has(item.model)) continue;
+                if (metric === "cost") {
+                    input += componentValue(item.estimatedCost.input);
+                    cachedInput += componentValue(item.estimatedCost.cachedInput);
+                    output += componentValue(item.estimatedCost.output);
+                    image += componentValue(item.estimatedCost.image);
+                    audio += componentValue(item.estimatedCost.audio);
+                    video += componentValue(item.estimatedCost.video);
+                } else {
+                    input += componentValue(item.tokens.input);
+                    cachedInput += componentValue(item.tokens.cachedInput);
+                    output += componentValue(item.tokens.output);
                 }
-            } else if (metric === "cost") {
-                input = Math.max(0, bucket.estimatedCost.input);
-                cachedInput = Math.max(0, bucket.estimatedCost.cachedInput);
-                output = Math.max(0, bucket.estimatedCost.output);
-                image = Math.max(0, bucket.estimatedCost.image);
-                audio = Math.max(0, bucket.estimatedCost.audio);
-                video = Math.max(0, bucket.estimatedCost.video);
-            } else {
-                input = Math.max(0, bucket.tokens.input);
-                cachedInput = Math.max(0, bucket.tokens.cachedInput);
-                output = Math.max(0, bucket.tokens.output);
             }
 
             const pairs: [string, number][] = metric === "cost"
@@ -350,7 +329,7 @@ function buildInferenceSeriesData(
         } else {
             for (const item of bucket.byModel) {
                 if (hasFilter && !selectedModels.has(item.model)) continue;
-                const val = Math.max(0, metric === "cost" ? item.estimatedCost.total : item.tokens.total);
+                const val = Math.max(0, metric === "cost" ? totalInferenceCost(item.estimatedCost) : totalInferenceTokens(item.tokens));
                 if (val > 0) {
                     const outKey = namedModels.has(item.model) ? item.model : "Other";
                     m.set(outKey, (m.get(outKey) ?? 0) + val);
@@ -382,33 +361,11 @@ function buildInferenceSeriesData(
         colorMap = buildSeriesColorMap(seriesKeys);
     }
 
-    const running = new Map<string, number>();
-    const cumulativeMaps: Map<string, number>[] = [];
-    const bucketTotals: number[] = [];
-    const cumulativeTotals: number[] = [];
-    let runningTotal = 0;
-
-    for (let i = 0; i < timeline.length; i++) {
-        const bMap = bucketMaps[i];
-        let bTotal = 0;
-        for (const key of seriesKeys) {
-            const v = bMap.get(key) ?? 0;
-            bTotal += v;
-            running.set(key, (running.get(key) ?? 0) + v);
-        }
-        runningTotal += bTotal;
-        bucketTotals.push(bTotal);
-        cumulativeTotals.push(runningTotal);
-        cumulativeMaps.push(new Map(running));
-    }
-
     return {
         seriesKeys,
         colorMap,
         bucketMaps,
-        cumulativeMaps,
-        bucketTotals,
-        cumulativeTotals,
+        ...buildUsageSeriesTotals(seriesKeys, bucketMaps),
     };
 }
 
@@ -547,57 +504,16 @@ function UsageInferenceRateChart(props: {
 
             if (idx !== lastIdx) {
                 lastIdx = idx;
-                tooltipEl.innerHTML = "";
-                const header = document.createElement("div");
-                header.style.fontWeight = "700";
-                header.style.marginBottom = "4px";
-                header.textContent = `${tickFormat(new Date(bucket.timestamp))} – ${tickFormat(new Date(bucket.endTimestamp))}`;
-                tooltipEl.append(header);
-
-                const totalRow = document.createElement("div");
-                totalRow.style.display = "flex";
-                totalRow.style.justifyContent = "space-between";
-                totalRow.style.gap = "12px";
-                totalRow.style.marginBottom = "6px";
-                totalRow.style.fontWeight = "600";
-                const totalLabel = document.createElement("span");
-                totalLabel.textContent = metric === "cost" ? "Estimated cost" : "Tokens";
-                const totalVal = document.createElement("span");
-                totalVal.style.fontVariantNumeric = "tabular-nums";
-                totalVal.textContent = formatMetricValue(metric, unit, series.bucketTotals[idx] ?? 0);
-                totalRow.append(totalLabel, totalVal);
-                tooltipEl.append(totalRow);
-
-                const bMap = series.bucketMaps[idx];
-                const items = series.seriesKeys
-                    .map(k => ({key: k, val: bMap?.get(k) ?? 0}))
-                    .filter(it => it.val > 0)
-                    .sort((a, b) => b.val - a.val)
-                    .slice(0, 8);
-                for (const item of items) {
-                    const row = document.createElement("div");
-                    row.style.display = "flex";
-                    row.style.alignItems = "center";
-                    row.style.gap = "6px";
-                    row.style.fontSize = "12px";
-                    const dot = document.createElement("span");
-                    dot.style.width = "8px";
-                    dot.style.height = "8px";
-                    dot.style.borderRadius = "2px";
-                    dot.style.background = series.colorMap.get(item.key) ?? "#888";
-                    dot.style.flexShrink = "0";
-                    const label = document.createElement("span");
-                    label.style.flex = "1";
-                    label.style.overflow = "hidden";
-                    label.style.textOverflow = "ellipsis";
-                    label.style.whiteSpace = "nowrap";
-                    label.textContent = labelForKey(item.key);
-                    const val = document.createElement("span");
-                    val.style.fontVariantNumeric = "tabular-nums";
-                    val.textContent = formatMetricValue(metric, unit, item.val);
-                    row.append(dot, label, val);
-                    tooltipEl.append(row);
-                }
+                appendUsageSeriesTooltip(tooltipEl, {
+                    heading: `${tickFormat(new Date(bucket.timestamp))} – ${tickFormat(new Date(bucket.endTimestamp))}`,
+                    totalLabel: metric === "cost" ? "Estimated cost" : "Tokens",
+                    total: series.bucketTotals[idx] ?? 0,
+                    keys: series.seriesKeys,
+                    values: series.bucketMaps[idx],
+                    colors: series.colorMap,
+                    labelForKey,
+                    formatValue: value => formatMetricValue(metric, unit, value),
+                });
             }
             tooltip.moveListener(ev);
         });
@@ -781,57 +697,16 @@ function UsageInferenceCumulativeChart(props: {
 
             if (idx !== lastIdx) {
                 lastIdx = idx;
-                tooltipEl.innerHTML = "";
-                const header = document.createElement("div");
-                header.style.fontWeight = "700";
-                header.style.marginBottom = "4px";
-                header.textContent = `Through ${tickFormat(new Date(bucket.endTimestamp))}`;
-                tooltipEl.append(header);
-
-                const totalRow = document.createElement("div");
-                totalRow.style.display = "flex";
-                totalRow.style.justifyContent = "space-between";
-                totalRow.style.gap = "12px";
-                totalRow.style.marginBottom = "6px";
-                totalRow.style.fontWeight = "600";
-                const totalLabel = document.createElement("span");
-                totalLabel.textContent = metric === "cost" ? "Cumulative est. cost" : "Cumulative tokens";
-                const totalVal = document.createElement("span");
-                totalVal.style.fontVariantNumeric = "tabular-nums";
-                totalVal.textContent = formatMetricValue(metric, unit, series.cumulativeTotals[idx] ?? 0);
-                totalRow.append(totalLabel, totalVal);
-                tooltipEl.append(totalRow);
-
-                const cMap = series.cumulativeMaps[idx];
-                const items = series.seriesKeys
-                    .map(k => ({key: k, val: cMap?.get(k) ?? 0}))
-                    .filter(it => it.val > 0)
-                    .sort((a, b) => b.val - a.val)
-                    .slice(0, 8);
-                for (const item of items) {
-                    const row = document.createElement("div");
-                    row.style.display = "flex";
-                    row.style.alignItems = "center";
-                    row.style.gap = "6px";
-                    row.style.fontSize = "12px";
-                    const dot = document.createElement("span");
-                    dot.style.width = "8px";
-                    dot.style.height = "8px";
-                    dot.style.borderRadius = "2px";
-                    dot.style.background = series.colorMap.get(item.key) ?? "#888";
-                    dot.style.flexShrink = "0";
-                    const label = document.createElement("span");
-                    label.style.flex = "1";
-                    label.style.overflow = "hidden";
-                    label.style.textOverflow = "ellipsis";
-                    label.style.whiteSpace = "nowrap";
-                    label.textContent = labelForKey(item.key);
-                    const val = document.createElement("span");
-                    val.style.fontVariantNumeric = "tabular-nums";
-                    val.textContent = formatMetricValue(metric, unit, item.val);
-                    row.append(dot, label, val);
-                    tooltipEl.append(row);
-                }
+                appendUsageSeriesTooltip(tooltipEl, {
+                    heading: `Through ${tickFormat(new Date(bucket.endTimestamp))}`,
+                    totalLabel: metric === "cost" ? "Cumulative est. cost" : "Cumulative tokens",
+                    total: series.cumulativeTotals[idx] ?? 0,
+                    keys: series.seriesKeys,
+                    values: series.cumulativeMaps[idx],
+                    colors: series.colorMap,
+                    labelForKey,
+                    formatValue: value => formatMetricValue(metric, unit, value),
+                });
             }
             tooltip.moveListener(ev);
         });
@@ -861,10 +736,8 @@ export function UsageInferenceBreakdownSection(props: {
     bucketDurationMs: number;
     unit: FrontendAccountingUnit;
     twoColCharts: boolean;
-    rateChartWidth: number;
-    burnupChartWidth: number;
-    rateChartHeight: number;
-    burnupChartHeight: number;
+    chartWidth: number;
+    chartHeight: number;
     pinnedChildren: string[];
     onClearPinned: () => void;
 }): React.ReactNode {
@@ -873,10 +746,8 @@ export function UsageInferenceBreakdownSection(props: {
         bucketDurationMs,
         unit,
         twoColCharts,
-        rateChartWidth,
-        burnupChartWidth,
-        rateChartHeight,
-        burnupChartHeight,
+        chartWidth,
+        chartHeight,
         pinnedChildren,
         onClearPinned,
     } = props;
@@ -939,9 +810,9 @@ export function UsageInferenceBreakdownSection(props: {
         return modelSeries.colorMap;
     }, [breakdown.timeline, metric, groupBy, selectedModelSet, series.colorMap]);
 
-    const hasImages = breakdown.imageCount > 0 || breakdown.imagePixels > 0;
-    const hasAudio = breakdown.audioMilliseconds > 0;
-    const hasVideo = breakdown.videoSeconds > 0;
+    const hasImages = breakdown.models.some(model => model.imageCount > 0 || model.imagePixels > 0);
+    const hasAudio = breakdown.models.some(model => model.audioMilliseconds > 0);
+    const hasVideo = breakdown.models.some(model => model.videoSeconds > 0);
 
     const columns = useMemo((): TableColumn[] => {
         const cols: TableColumn[] = [
@@ -968,7 +839,7 @@ export function UsageInferenceBreakdownSection(props: {
 
     const columnWidths = useMemo(() => {
         const widths: Record<string, number> = {
-            "inf.filter": 44,
+            "inf.filter": 40,
             "inf.model": 240,
             "inf.cost": 140,
             "inf.share": 85,
@@ -983,20 +854,20 @@ export function UsageInferenceBreakdownSection(props: {
         return widths;
     }, [hasImages, hasAudio, hasVideo]);
 
-    const totalEstCost = breakdown.estimatedCost.total;
+    const totalEstCost = breakdown.models.reduce((total, model) => total + model.estimatedCost, 0);
 
     const tableRows = useMemo((): TableRow[] => breakdown.models.map(m => {
-        const share = totalEstCost > 0 ? (m.estimatedCost.total / totalEstCost) * 100 : 0;
+        const share = totalEstCost > 0 ? (m.estimatedCost / totalEstCost) * 100 : 0;
         const isFiltered = selectedModelSet.has(m.model);
         const cells: string[] = [
             isFiltered ? "1" : "0",
             m.title || m.model,
-            `${m.priced ? m.estimatedCost.total : -1}`,
+            `${m.priced ? m.estimatedCost : -1}`,
             `${share.toFixed(2)}`,
             `${m.tokens.input}`,
             `${m.tokens.cachedInput}`,
             `${m.tokens.output}`,
-            `${m.tokens.total}`,
+            `${totalInferenceTokens(m.tokens)}`,
         ];
         if (hasImages) cells.push(`${m.imageCount}`);
         if (hasAudio) cells.push(`${m.audioMilliseconds}`);
@@ -1061,14 +932,14 @@ export function UsageInferenceBreakdownSection(props: {
                     <span className="inf-num inf-muted">Unpriced</span>
                 </TooltipV2>;
             }
-            return <span className="inf-num">{usageFormatValue(unit, m.estimatedCost.total)}</span>;
+            return <span className="inf-num">{usageFormatValue(unit, m.estimatedCost)}</span>;
         }
         if (context.column.key === "inf.share") {
             if (!m.priced || totalEstCost <= 0) {
                 return <span className="inf-num inf-muted">—</span>;
             }
-            const pct = (m.estimatedCost.total / totalEstCost) * 100;
-            return <span className="inf-num">{pct.toFixed(1)}%</span>;
+            const pct = (m.estimatedCost / totalEstCost) * 100;
+            return <span className="inf-num">{usageFormatPercent(pct)}</span>;
         }
         if (context.column.key === "inf.input") {
             return <span className="inf-num">{m.tokens.input > 0 ? formatNumber(m.tokens.input) : "—"}</span>;
@@ -1080,7 +951,8 @@ export function UsageInferenceBreakdownSection(props: {
             return <span className="inf-num">{m.tokens.output > 0 ? formatNumber(m.tokens.output) : "—"}</span>;
         }
         if (context.column.key === "inf.tokens") {
-            return <span className="inf-num">{m.tokens.total > 0 ? formatNumber(m.tokens.total) : "—"}</span>;
+            const total = totalInferenceTokens(m.tokens);
+            return <span className="inf-num">{total > 0 ? formatNumber(total) : "—"}</span>;
         }
         if (context.column.key === "inf.images") {
             if (m.imageCount <= 0 && m.imagePixels <= 0) {
@@ -1146,12 +1018,12 @@ export function UsageInferenceBreakdownSection(props: {
             <div className="inf-controls">
                 {activeSelectedModels.length > 0 ? (
                     <Button color="ghost" onClick={() => setSelectedModels([])}>
-                        Clear model filter ({activeSelectedModels.length})
+                        Clear model filter ({formatNumber(activeSelectedModels.length)})
                     </Button>
                 ) : null}
                 {pinnedChildren.length > 0 ? (
                     <Button color="ghost" onClick={onClearPinned}>
-                        Clear pinned ({pinnedChildren.length})
+                        Clear pinned ({formatNumber(pinnedChildren.length)})
                     </Button>
                 ) : null}
                 {breakdown.available && hasModels ? <>
@@ -1224,28 +1096,19 @@ export function UsageInferenceBreakdownSection(props: {
                 <div className="usage-chart-col">
                     <div className="inf-subhead">
                         <h4>{rateTitle}</h4>
-                        <TooltipV2 tooltip="Expand chart">
-                            <button
-                                type="button"
-                                className={UcxTableIconButtonClass}
-                                aria-label={`Expand ${rateTitle.toLowerCase()} chart`}
-                                onClick={() => openUsageChartDialog(rateTitle, (w, h) => (
-                                    <UsageInferenceRateChart
-                                        timeline={breakdown.timeline}
-                                        bucketDurationMs={bucketDurationMs}
-                                        unit={unit}
-                                        metric={metric}
-                                        series={series}
-                                        width={w}
-                                        height={h}
-                                        highlightedKey={null}
-                                        labelForKey={labelForKey}
-                                    />
-                                ))}
-                            >
-                                <Icon name="heroArrowsPointingOut" size={15} />
-                            </button>
-                        </TooltipV2>
+                        <UsageChartExpandButton title={rateTitle} renderContent={(w, h) =>
+                            <UsageInferenceRateChart
+                                timeline={breakdown.timeline}
+                                bucketDurationMs={bucketDurationMs}
+                                unit={unit}
+                                metric={metric}
+                                series={series}
+                                width={w}
+                                height={h}
+                                highlightedKey={null}
+                                labelForKey={labelForKey}
+                            />
+                        } />
                     </div>
                     <UsageInferenceRateChart
                         timeline={breakdown.timeline}
@@ -1253,8 +1116,8 @@ export function UsageInferenceBreakdownSection(props: {
                         unit={unit}
                         metric={metric}
                         series={series}
-                        width={rateChartWidth}
-                        height={rateChartHeight}
+                        width={chartWidth}
+                        height={chartHeight}
                         highlightedKey={highlightedKey}
                         labelForKey={labelForKey}
                     />
@@ -1263,28 +1126,19 @@ export function UsageInferenceBreakdownSection(props: {
                 <div className="usage-chart-col">
                     <div className="inf-subhead">
                         <h4>{cumulativeTitle}</h4>
-                        <TooltipV2 tooltip="Expand chart">
-                            <button
-                                type="button"
-                                className={UcxTableIconButtonClass}
-                                aria-label={`Expand ${cumulativeTitle.toLowerCase()} chart`}
-                                onClick={() => openUsageChartDialog(cumulativeTitle, (w, h) => (
-                                    <UsageInferenceCumulativeChart
-                                        timeline={breakdown.timeline}
-                                        bucketDurationMs={bucketDurationMs}
-                                        unit={unit}
-                                        metric={metric}
-                                        series={series}
-                                        width={w}
-                                        height={h}
-                                        highlightedKey={null}
-                                        labelForKey={labelForKey}
-                                    />
-                                ))}
-                            >
-                                <Icon name="heroArrowsPointingOut" size={15} />
-                            </button>
-                        </TooltipV2>
+                        <UsageChartExpandButton title={cumulativeTitle} renderContent={(w, h) =>
+                            <UsageInferenceCumulativeChart
+                                timeline={breakdown.timeline}
+                                bucketDurationMs={bucketDurationMs}
+                                unit={unit}
+                                metric={metric}
+                                series={series}
+                                width={w}
+                                height={h}
+                                highlightedKey={null}
+                                labelForKey={labelForKey}
+                            />
+                        } />
                     </div>
                     <UsageInferenceCumulativeChart
                         timeline={breakdown.timeline}
@@ -1292,8 +1146,8 @@ export function UsageInferenceBreakdownSection(props: {
                         unit={unit}
                         metric={metric}
                         series={series}
-                        width={burnupChartWidth}
-                        height={burnupChartHeight}
+                        width={chartWidth}
+                        height={chartHeight}
                         highlightedKey={highlightedKey}
                         labelForKey={labelForKey}
                     />

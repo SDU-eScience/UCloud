@@ -10,6 +10,7 @@ import {
 } from "@/Accounting/index";
 import {formatAmount} from "@/Accounting/Allocations/Model";
 import {apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 
 export interface UsageOverviewRequest {
     start: number;
@@ -38,7 +39,6 @@ export interface UsageProductSummary {
     retiredUsage: number;
     quota: number;
     totalUsage: number;
-    peakUsage: number;
     nextMeaningfulExpiration?: number | null;
     nextQuotaDrop?: UsageQuotaDrop | null;
     sparkline: UsageSparklinePoint[];
@@ -59,7 +59,6 @@ export interface UsageUnitGroup {
     retiredUsage: number;
     quota: number;
     totalUsage: number;
-    peakUsage: number;
     nextMeaningfulExpiration?: number | null;
     nextQuotaDrop?: UsageQuotaDrop | null;
     sparkline: UsageSparklinePoint[];
@@ -84,27 +83,19 @@ export interface UsageDetailKpis {
     periodUsage: number;
     periodLocalUsage: number;
     periodChildrenUsage: number;
-    activeUsageAtStart: number;
     activeUsageAtEnd: number;
-    activeQuotaAtStart: number;
     activeQuotaAtEnd: number;
-    retiredUsageAtStart: number;
     retiredUsageAtEnd: number;
-    totalUsageAtStart: number;
     totalUsageAtEnd: number;
-    quotaAtStart: number;
     quotaAtEnd: number;
-    localUsageAtStart: number;
     localUsageAtEnd: number;
     maxUsableAtEnd: number;
     activeAllocatedAtEnd: number;
     totalAllocatedAtEnd: number;
-    peakUsage: number;
     avgUsage: number;
     upstreamCapped: boolean;
     nextMeaningfulExpiration?: number | null;
     nextQuotaDrop?: UsageQuotaDrop | null;
-    downstreamActiveAllocated: number;
 }
 
 export interface UsageSeriesValue {
@@ -117,12 +108,9 @@ export interface UsageTimelineBucket {
     timestamp: number;
     endTimestamp: number;
     usageChange: number;
-    localUsageChange: number;
     flowShift: number;
     activeUsage: number;
     retiredUsage: number;
-    totalUsage: number;
-    localUsage: number;
     activeQuota: number;
     quota: number;
     maxUsable: number;
@@ -138,41 +126,31 @@ export interface UsageDailyActivityPoint {
 
 export interface UsageLifecycleEvent {
     timestamp: number;
-    type: "start" | "expire" | "retire" | "upcoming_expire";
+    type: "start" | "expire" | "retire";
     quotaDelta: number;
-    count: number;
-    productKey: string;
 }
 
 export interface UsageHistogramBucket {
     key: string;
     label: string;
     count: number;
-    totalPeriodUsage: number;
-    totalActiveQuota: number;
-}
-
-export interface UsageSubProjectSummary {
-    totalCount: number;
-    subAllocatorCount: number;
-    utilizationBuckets: UsageHistogramBucket[];
 }
 
 export interface UsageSubAllocatorAggregate {
-    activeDownstreamCount: number;
     downstreamActiveAllocated: number;
-    reallocatedPercent: number;
     directUsage: number;
     downstreamUsage: number;
+}
+
+export interface UsageQuotaExpiration {
+    timestamp: number;
+    quota: number;
 }
 
 export interface UsageChildRow {
     child: string;
     isLocal: boolean;
-    isSubAllocator: boolean;
     periodUsage: number;
-    currentUsage: number;
-    peakUsage: number;
     activeUsage: number;
     activeQuota: number;
     activeQuotaKnown?: boolean;
@@ -180,10 +158,9 @@ export interface UsageChildRow {
     quotaKnown?: boolean;
     retiredUsage: number;
     totalUsage: number;
-    utilizationPercent: number;
-    utilizationBucket: string;
     nextExpiration?: number | null;
     nextQuotaDrop?: UsageQuotaDrop | null;
+    upcomingExpirations?: UsageQuotaExpiration[];
     subAllocator?: UsageSubAllocatorAggregate | null;
 }
 
@@ -194,14 +171,12 @@ export interface UsageInferenceCostBreakdown {
     image: number;
     audio: number;
     video: number;
-    total: number;
 }
 
 export interface UsageInferenceTokenBreakdown {
     cachedInput: number;
     input: number;
     output: number;
-    total: number;
 }
 
 export interface UsageInferenceModelBucketValue {
@@ -213,8 +188,6 @@ export interface UsageInferenceModelBucketValue {
 export interface UsageInferenceTimelineBucket {
     timestamp: number;
     endTimestamp: number;
-    estimatedCost: UsageInferenceCostBreakdown;
-    tokens: UsageInferenceTokenBreakdown;
     byModel: UsageInferenceModelBucketValue[];
 }
 
@@ -222,7 +195,7 @@ export interface UsageInferenceModelSummary {
     model: string;
     title: string;
     priced: boolean;
-    estimatedCost: UsageInferenceCostBreakdown;
+    estimatedCost: number;
     tokens: UsageInferenceTokenBreakdown;
     imageCount: number;
     imagePixels: number;
@@ -232,17 +205,69 @@ export interface UsageInferenceModelSummary {
 
 export interface UsageInferenceBreakdown {
     available: boolean;
-    estimatedCost: UsageInferenceCostBreakdown;
-    tokens: UsageInferenceTokenBreakdown;
-    imageCount: number;
-    imagePixels: number;
-    audioMilliseconds: number;
-    videoSeconds: number;
+    bucketDurationMs?: number;
     coFundedWorkspaceCount: number;
     hasUnpricedModels: boolean;
     hasVideoEstimate: boolean;
     models: UsageInferenceModelSummary[];
     timeline: UsageInferenceTimelineBucket[];
+}
+
+export interface UsageJobOutcomeCounts {
+    completed: number;
+    failed: number;
+    expired: number;
+    active: number;
+}
+
+export interface UsageJobSliceBucketValue {
+    application: string;
+    productKey: string;
+    estimatedHours: number;
+    requestedHours: number;
+    outcomes: UsageJobOutcomeCounts;
+}
+
+export interface UsageJobTimelineBucket {
+    timestamp: number;
+    endTimestamp: number;
+    queueSamples: number;
+    avgQueueSeconds: number;
+    p50QueueSeconds: number;
+    p90QueueSeconds: number;
+    bySlice: UsageJobSliceBucketValue[];
+}
+
+export interface UsageJobApplicationSummary {
+    application: string;
+    estimatedHours: number;
+    outcomes: UsageJobOutcomeCounts;
+    topProductKeys: string[];
+}
+
+export interface UsageJobProductSummary {
+    product: string;
+    provider: string;
+    cpu: number;
+    gpu: number;
+    memoryInGigs: number;
+    jobs: number;
+    estimatedHours: number;
+    requestedHours: number;
+    queueSamples: number;
+    avgQueueSeconds: number;
+    p50QueueSeconds: number;
+    p90QueueSeconds: number;
+    maxQueueSeconds: number;
+}
+
+export interface UsageJobBreakdown {
+    available: boolean;
+    bucketDurationMs?: number;
+    coFundedWorkspaceCount: number;
+    applications: UsageJobApplicationSummary[];
+    products: UsageJobProductSummary[];
+    timeline: UsageJobTimelineBucket[];
 }
 
 export interface UsageDetailResponse {
@@ -263,9 +288,9 @@ export interface UsageDetailResponse {
     timeline: UsageTimelineBucket[];
     dailyActivity?: UsageDailyActivityPoint[];
     events: UsageLifecycleEvent[];
-    subProjectSummary: UsageSubProjectSummary;
     children: UsageChildRow[];
     inferenceBreakdown?: UsageInferenceBreakdown | null;
+    jobBreakdown?: UsageJobBreakdown | null;
 }
 
 export function usageOverviewRetrieve(
@@ -301,23 +326,24 @@ export function usageFormatNumber(
 export function usageFormatValue(
     unit: FrontendAccountingUnit,
     rawValue: number,
-    options?: {
-        removeUnit?: boolean;
-    },
 ): string {
-    const formatted = formatAmount(rawValue * unit.balanceFactor);
-    if (options?.removeUnit) {
-        return formatted;
-    }
-    return `${formatted} ${unit.name}`;
+    return `${usageFormatNumber(unit, rawValue)} ${unit.name}`;
 }
 
-export function usageFormatShortDate(timestamp: number): string {
-    const d = new Date(timestamp);
-    return d.toLocaleDateString(undefined, {
+export function usageFormatPercent(value: number, precision = 1): string {
+    return `${formatNumber(value, {precision})}%`;
+}
+
+export function usageFormatDays(days: number): string {
+    return `${formatNumber(days)} ${days === 1 ? "day" : "days"}`;
+}
+
+export function usageFormatShortDate(timestamp: number, timeZone?: string): string {
+    return new Date(timestamp).toLocaleDateString(undefined, {
         month: "short",
         day: "numeric",
         year: "numeric",
+        timeZone,
     });
 }
 
@@ -357,28 +383,9 @@ export function usageChildScopeMetrics(
     accountingModel: AccountingModel,
     includeRetired: boolean,
 ): UsageChildScopedMetrics {
-    if (accountingModel === "CAPACITY" || !includeRetired) {
-        const quotaKnown = row.activeQuotaKnown !== false && row.utilizationBucket !== "unknown";
-        if (!quotaKnown) {
-            return {
-                usage: row.activeUsage,
-                quota: 0,
-                quotaKnown: false,
-                utilizationPercent: 0,
-                utilizationBucket: "unknown",
-            };
-        }
-        return {
-            usage: row.activeUsage,
-            quota: row.activeQuota,
-            quotaKnown: true,
-            utilizationPercent: row.utilizationPercent,
-            utilizationBucket: row.utilizationBucket,
-        };
-    }
-
-    const usage = row.totalUsage;
-    const quotaKnown = row.quotaKnown !== false && row.quota != null;
+    const useLifetime = accountingModel !== "CAPACITY" && includeRetired;
+    const usage = useLifetime ? row.totalUsage : row.activeUsage;
+    const quotaKnown = useLifetime ? row.quotaKnown !== false && row.quota != null : row.activeQuotaKnown !== false;
     if (!quotaKnown) {
         return {
             usage,
@@ -389,7 +396,7 @@ export function usageChildScopeMetrics(
         };
     }
 
-    const quota = Math.max(row.quota ?? 0, row.activeQuota);
+    const quota = useLifetime ? Math.max(row.quota ?? 0, row.activeQuota) : row.activeQuota;
     if (quota <= 0) {
         return {
             usage,
@@ -404,7 +411,7 @@ export function usageChildScopeMetrics(
     let bucket = "near_full";
     if (pct >= 100) {
         bucket = "over";
-    } else if (usage === 0) {
+    } else if (usage === 0 && (useLifetime || accountingModel === "CAPACITY" || row.periodUsage === 0)) {
         bucket = "idle";
     } else if (pct < 25) {
         bucket = "low";
@@ -440,8 +447,6 @@ export function usageBuildChildHistogramBuckets(
         key: d.key,
         label: d.label,
         count: 0,
-        totalPeriodUsage: 0,
-        totalActiveQuota: 0,
     }));
     const byKey = new Map(buckets.map(b => [b.key, b]));
 
@@ -452,8 +457,6 @@ export function usageBuildChildHistogramBuckets(
         const bucket = byKey.get(metrics.utilizationBucket);
         if (!bucket) continue;
         bucket.count++;
-        bucket.totalPeriodUsage += row.periodUsage;
-        bucket.totalActiveQuota += metrics.quota;
     }
 
     return buckets;

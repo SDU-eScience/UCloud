@@ -16,7 +16,6 @@ import {
     isModalOpen,
 } from "@/Applications/KeyboardNavigation";
 import {isLikelyMac} from "@/UtilityFunctions";
-import {format} from "date-fns";
 import type {DateRange, FilterState} from "./Model";
 import {calendarYearRange} from "./Model";
 
@@ -501,9 +500,13 @@ const PeriodPanelClass = injectStyle("allocation-period-panel", k => `
     html.dark ${k} .period-month[data-in-range="true"]:not([aria-pressed="true"]) {
         background: var(--gray-90);
     }
-    ${k} .period-month:hover {
+    ${k} .period-month:hover:not(:disabled) {
         background: var(--rowHover);
         color: var(--textPrimary);
+    }
+    ${k} .period-month:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
     }
     ${k} .period-month[aria-pressed="true"] {
         background: var(--primaryMain);
@@ -523,9 +526,54 @@ const PeriodPanelClass = injectStyle("allocation-period-panel", k => `
     }
 `);
 
+const formatPeriodMonth = new Intl.DateTimeFormat(undefined, {month: "short"}).format;
+const formatPeriodMonthYear = new Intl.DateTimeFormat(undefined, {month: "short", year: "numeric"}).format;
+const describePeriodMonthYear = new Intl.DateTimeFormat(undefined, {month: "long", year: "numeric"}).format;
+
+export interface PeriodPreset {
+    label: string;
+    shortcut?: string;
+    keyCode?: string;
+    range: (now: Date) => DateRange;
+}
+
+const defaultAllocationPresets: PeriodPreset[] = [
+    {
+        label: "Current year",
+        shortcut: "V",
+        keyCode: "KeyV",
+        range: now => calendarYearRange(now.getFullYear()),
+    },
+    {
+        label: "Last year",
+        shortcut: "X",
+        keyCode: "KeyX",
+        range: now => calendarYearRange(now.getFullYear() - 1),
+    },
+    {
+        label: "Next year",
+        shortcut: "Y",
+        keyCode: "KeyY",
+        range: now => calendarYearRange(now.getFullYear() + 1),
+    },
+    {
+        label: "Next 12 months",
+        shortcut: "Z",
+        keyCode: "KeyZ",
+        range: now => ({
+            start: new Date(now.getFullYear(), now.getMonth(), 1),
+            end: new Date(now.getFullYear(), now.getMonth() + 12, 0),
+        }),
+    },
+];
+
 export function PeriodFilter(props: {
     value: DateRange;
     onChange: (value: DateRange) => void;
+    title?: string;
+    ariaLabel?: string;
+    presets?: PeriodPreset[];
+    maxDate?: Date;
     navigationField?: boolean;
     presetButtonColor?: "secondaryMain";
     now?: number;
@@ -533,6 +581,11 @@ export function PeriodFilter(props: {
     onReturnFocus?: () => void;
 }): React.ReactNode {
     const currentDate = new Date(props.now ?? Date.now());
+    const title = props.title ?? "Allocation period";
+    const ariaLabel = props.ariaLabel ?? "Choose allocation period";
+    const presets = props.presets ?? defaultAllocationPresets;
+    const maxMonth = props.maxDate ? props.maxDate.getFullYear() * 12 + props.maxDate.getMonth() : null;
+    const maxYear = props.maxDate ? props.maxDate.getFullYear() : null;
     const [open, setOpen] = useState(false);
     const [start, setStart] = useState(props.value.start);
     const [end, setEnd] = useState<Date | null>(props.value.end);
@@ -589,25 +642,14 @@ export function PeriodFilter(props: {
         selectPreset(range);
         focusApply();
     };
-    const nextTwelveMonths = (): DateRange => {
-        const now = currentDate;
-        return {
-            start: new Date(now.getFullYear(), now.getMonth(), 1),
-            end: new Date(now.getFullYear(), now.getMonth() + 12, 0),
-        };
-    };
     const onPanelKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
         const primaryPressed = isLikelyMac ? event.metaKey : event.ctrlKey;
         if (event.altKey && primaryPressed && !event.shiftKey) {
-            let range: DateRange | null = null;
-            if (event.code === "KeyV") range = calendarYearRange(currentDate.getFullYear());
-            if (event.code === "KeyX") range = calendarYearRange(currentDate.getFullYear() - 1);
-            if (event.code === "KeyY") range = calendarYearRange(currentDate.getFullYear() + 1);
-            if (event.code === "KeyZ") range = nextTwelveMonths();
-            if (range) {
+            const matchedPreset = presets.find(p => p.keyCode === event.code);
+            if (matchedPreset) {
                 event.preventDefault();
                 event.stopPropagation();
-                choosePreset(range);
+                choosePreset(matchedPreset.range(currentDate));
                 return;
             }
             if (event.key === "Enter") {
@@ -641,9 +683,13 @@ export function PeriodFilter(props: {
         event.preventDefault();
         event.stopPropagation();
         if (targetIndex < 0 || targetIndex > 11) {
-            pendingFocusMonthRef.current = ((targetIndex % 12) + 12) % 12;
-            setYear(year + (targetIndex < 0 ? -1 : 1));
+            const nextYear = year + (targetIndex < 0 ? -1 : 1);
+            const nextMonth = ((targetIndex % 12) + 12) % 12;
+            if (maxMonth !== null && nextYear * 12 + nextMonth > maxMonth) return;
+            pendingFocusMonthRef.current = nextMonth;
+            setYear(nextYear);
         } else {
+            if (maxMonth !== null && year * 12 + targetIndex > maxMonth) return;
             buttons[targetIndex]?.focus();
         }
     };
@@ -663,11 +709,11 @@ export function PeriodFilter(props: {
             }}
             trigger={<span className="allocation-trigger period-trigger">
                 <Icon name="heroCalendar" size={16} />
-                <span>{format(props.value.start, "MMM yyyy")} – {format(props.value.end, "MMM yyyy")}</span>
+                <span>{formatPeriodMonthYear(props.value.start)} – {formatPeriodMonthYear(props.value.end)}</span>
                 <Icon name="heroChevronDown" size={12} />
                 {props.shortcut ? <ShortcutHint shortcut={props.shortcut} hideUntilReveal /> : null}
             </span>}
-            triggerAriaLabel="Choose allocation period"
+            triggerAriaLabel={ariaLabel}
             triggerAriaKeyshortcuts={props.shortcut ? "Control+Alt+K Meta+Alt+K" : undefined}
             focusable
             rightAligned
@@ -682,58 +728,46 @@ export function PeriodFilter(props: {
                 ref={setPanelNode}
                 className={PeriodPanelClass}
                 role="dialog"
-                aria-label="Choose allocation period"
+                aria-label={ariaLabel}
                 onKeyDown={onPanelKeyDown}
             >
-                <h4>Allocation period</h4>
+                <h4>{title}</h4>
                 <div className="period-presets">
-                    <Button
-                        color={props.presetButtonColor ?? "ghost"}
-                        height={25}
-                        onClick={() => choosePreset(calendarYearRange(currentDate.getFullYear()))}
-                    >
-                        Current year<SubmitShortcut shortcut="V" compact />
-                    </Button>
-                    <Button
-                        color={props.presetButtonColor ?? "ghost"}
-                        height={25}
-                        onClick={() => choosePreset(calendarYearRange(currentDate.getFullYear() - 1))}
-                    >
-                        Last year<SubmitShortcut shortcut="X" compact />
-                    </Button>
-                    <Button
-                        color={props.presetButtonColor ?? "ghost"}
-                        height={25}
-                        onClick={() => choosePreset(calendarYearRange(currentDate.getFullYear() + 1))}
-                    >
-                        Next year<SubmitShortcut shortcut="Y" compact />
-                    </Button>
-                    <Button
-                        color={props.presetButtonColor ?? "ghost"}
-                        height={25}
-                        onClick={() => choosePreset(nextTwelveMonths())}
-                    >
-                        Next 12 months<SubmitShortcut shortcut="Z" compact />
-                    </Button>
+                    {presets.map(preset => (
+                        <Button
+                            key={preset.label}
+                            color={props.presetButtonColor ?? "ghost"}
+                            height={25}
+                            onClick={() => choosePreset(preset.range(currentDate))}
+                        >
+                            {preset.label}{preset.shortcut ? <SubmitShortcut shortcut={preset.shortcut} compact /> : null}
+                        </Button>
+                    ))}
                 </div>
                 <div className="period-bounds">
                     <button type="button" className="period-bound" aria-pressed={step === "start"} onClick={() => {
                         setStep("start");
                         setYear(start.getFullYear());
-                    }}><small>From</small><span>{format(start, "MMM yyyy")}</span></button>
+                    }}><small>From</small><span>{formatPeriodMonthYear(start)}</span></button>
                     <button type="button" className="period-bound" aria-pressed={step === "end"} onClick={() => {
                         setStep("end");
                         setYear((end ?? start).getFullYear());
-                    }}><small>Through</small><span>{end ? format(end, "MMM yyyy") : "Choose a month"}</span></button>
+                    }}><small>Through</small><span>{end ? formatPeriodMonthYear(end) : "Choose a month"}</span></button>
                 </div>
                 <div className="period-year">
                     <IconButton tooltip="Previous year" icon="heroChevronLeft" onClick={() => setYear(year - 1)} />
                     <span>{year}</span>
-                    <IconButton tooltip="Next year" icon="heroChevronRight" onClick={() => setYear(year + 1)} />
+                    <IconButton
+                        tooltip="Next year"
+                        icon="heroChevronRight"
+                        disabled={maxYear !== null && year >= maxYear}
+                        onClick={() => setYear(year + 1)}
+                    />
                 </div>
                 <div className="period-months" onMouseLeave={() => setHoveredMonth(null)}>
                     {Array.from({length: 12}, (_, month) => {
                         const index = year * 12 + month;
+                        const disabled = maxMonth !== null && index > maxMonth;
                         const selected = index === startMonth || index === endMonth;
                         const inRange = previewEnd !== null && index >= rangeStart && index <= rangeEnd;
                         const date = new Date(year, month, 1);
@@ -741,16 +775,18 @@ export function PeriodFilter(props: {
                             key={month}
                             type="button"
                             className="period-month"
-                            aria-label={format(date, "MMMM yyyy")}
+                            disabled={disabled}
+                            aria-label={describePeriodMonthYear(date)}
                             aria-pressed={selected}
                             data-in-range={inRange}
                             onMouseEnter={() => {
-                                if (step === "end" && end === null) setHoveredMonth(index);
+                                if (!disabled && step === "end" && end === null) setHoveredMonth(index);
                             }}
                             onFocus={() => {
-                                if (step === "end" && end === null) setHoveredMonth(index);
+                                if (!disabled && step === "end" && end === null) setHoveredMonth(index);
                             }}
                             onClick={() => {
+                                if (disabled) return;
                                 setHoveredMonth(null);
                                 if (step === "start") {
                                     setStart(date);
@@ -767,7 +803,7 @@ export function PeriodFilter(props: {
                                 setStep("start");
                                 focusApply();
                             }}
-                        >{format(date, "MMM")}</button>;
+                        >{formatPeriodMonth(date)}</button>;
                     })}
                 </div>
                 <div className="period-footer">
