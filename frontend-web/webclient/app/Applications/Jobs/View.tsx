@@ -12,7 +12,6 @@ import {Box, Button, Card, ExternalLink, Flex, Icon, Link, Truncate} from "@/ui-
 import TitledCard from "@/ui-components/HighlightedCard";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {device, deviceBreakpoint} from "@/ui-components/Hide";
-import {CSSTransition} from "react-transition-group";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {dateToString, dateToTimeOfDayString} from "@/Utilities/DateUtilities";
 import {MarginProps} from "styled-system";
@@ -158,17 +157,6 @@ const Container = injectStyle("job-container", k => `
     position: absolute;
     left: 0;
     top: 0;
-    animation: 800ms ${zoomInAnim};
-  }
-
-  ${k} > .logo-wrapper.active {
-    transition: scale 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
-  }
-
-  ${k} > .logo-wrapper.active > .logo-scale {
-    transition: transform 300ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
-    transform: scale(var(--logoScale));
-    transform-origin: top left;
   }
 
   ${k} .fake-logo {
@@ -178,31 +166,6 @@ const Container = injectStyle("job-container", k => `
     width: var(--logoSize);
     height: var(--logoSize);
     content: '';
-  }
-
-  ${k} .data.data-enter-done {
-    opacity: 1;
-    transform: none;
-  }
-
-  ${k} .data.data-enter-active {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-    transition: transform 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
-  }
-
-  ${k} .data.data-exit {
-    opacity: 1;
-  }
-
-  ${k} .data.data-exit-active {
-    display: none;
-  }
-
-  ${k} .data {
-    width: 100%; /* fix info card width */
-    opacity: 0;
-    transform: translate3d(0, 50vh, 0);
   }
 
   ${k} .header-text {
@@ -510,11 +473,6 @@ function JobView(props: {id: string; embedded?: boolean;}): React.ReactNode {
 
     useJobUpdates(job, jobUpdateListener);
 
-    // Note(Jonas): CSSTransition otherwise relies on removed "React.findDomNode"
-    const transitionRefOne = useRef(null);
-    const transitionRefTwo = useRef(null);
-    const transitionRefThree = useRef(null);
-
     if (jobFetcher.error !== undefined) {
         return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>} />;
     }
@@ -545,44 +503,28 @@ function JobView(props: {id: string; embedded?: boolean;}): React.ReactNode {
                 </div>
             </div>
             {!job || !status ? null : (
-                <CSSTransition
-                    nodeRef={transitionRefOne}
-                    in={(status?.state === "IN_QUEUE" || status?.state === "SUSPENDED") && !isVirtualMachine && dataAnimationAllowed}
-                    timeout={{
-                        enter: 1000,
-                        exit: 0,
-                    }}
-                    classNames={"data"}
-                    unmountOnExit
-                >
-                    <div ref={transitionRefOne} className={"data"}>
-                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"} />
-                            <div className={"header-text"}>
-                                <InQueueText job={job} state={status.state ?? "IN_QUEUE"} />
-                            </div>
-                        </Flex>
-
-                        <div className={Content}>
-                            <Box width={"100%"} maxWidth={"1572px"} margin={"0 auto"}>
-                                <TitledCard>
-                                    <ProviderUpdates key={job.id} job={job} state={jobUpdateState} addOverflow={true} />
-                                </TitledCard>
-                            </Box>
+                (status?.state === "IN_QUEUE" || status?.state === "SUSPENDED") && !isVirtualMachine) ? (
+                <div>
+                    <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                        <div className={"fake-logo"} />
+                        <div className={"header-text"}>
+                            <InQueueText job={job} state={status.state ?? "IN_QUEUE"} />
                         </div>
+                    </Flex>
+
+                    <div className={Content}>
+                        <Box width={"100%"} maxWidth={"1572px"} margin={"0 auto"}>
+                            <TitledCard>
+                                <ProviderUpdates key={job.id} job={job} state={jobUpdateState} addOverflow={true} />
+                            </TitledCard>
+                        </Box>
                     </div>
-                </CSSTransition>
-            )}
+                </div>) : null
+            }
 
             {!job || !status ? null : (
-                <CSSTransition
-                    nodeRef={transitionRefTwo}
-                    in={(status?.state === "RUNNING" || (isVirtualMachine && !isJobStateTerminal(status.state))) && dataAnimationAllowed}
-                    timeout={{enter: 1000, exit: 0}}
-                    classNames={"data"}
-                    unmountOnExit
-                >
-                    <div ref={transitionRefTwo} className={"data"}>
+                (status?.state === "RUNNING" || (isVirtualMachine && !isJobStateTerminal(status.state))) ?
+                    <div>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
                             <div className={"fake-logo"} />
                             <div className={"header-text"}>
@@ -595,19 +537,12 @@ function JobView(props: {id: string; embedded?: boolean;}): React.ReactNode {
                             state={jobUpdateState}
                             status={status}
                         />
-                    </div>
-                </CSSTransition>
+                    </div> : null
             )}
 
             {!job || !status ? null : (
-                <CSSTransition
-                    nodeRef={transitionRefThree}
-                    in={isJobStateTerminal(status.state) && dataAnimationAllowed}
-                    timeout={{enter: 1000, exit: 0}}
-                    classNames={"data"}
-                    unmountOnExit
-                >
-                    <div ref={transitionRefThree} className={"data"}>
+                isJobStateTerminal(status.state) ?
+                    <div>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
                             <div className={"fake-logo"} />
                             <div className={"header-text"}>
@@ -616,8 +551,7 @@ function JobView(props: {id: string; embedded?: boolean;}): React.ReactNode {
                         </Flex>
 
                         <CompletedContent job={job} state={jobUpdateState} />
-                    </div>
-                </CSSTransition>
+                    </div> : null
             )}
             {status && isJobStateTerminal(status.state) && job ? <OutputFiles key={job.id} job={job} /> : null}
         </div>
@@ -1568,7 +1502,7 @@ function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): React.ReactNod
         return null;
     }
 
-    return <Card className={FadeInDiv} p={"0px"} minHeight={"500px"} mt={"16px"}>
+    return <Card p={"0px"} minHeight={"500px"} mt={"16px"}>
         <FileBrowse
             opts={{
                 initialPath: outputFolder,
@@ -1579,32 +1513,9 @@ function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): React.ReactNod
     </Card>;
 }
 
-const fadeInAnimation = makeKeyframe("fade-in-animation", `
-  from {
-    opacity: 0%;
-  }
-  75% {
-    opacity: 0%;
-  }
-  80% {
-    opacity: 0%;
-  }
-  to {
-    opacity: 100%;
-  }
-`);
-
-const FadeInDiv = injectStyle("fade-in-div", k => `
-    ${k} {
-        width: 100%;
-        animation: 1.6s ${fadeInAnimation};
-    }
-`);
-
 function getAppType(job: Job): string {
     return job.status.resolvedApplication!.invocation.applicationType;
 }
-
 
 const InterfaceLinkRow: RichSelectChildComponent<SearchableInterfaceTarget> = ({element, dataProps, onSelect}) => {
     if (!element) return null;
