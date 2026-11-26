@@ -383,8 +383,8 @@ function JobView(props: {id: string; embedded?: boolean;}): React.ReactNode {
         <div className={VmLayout}>
             {!job || !status ? null : <JobHeader job={job} effectiveState={status?.state ?? "IN_QUEUE"} status={status} />}
             <div className={VmContentGrid}>
-                {!job || !status ? null : (
-                    (status?.state === "IN_QUEUE" || status?.state === "SUSPENDED") && !isVirtualMachine) ? (
+                {!job || !status ? null : (<>
+                    {(status.state === "IN_QUEUE" || status.state === "SUSPENDED") && !isVirtualMachine ? (
                     <TabbedCard>
                         <TabbedCardTab icon={"id"} name={""}>
                             <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
@@ -402,41 +402,38 @@ function JobView(props: {id: string; embedded?: boolean;}): React.ReactNode {
                                 </Box>
                             </div>
                         </TabbedCardTab>
-                    </TabbedCard>) : null
-                }
+                    </TabbedCard>) : null}
 
-                {!job || !status ? null : (
-                    (status?.state === "RUNNING" || (isVirtualMachine && !isJobStateTerminal(status.state))) ?
-                        <div>
-                            <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                                <div className={"fake-logo"} />
-                                <div className={"header-text"}>
-                                    <RunningText job={job} interfaceLinks={interfaceTargets} defaultInterfaceName={targetRequests.defaultName} />
-                                </div>
-                            </Flex>
+                {status.state === "RUNNING" || (isVirtualMachine && !isJobStateTerminal(status.state)) ?
+                    <div>
+                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                            <div className={"fake-logo"} />
+                            <div className={"header-text"}>
+                                <RunningText job={job} interfaceLinks={interfaceTargets} defaultInterfaceName={targetRequests.defaultName} />
+                            </div>
+                        </Flex>
 
-                            <RunningContent
-                                job={job}
-                                state={jobUpdateState}
-                                status={status}
-                            />
-                        </div> : null
-                )}
-                {!job || !status ? null : (
-                    isJobStateTerminal(status.state) ?
-                        <div>
-                            <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                                <div className={"fake-logo"} />
-                                <div className={"header-text"}>
-                                    <CompletedText job={job} state={status.state} />
-                                </div>
-                            </Flex>
+                        <RunningContent
+                            job={job}
+                            state={jobUpdateState}
+                            status={status}
+                        />
+                    </div> : null}
+                {isJobStateTerminal(status.state) ?
+                    <div>
+                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                            <div className={"fake-logo"} />
+                            <div className={"header-text"}>
+                                <CompletedText job={job} state={status.state} />
+                            </div>
+                        </Flex>
 
-                            <CompletedContent job={job} state={jobUpdateState} />
-                        </div> : null
-                )}
-                {status && isJobStateTerminal(status.state) && job ? <OutputFiles key={job.id} job={job} /> : null}
+                        <CompletedContent job={job} state={jobUpdateState} />
+                    </div>
+                    : null}
+                </>)}
             </div>
+            {status && isJobStateTerminal(status.state) && job ? <OutputFiles key={job.id} job={job} /> : null}
         </div>
     );
 
