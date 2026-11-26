@@ -305,8 +305,6 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     const effectiveState: JobState | OptimisticPowerState = optimisticPowerState ?? status.state;
     const showInterfaceControls = effectiveState === "RUNNING";
     const sshCommand = useMemo(() => effectiveState === "RUNNING" ? parseSshCommand(updates) : null, [effectiveState, updates]);
-    const appTitle = job.specification.name ?? job.status.resolvedApplication?.metadata?.title ?? "Virtual machine";
-    const appVersion = job.status.resolvedApplication?.metadata?.version ?? "";
     const alternativeInterfaces = useMemo(() => {
         return combinedInterfaceTargets.filter(it => it !== desktopTarget && it.link);
     }, [combinedInterfaceTargets, desktopTarget]);
@@ -762,93 +760,66 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                 />
             }
         </ReactModal>
-        <Card className={classConcat(HeroHeaderCard, effectiveState)} p="24px">
-            <Flex alignItems="center" gap="16px" flexWrap="wrap">
-                <Box>
-                    <Flex gap={"8px"} alignItems={"center"}>
+        <JobHeader job={job} effectiveState={effectiveState} status={status}>
+            <Flex flexDirection="row" alignItems="center" gap="10px">
+                {!showInterfaceControls ? null : (
+                    <Flex>
+                        <Link to={supportsTerminal ? terminalLink : (desktopTarget?.link ?? "")} target="_blank" aria-disabled={interfaceDisabled}>
+                            <Button disabled={interfaceDisabled} attachedLeft={hasLaunchMenu}>
+                                <Icon name={supportsTerminal ? "heroCommandLine" : "heroComputerDesktop"} mr="8px" />
+                                {supportsTerminal
+                                    ? "Open terminal"
+                                    : `Open ${desktopTarget?.target ?? defaultInterfaceName ?? (supportsVnc ? "desktop" : "interface")}`
+                                }
+                            </Button>
+                        </Link>
 
-                        <SafeLogo name={job?.specification?.application?.name ?? "unknown"}
-                            type={"APPLICATION"}
-                            groupId={job?.status.resolvedApplication?.metadata.groupId ?? job?.status.resolvedApplication?.metadata.group?.metadata.id}
-                            size={"32px"} />
-
-                        <Heading.h2>{appTitle} {appVersion}</Heading.h2>
+                        {!hasLaunchMenu ? null : (
+                            <RichSelect
+                                items={launchMenuItems}
+                                keys={["value"]}
+                                RenderRow={VmActionRow}
+                                onSelect={onSelectLaunchMenuItem}
+                                showSearchField={false}
+                                dropdownWidth="300px"
+                                matchTriggerWidth={false}
+                                trigger={
+                                    <div className={PrimarySplitDropdownTrigger} data-disabled={interfaceDisabled}>
+                                        <Icon name="heroChevronDown"/>
+                                    </div>
+                                }
+                            />
+                        )}
                     </Flex>
-                </Box>
+                )}
 
-                <Box flexGrow={1} />
-
-                <Flex flexDirection="row" alignItems="center" gap="10px">
-                    {!showInterfaceControls ? null : (
-                        <Flex>
-                            <Link to={supportsTerminal ? terminalLink : (desktopTarget?.link ?? "")} target="_blank" aria-disabled={interfaceDisabled}>
-                                <Button disabled={interfaceDisabled} attachedLeft={hasLaunchMenu}>
-                                    <Icon name={supportsTerminal ? "heroCommandLine" : "heroComputerDesktop"} mr="8px" />
-                                    {supportsTerminal
-                                        ? "Open terminal"
-                                        : `Open ${desktopTarget?.target ?? defaultInterfaceName ?? (supportsVnc ? "desktop" : "interface")}`
-                                    }
-                                </Button>
-                            </Link>
-
-                            {!hasLaunchMenu ? null : (
-                                <RichSelect
-                                    items={launchMenuItems}
-                                    keys={["value"]}
-                                    RenderRow={VmActionRow}
-                                    onSelect={onSelectLaunchMenuItem}
-                                    showSearchField={false}
-                                    dropdownWidth="300px"
-                                    matchTriggerWidth={false}
-                                    trigger={
-                                        <div className={PrimarySplitDropdownTrigger} data-disabled={interfaceDisabled}>
-                                            <Icon name="heroChevronDown"/>
-                                        </div>
-                                    }
-                                />
-                            )}
-                        </Flex>
-                    )}
-
-                    <VmActionSplitButton
-                        tone={powerTone}
-                        disabled={powerActionDisabled}
-                        buttonColor={supportsSuspension && !isTerminalState ? powerButtonColor : "primaryMain"}
-                        buttonIcon={supportsSuspension && !isTerminalState ? "heroPower" : "heroCog6Tooth"}
-                        buttonText={supportsSuspension && !isTerminalState
-                            ? (isSuspended
-                                ? (optimisticPowerState === "POWERING_ON" ? "Powering on..." : "Power on")
-                                : (optimisticPowerState === "POWERING_OFF" ? "Powering off..." : "Power off"))
-                            : "Actions"
-                        }
-                        onButtonClick={supportsSuspension && !isTerminalState
-                            ? (isSuspended ? unsuspend : confirmSuspend)
-                            : doNothing
-                        }
-                        menuItems={dangerMenuItems}
-                        onSelectMenuItem={onSelectDangerMenuItem}
-                    />
-                </Flex>
-
-                <div className={StatusBadge} data-state={effectiveState}>
-                    <span>{stateToTitle(effectiveState)}</span>
-                    {!isPowerTransitioning ? null : (
-                        <span className={StatusDots}>{".".repeat(statusDotCount)}</span>
-                    )}
-                </div>
+                <VmActionSplitButton
+                    tone={powerTone}
+                    disabled={powerActionDisabled}
+                    buttonColor={supportsSuspension && !isTerminalState ? powerButtonColor : "primaryMain"}
+                    buttonIcon={supportsSuspension && !isTerminalState ? "heroPower" : "heroCog6Tooth"}
+                    buttonText={supportsSuspension && !isTerminalState
+                        ? (isSuspended
+                            ? (optimisticPowerState === "POWERING_ON" ? "Powering on..." : "Power on")
+                            : (optimisticPowerState === "POWERING_OFF" ? "Powering off..." : "Power off"))
+                        : "Actions"
+                    }
+                    onButtonClick={supportsSuspension && !isTerminalState
+                        ? (isSuspended ? unsuspend : confirmSuspend)
+                        : doNothing
+                    }
+                    menuItems={dangerMenuItems}
+                    onSelectMenuItem={onSelectDangerMenuItem}
+                />
             </Flex>
 
-            <div className={HeroHeaderGrid}>
-                <HeroMetric title={"ID"}>{shortUUID(job.id)}</HeroMetric>
-                <HeroMetric title="Provider">
-                    <ProviderTitle providerId={job.specification.product.provider} />
-                </HeroMetric>
-                <HeroMetric title="Machine type">{job.specification.product.id}</HeroMetric>
-                <HeroMetric title="Launched by">{job.owner.createdBy}</HeroMetric>
-                <HeroMetric title="Created at">{dateToString(job.createdAt)}</HeroMetric>
-                <HeroMetric title="Started at">{status.startedAt ? dateToString(status.startedAt) : "Pending"}</HeroMetric>
+            <div className={StatusBadge} data-state={effectiveState}>
+                <span>{stateToTitle(effectiveState)}</span>
+                {!isPowerTransitioning ? null : (
+                    <span className={StatusDots}>{".".repeat(statusDotCount)}</span>
+                )}
             </div>
-        </Card>
+        </JobHeader>
 
         <div className={VmContentGrid}>
             {!showRuntimePanels ? null : (
@@ -1286,7 +1257,7 @@ function stateToTitle(state: JobState | OptimisticPowerState): string {
     }
 }
 
-const VmLayout = injectStyle("vm-layout", k => `
+export const VmLayout = injectStyle("vm-layout", k => `
     ${k} {
         display: flex;
         flex-direction: column;
@@ -1335,7 +1306,7 @@ const StatusDots = injectStyle("vm-status-dots", k => `
     }
 `);
 
-const VmContentGrid = injectStyle("vm-content-grid", k => `
+export const VmContentGrid = injectStyle("vm-content-grid", k => `
     ${k} {
         display: grid;
         gap: 16px;
@@ -1464,3 +1435,44 @@ const VmTimelineRow = injectStyle("vm-timeline-row", k => `
         }
     }
 `);
+
+export function JobHeader<T extends string>({ job, effectiveState, children, status }: React.PropsWithChildren<{ job: Job; effectiveState: T; status: JobStatus; }>): React.ReactNode {
+    return <Card className={classConcat(HeroHeaderCard, effectiveState)} p="24px">
+            <Flex alignItems="center" gap="16px" flexWrap="wrap">
+                <AppLogo job={job} />
+
+                <Box flexGrow={1} />
+
+                {children}
+
+            </Flex>
+
+        <div className={HeroHeaderGrid}>
+            <HeroMetric title={"ID"}>{shortUUID(job.id)}</HeroMetric>
+            <HeroMetric title="Provider">
+                <ProviderTitle providerId={job.specification.product.provider} />
+            </HeroMetric>
+            <HeroMetric title="Machine type">{job.specification.product.id}</HeroMetric>
+            <HeroMetric title="Launched by">{job.owner.createdBy}</HeroMetric>
+            <HeroMetric title="Created at">{dateToString(job.createdAt)}</HeroMetric>
+            <HeroMetric title="Started at">{status.startedAt ? dateToString(status.startedAt) : "Pending"}</HeroMetric>
+        </div>
+    </Card>
+}
+
+function AppLogo({ job }: { job: Job }) {
+    const appTitle = job.specification.name ?? job.status.resolvedApplication?.metadata?.title ?? "Virtual machine";
+    const appVersion = job.status.resolvedApplication?.metadata?.version ?? "";
+
+    return <Box>
+        <Flex gap={"8px"} alignItems={"center"}>
+
+            <SafeLogo name={job?.specification?.application?.name ?? "unknown"}
+                type={"APPLICATION"}
+                groupId={job?.status.resolvedApplication?.metadata.groupId ?? job?.status.resolvedApplication?.metadata.group?.metadata.id}
+                size={"32px"} />
+
+            <Heading.h2>{appTitle} {appVersion}</Heading.h2>
+        </Flex>
+    </Box>
+}

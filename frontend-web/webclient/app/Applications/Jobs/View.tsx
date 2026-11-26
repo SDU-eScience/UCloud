@@ -54,7 +54,7 @@ import {WebSession} from "./Web";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import * as JobViz from "@/Applications/Jobs/JobViz"
-import {VirtualMachineStatus} from "@/Applications/Jobs/VirtualMachines";
+import {JobHeader, VirtualMachineStatus, VmContentGrid, VmLayout} from "@/Applications/Jobs/VirtualMachines";
 import {openCreateApplicationVariant} from "@/Applications/Jobs/CreateApplicationVariant";
 import {BackgroundTask} from "@/Services/BackgroundTasks/BackgroundTask";
 
@@ -99,117 +99,6 @@ export const jobCache = new class extends ExternalStoreBase {
         return this.cache;
     }
 }();
-
-const enterAnimation = makeKeyframe("enter-animation", `
-  from {
-    transform: scale3d(1, 1, 1);
-  }
-  50% {
-    transform: scale3d(1.05, 1.05, 1.05);
-  }
-  to {
-    transform: scale3d(1, 1, 1);
-  }
-`);
-
-const busyAnim = makeKeyframe("busy-anim", `
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-`);
-
-const zoomInAnim = makeKeyframe("zoom-in-anim", `
-  from {
-    opacity: 0;
-    transform: scale3d(0.3, 0.3, 0.3);
-  }
-  50% {
-    opacity: 1;
-  }
-`);
-
-const Container = injectStyle("job-container", k => `
-    ${k} {
-        --logoScale: 1;
-        --logoSize: 128px;
-        margin: 32px;
-        max-width: 2200px;
-    }
-
-
-    ${device("xs")} {
-        ${k} {
-            margin-left: 0;
-            margin-right: 0;
-        }
-    }
-
-    ${k} {
-        display: flex;
-        flex-direction: column;
-        position: relative;
-    }
-
-  ${k} > .logo-wrapper {
-    position: absolute;
-    left: 0;
-    top: 0;
-  }
-
-  ${k} .fake-logo {
-    /* NOTE(Dan): the fake logo takes the same amount of space as the actual logo,
-    this basically fixes our document flow */
-    display: block;
-    width: var(--logoSize);
-    height: var(--logoSize);
-    content: '';
-  }
-
-  ${k} .header-text {
-    margin-left: 32px;
-    width: calc(100% - var(--logoSize) - 32px);
-    height: var(--logoSize);
-    display: flex;
-    flex-direction: column;
-  }
-
-  ${deviceBreakpoint({maxWidth: "1000px"})} {
-    ${k} .fake-logo {
-      width: 100%; /* force the header to wrap */
-    }
-
-    ${k} .logo-wrapper {
-      left: calc(50% - var(--logoSize) / 2);
-    }
-
-    ${k} .header {
-      text-align: center;
-    }
-
-    ${k} .header-text {
-      margin-left: 0;
-      margin-top: 0;
-      width: 100%;
-    }
-  }
-
-  ${k}.IN_QUEUE .logo {
-    animation: 2s ${enterAnimation} infinite;
-  }
-
-  ${k}.RUNNING {
-    --logoSize: 96px;
-  }
-
-  ${k} .top-buttons {
-    display: flex;
-    gap: 8px;
-    height: 23px;
-  }
-`);
 
 // NOTE(Dan): WS calls don't currently have their types generated
 interface JobsFollowResponse {
@@ -491,69 +380,63 @@ function JobView(props: {id: string; embedded?: boolean;}): React.ReactNode {
     }
 
     const main = (
-        <div className={classConcat(Container, status?.state ?? "state-loading")}>
-            <div className={"logo-wrapper active"}>
-                <div className="logo-scale">
-                    <div className="logo">
-                        <SafeLogo name={job?.specification?.application?.name ?? appNameHint}
-                            type={"APPLICATION"}
-                            groupId={job?.status.resolvedApplication?.metadata.groupId ?? job?.status.resolvedApplication?.metadata.group?.metadata.id}
-                            size={"var(--logoSize)"} />
-                    </div>
-                </div>
+        <div className={VmLayout}>
+            {!job || !status ? null : <JobHeader job={job} effectiveState={status?.state ?? "IN_QUEUE"} status={status} />}
+            <div className={VmContentGrid}>
+                {!job || !status ? null : (
+                    (status?.state === "IN_QUEUE" || status?.state === "SUSPENDED") && !isVirtualMachine) ? (
+                    <TabbedCard>
+                        <TabbedCardTab icon={"id"} name={""}>
+                            <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                                <div className={"fake-logo"} />
+                                <div className={"header-text"}>
+                                    <InQueueText job={job} state={status.state ?? "IN_QUEUE"} />
+                                </div>
+                            </Flex>
+
+                            <div className={Content}>
+                                <Box width={"100%"} maxWidth={"1572px"} margin={"0 auto"}>
+                                    <TitledCard>
+                                        <ProviderUpdates key={job.id} job={job} state={jobUpdateState} addOverflow={true} />
+                                    </TitledCard>
+                                </Box>
+                            </div>
+                        </TabbedCardTab>
+                    </TabbedCard>) : null
+                }
+
+                {!job || !status ? null : (
+                    (status?.state === "RUNNING" || (isVirtualMachine && !isJobStateTerminal(status.state))) ?
+                        <div>
+                            <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                                <div className={"fake-logo"} />
+                                <div className={"header-text"}>
+                                    <RunningText job={job} interfaceLinks={interfaceTargets} defaultInterfaceName={targetRequests.defaultName} />
+                                </div>
+                            </Flex>
+
+                            <RunningContent
+                                job={job}
+                                state={jobUpdateState}
+                                status={status}
+                            />
+                        </div> : null
+                )}
+                {!job || !status ? null : (
+                    isJobStateTerminal(status.state) ?
+                        <div>
+                            <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                                <div className={"fake-logo"} />
+                                <div className={"header-text"}>
+                                    <CompletedText job={job} state={status.state} />
+                                </div>
+                            </Flex>
+
+                            <CompletedContent job={job} state={jobUpdateState} />
+                        </div> : null
+                )}
+                {status && isJobStateTerminal(status.state) && job ? <OutputFiles key={job.id} job={job} /> : null}
             </div>
-            {!job || !status ? null : (
-                (status?.state === "IN_QUEUE" || status?.state === "SUSPENDED") && !isVirtualMachine) ? (
-                <div>
-                    <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                        <div className={"fake-logo"} />
-                        <div className={"header-text"}>
-                            <InQueueText job={job} state={status.state ?? "IN_QUEUE"} />
-                        </div>
-                    </Flex>
-
-                    <div className={Content}>
-                        <Box width={"100%"} maxWidth={"1572px"} margin={"0 auto"}>
-                            <TitledCard>
-                                <ProviderUpdates key={job.id} job={job} state={jobUpdateState} addOverflow={true} />
-                            </TitledCard>
-                        </Box>
-                    </div>
-                </div>) : null
-            }
-
-            {!job || !status ? null : (
-                (status?.state === "RUNNING" || (isVirtualMachine && !isJobStateTerminal(status.state))) ?
-                    <div>
-                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"} />
-                            <div className={"header-text"}>
-                                <RunningText job={job} interfaceLinks={interfaceTargets} defaultInterfaceName={targetRequests.defaultName} />
-                            </div>
-                        </Flex>
-
-                        <RunningContent
-                            job={job}
-                            state={jobUpdateState}
-                            status={status}
-                        />
-                    </div> : null
-            )}
-
-            {!job || !status ? null : (
-                isJobStateTerminal(status.state) ?
-                    <div>
-                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"} />
-                            <div className={"header-text"}>
-                                <CompletedText job={job} state={status.state} />
-                            </div>
-                        </Flex>
-
-                        <CompletedContent job={job} state={jobUpdateState} />
-                    </div> : null
-            )}
-            {status && isJobStateTerminal(status.state) && job ? <OutputFiles key={job.id} job={job} /> : null}
         </div>
     );
 
@@ -695,11 +578,6 @@ const BusyWrapper = injectStyle("busy-wrapper", k => `
         display: none;
         flex-direction: column;
         flex-grow: 1;
-    }
-
-    ${k}.active {
-        animation: 1s ${busyAnim};
-        display: flex;
     }
 `);
 
@@ -1132,55 +1010,53 @@ const RunningContent: React.FunctionComponent<{
     return <>
         <div className={RunningInfoWrapper}>
             <TabbedCard style={{flexBasis: "300px"}}>
-                <StandardPanelBody>
-                    <TabbedCardTab icon={"heroClock"} name={"Time allocation"}>
-                        <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
-                            <Box>
-                                <b>Job submitted at: </b> {dateToString(job.createdAt)}
-                            </Box>
-                            <Box>
-                                <b>Job
-                                    start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
-                            </Box>
-                            {!expiresAt && !localStorage.getItem("useFakeState") ? null :
-                                <>
-                                    <Box>
-                                        <b>Job expiry: </b> {dateToString(expiresAt ?? timestampUnixMs())}
-                                    </Box>
-                                    <Box>
-                                        <b>Time remaining: </b><TimeLeft expiresAt={expiresAt ?? -1} />
-                                    </Box>
-                                </>
+                <TabbedCardTab icon={"heroClock"} name={"Time allocation"}>
+                    <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
+                        <Box>
+                            <b>Job submitted at: </b> {dateToString(job.createdAt)}
+                        </Box>
+                        <Box>
+                            <b>Job
+                                start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
+                        </Box>
+                        {!expiresAt && !localStorage.getItem("useFakeState") ? null :
+                            <>
+                                <Box>
+                                    <b>Job expiry: </b> {dateToString(expiresAt ?? timestampUnixMs())}
+                                </Box>
+                                <Box>
+                                    <b>Time remaining: </b><TimeLeft expiresAt={expiresAt ?? -1} />
+                                </Box>
+                            </>
+                        }
+                        <Box flexGrow={1} />
+                        <Box mb="12px">
+                            {(!expiresAt || !supportsExtension) && !localStorage.getItem("useFakeState") ? null : <>
+                                Extend allocation (hours):
+                                <AltButtonGroup minButtonWidth={"50px"} marginBottom={0}>
+                                    <Button onClick={() => extendJob(1)}>+1</Button>
+                                    <Button onClick={() => extendJob(8)}>+8</Button>
+                                    <Button onClick={() => extendJob(24)}>+24</Button>
+                                </AltButtonGroup>
+                            </>}
+                            {!supportsSuspend ? null :
+                                suspended ?
+                                    <Button color={"successMain"} fullWidth onClick={unsuspendJob}>
+                                        <Icon name={"heroPower"} mr={"8px"} />
+                                        Power on
+                                    </Button> :
+                                    <ConfirmationButton
+                                        actionText="Power off"
+                                        fullWidth
+                                        mt="8px"
+                                        mb="4px"
+                                        icon={"heroPower"}
+                                        onAction={suspendJob}
+                                    />
                             }
-                            <Box flexGrow={1} />
-                            <Box mb="12px">
-                                {(!expiresAt || !supportsExtension) && !localStorage.getItem("useFakeState") ? null : <>
-                                    Extend allocation (hours):
-                                    <AltButtonGroup minButtonWidth={"50px"} marginBottom={0}>
-                                        <Button onClick={() => extendJob(1)}>+1</Button>
-                                        <Button onClick={() => extendJob(8)}>+8</Button>
-                                        <Button onClick={() => extendJob(24)}>+24</Button>
-                                    </AltButtonGroup>
-                                </>}
-                                {!supportsSuspend ? null :
-                                    suspended ?
-                                        <Button color={"successMain"} fullWidth onClick={unsuspendJob}>
-                                            <Icon name={"heroPower"} mr={"8px"} />
-                                            Power on
-                                        </Button> :
-                                        <ConfirmationButton
-                                            actionText="Power off"
-                                            fullWidth
-                                            mt="8px"
-                                            mb="4px"
-                                            icon={"heroPower"}
-                                            onAction={suspendJob}
-                                        />
-                                }
-                            </Box>
-                        </Flex>
-                    </TabbedCardTab>
-                </StandardPanelBody>
+                        </Box>
+                    </Flex>
+                </TabbedCardTab>
             </TabbedCard>
 
             <TabbedCard style={{flexBasis: "600px"}}>
