@@ -5,6 +5,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {Feature, hasFeature} from "@/Features";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {usePage} from "@/Navigation/Redux";
@@ -1756,7 +1757,9 @@ export function Editor(): React.ReactNode {
                 if (result) {
                     state.allocators = []; // clearing, since we are repopulating the list
                     if (isGrantGiverInitiated) {
-                        navigate(AppRoutes.accounting.subAllocations());
+                        navigate(hasFeature(Feature.ALLOCATIONS_V2)
+                            ? AppRoutes.accounting.subAllocations()
+                            : AppRoutes.accounting.allocations());
                         return true;
                     }
                     dispatchEvent({type: "Init", grantId: result.id});

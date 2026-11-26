@@ -12,6 +12,7 @@ import {refreshFunctionCache} from "@/Utilities/ReduxUtilities";
 import {ChangeNotificationSettings} from "./ChangeNotificationSettings";
 import {ChangeJobReportSettings} from "./ChangeJobReportSettings";
 import {ChangeNumberFormatting} from "./ChangeNumberFormatting";
+import {ChangeFeatureSettings} from "./ChangeFeatureSettings";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {SettingsNavSection, SettingsPage} from "@/ui-components/SettingsComponents";
 import {addDecimalSeparatorListener, removeDecimalSeparatorListener} from "@/Utilities/NumberFormatting";
@@ -50,6 +51,7 @@ function UserSettings(): React.ReactNode {
         {id: "notifications", label: "Notification settings"},
         {id: "job-report", label: "Job report settings"},
         {id: "number-formatting", label: "Number formatting"},
+        {id: "features", label: "Features"},
         {id: "two-factor", label: "Two factor authentication"},
         ...(Client.userInfo?.principalType === "password" ? [{id: "password", label: "Change password"}] : []),
         {id: "sessions", label: "Active sessions"},
@@ -68,6 +70,7 @@ function UserSettings(): React.ReactNode {
             <ChangeNotificationSettings setLoading={setHeaderLoading} />
             <ChangeJobReportSettings setLoading={setHeaderLoading} />
             <ChangeNumberFormatting />
+            <ChangeFeatureSettings setLoading={setHeaderLoading} />
             {twoFactorSetup}
             <ChangePassword setLoading={setHeaderLoading} />
             <Sessions

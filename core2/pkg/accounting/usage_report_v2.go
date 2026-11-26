@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"golang.org/x/text/currency"
+	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
@@ -1406,6 +1407,10 @@ func usageHandleOverviewRetrieve(
 	info rpc.RequestInfo,
 	request accapi.UsageOverviewRequest,
 ) (accapi.UsageOverviewResponse, *util.HttpError) {
+	if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureUsageV2); err != nil {
+		return accapi.UsageOverviewResponse{}, err
+	}
+
 	now := time.Now().UTC()
 	reference := usageResolveActorReference(info)
 	startTime, endTime, includeLive := usageNormalizeRequestWindow(request.Start, request.End, now)
@@ -1553,6 +1558,10 @@ func usageHandleDetailRetrieve(
 	info rpc.RequestInfo,
 	request accapi.UsageDetailRequest,
 ) (accapi.UsageDetailResponse, *util.HttpError) {
+	if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureUsageV2); err != nil {
+		return accapi.UsageDetailResponse{}, err
+	}
+
 	now := time.Now().UTC()
 	reference := usageResolveActorReference(info)
 	startTime, endTime, includeLive := usageNormalizeRequestWindow(request.Start, request.End, now)

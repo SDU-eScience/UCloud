@@ -284,6 +284,7 @@ func initUsageReports() {
 			g.Snapshots[snapshot.Id] = snapshot
 		}
 
+		usageInitV1Handlers()
 		usageInitV2Handlers()
 	}
 

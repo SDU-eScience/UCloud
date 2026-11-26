@@ -16,6 +16,7 @@ import (
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -64,6 +65,9 @@ func initAccounting() {
 		return WalletsBrowse(info.Actor, request), nil
 	})
 	accapi.AllocationRecipientsRetrieve.Handler(func(info rpc.RequestInfo, request accapi.AllocationRecipientsRequest) (accapi.AllocationRecipientsResponse, *util.HttpError) {
+		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureAllocationsV2); err != nil {
+			return accapi.AllocationRecipientsResponse{}, err
+		}
 		return accountingAllocationRecipients(info.Actor, request.Query)
 	})
 

@@ -55,7 +55,7 @@ const PageStyle = injectStyle("allocation-page", k => `
 type PageMode = "received" | "sub-allocated" | "provider-tools";
 
 function usePageMode(): PageMode {
-    const {pathname} = useLocation();
+    const pathname = useLocation().pathname.replace(/\/+$/, "");
     if (pathname.endsWith(AppRoutes.accounting.providerTools())) return "provider-tools";
     if (pathname.endsWith(AppRoutes.accounting.subAllocations())) return "sub-allocated";
     return "received";

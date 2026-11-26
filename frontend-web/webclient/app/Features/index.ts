@@ -19,6 +19,10 @@ export enum Feature {
     APPLICATION_FLAVORS,
 
     CUSTOM_APPLICATIONS,
+
+    USAGE_V2,
+
+    ALLOCATIONS_V2,
 }
 
 enum Environment {
@@ -104,6 +108,16 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "custom-applications": {
         feature: Feature.CUSTOM_APPLICATIONS,
+        useBackend: true,
+    },
+
+    "usage-v2": {
+        feature: Feature.USAGE_V2,
+        useBackend: true,
+    },
+
+    "allocations-v2": {
+        feature: Feature.ALLOCATIONS_V2,
         useBackend: true,
     }
 };

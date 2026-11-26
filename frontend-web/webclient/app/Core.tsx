@@ -26,6 +26,7 @@ import Registration from "@/Login/Registration";
 import VerifyEmail from "@/Login/VerifyEmail";
 import VerifyResult from "@/Login/VerifyResult";
 import ManageProjects from "@/Admin/ManageProjects";
+import FeatureManagement from "@/Admin/FeatureManagement";
 import NewsList from "@/NewsPost/NewsList";
 import NewsManagement from "@/Admin/NewsManagement";
 import Playground from "@/Playground/Playground";
@@ -57,8 +58,8 @@ import NetworkIPsRouter from "@/Applications/NetworkIP/Router";
 import SyncthingOverview from "@/Syncthing/Overview";
 import ApiTokenCreate from "@/Applications/ApiTokens/Add";
 import GrantEditor from "@/Grants/Editor";
-import ResourceUsage from "@/Accounting/UsageCore2";
-import ResourceAllocations from "@/Accounting/Allocations";
+import ResourceUsage from "@/Accounting/UsageRouter";
+import ResourceAllocations from "@/Accounting/AllocationsRouter";
 import Connection from "@/Providers/Connection";
 import PrivateNetworksRouter from "@/Applications/PrivateNetwork/Router";
 import InferenceRouter from "@/Inference/Router";
@@ -203,6 +204,8 @@ const Core = (): React.ReactNode => {
                            element={React.createElement(requireAuth(UserCreation))} />
                     <Route path={AppRoutes.admin.manageProjects()}
                            element={React.createElement(requireAuth(ManageProjects))} />
+                    <Route path={AppRoutes.admin.features()}
+                           element={React.createElement(requireAuth(FeatureManagement))} />
                     <Route path={AppRoutes.admin.news()}
                            element={React.createElement(requireAuth(NewsManagement))} />
 

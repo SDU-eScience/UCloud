@@ -10,7 +10,12 @@ let hasFetched = false;
 const listeners = new Set<() => void>();
 
 function storeEnabled(features: string[]): void {
-    enabledFeatures = new Set(features);
+    const next = new Set(features);
+    const unchanged = next.size === enabledFeatures.size &&
+        [...next].every(feature => enabledFeatures.has(feature));
+    if (unchanged) return;
+
+    enabledFeatures = next;
     for (const listener of listeners) listener();
 }
 

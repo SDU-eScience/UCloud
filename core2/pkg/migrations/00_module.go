@@ -73,5 +73,6 @@ func migrationScripts() []db.MigrationScript {
 		accountingAllocationPackagesV1(),
 		accountingModelV1(),
 		jobsV2(),
+		featuresV2(),
 	}
 }
