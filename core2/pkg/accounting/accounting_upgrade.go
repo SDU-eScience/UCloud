@@ -112,14 +112,45 @@ func accountingUpgradeLockTables(tx *db.Transaction) {
 }
 
 func accountingUpgradeDirectory() string {
+	directory := ""
 	if path := os.Getenv("UCLOUD_ACCOUNTING_UPGRADE_DIR"); path != "" {
-		return path
+		directory = path
+	} else {
+		base := "/var/log/ucloud"
+		if cfg.Configuration != nil && cfg.Configuration.Logs.Directory != "" {
+			base = cfg.Configuration.Logs.Directory
+		}
+		directory = filepath.Join(base, "accounting-upgrade")
 	}
-	base := "/var/log/ucloud"
-	if cfg.Configuration != nil && cfg.Configuration.Logs.Directory != "" {
-		base = cfg.Configuration.Logs.Directory
+
+	if accountingUpgradeDirectoryWritable(directory) {
+		return directory
 	}
-	return filepath.Join(base, "accounting-upgrade")
+
+	fallback, err := os.MkdirTemp("", "ucloud-accounting-upgrade-*")
+	if err != nil {
+		panic(fmt.Sprintf("cannot create accounting upgrade directory %q or a temporary fallback: %v", directory, err))
+	}
+
+	log.Warn("Accounting upgrade directory %q is not writable. Using temporary directory %q", directory, fallback)
+	return fallback
+}
+
+func accountingUpgradeDirectoryWritable(directory string) bool {
+	err := os.MkdirAll(directory, 0700)
+	if err != nil {
+		return false
+	}
+
+	file, err := os.CreateTemp(directory, ".accounting-write-check-*")
+	if err != nil {
+		return false
+	}
+
+	path := file.Name()
+	closeErr := file.Close()
+	removeErr := os.Remove(path)
+	return closeErr == nil && removeErr == nil
 }
 
 func accountingUpgradeEncode(value any) []byte {

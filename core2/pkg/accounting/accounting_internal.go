@@ -595,6 +595,8 @@ func internalCommitGrantAllocations(grantId accGrantId, onPersist func(tx *db.Tr
 		OnPersist: onPersist,
 	})
 	accGlobals.Mu.Unlock()
+
+	accountingWakeProcessTasks()
 }
 
 func internalCommitAllocation(b *internalBucket, now time.Time, allocId accAllocId) {

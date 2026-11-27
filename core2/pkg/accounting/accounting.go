@@ -928,6 +928,7 @@ func accountingLoadWithAllocationsFromTx(
 var accountingScansDisabled = atomic.Bool{}
 
 var accountingProcessMutex = sync.Mutex{}
+var accountingProcessTasksWake = make(chan util.Empty, 1)
 var accountingScanUsageReportCanResumeAt = time.Now().Add(10 * time.Minute)
 var usageReportSamplingHours = []int{0, 4, 8, 12, 16, 20}
 
@@ -1357,7 +1358,18 @@ func accountingProcessTasks() {
 		if !accountingScansDisabled.Load() {
 			accountingProcessTasksNow(time.Now(), nil)
 		}
-		time.Sleep(30 * time.Second)
+
+		select {
+		case <-accountingProcessTasksWake:
+		case <-time.After(30 * time.Second):
+		}
+	}
+}
+
+func accountingWakeProcessTasks() {
+	select {
+	case accountingProcessTasksWake <- util.Empty{}:
+	default:
 	}
 }
 
