@@ -54,7 +54,7 @@ import {WebSession} from "./Web";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import * as JobViz from "@/Applications/Jobs/JobViz"
-import {JobHeader, VirtualMachineStatus, VmContentGrid, VmLayout} from "@/Applications/Jobs/VirtualMachines";
+import {JobHeader, SystemInformation, VirtualMachineStatus, VmContentGrid, VmLayout} from "@/Applications/Jobs/VirtualMachines";
 import {openCreateApplicationVariant} from "@/Applications/Jobs/CreateApplicationVariant";
 import {BackgroundTask} from "@/Services/BackgroundTasks/BackgroundTask";
 
@@ -162,7 +162,6 @@ function JobView(props: {id: string; embedded?: boolean;}): React.ReactNode {
 
     // Note: This might not match the real app name
     const location = useLocation();
-    const appNameHint = getQueryParamOrElse(location.search, "app", "");
     const [jobFetcher, fetchJob] = useCloudAPI<Job | undefined>({noop: true}, undefined);
     const job = jobFetcher.data;
     const [interfaceTargets, setInterfaceTargets] = useState<InterfaceTarget[]>([]);
@@ -173,14 +172,12 @@ function JobView(props: {id: string; embedded?: boolean;}): React.ReactNode {
         usePage(`Job ${shortUUID(id)}`, SidebarTabId.COMPUTE);
     }
 
-    const [dataAnimationAllowed, setDataAnimationAllowed] = useState<boolean>(false);
     const [status, setStatus] = useState<JobStatus | null>(null);
     const jobUpdateState = useRef<JobUpdates>({updateQueue: [], logQueue: [], statusQueue: [], subscriptions: []});
     const didUnmount = useDidUnmount();
 
     useEffect(() => {
         setStatus(null);
-        setDataAnimationAllowed(false);
         setInterfaceTargets([]);
         setJobUpdates([]);
         jobUpdateState.current = {updateQueue: [], logQueue: [], statusQueue: [], subscriptions: []};
@@ -244,19 +241,6 @@ function JobView(props: {id: string; embedded?: boolean;}): React.ReactNode {
             };
         }
     }, [status]);
-
-    useEffect(() => {
-        let t1: number | undefined;
-        if (job) {
-            t1 = window.setTimeout(() => {
-                setDataAnimationAllowed(true);
-            }, 400);
-        }
-
-        return () => {
-            if (t1 != undefined) clearTimeout(t1);
-        };
-    }, [job, props.embedded]);
 
     useEffect(() => {
         /* NOTE(jonas): Attempt to fix not transitioning to the initial state */
@@ -381,56 +365,41 @@ function JobView(props: {id: string; embedded?: boolean;}): React.ReactNode {
 
     const main = (
         <div className={VmLayout}>
-            {!job || !status ? null : <JobHeader job={job} effectiveState={status?.state ?? "IN_QUEUE"} status={status} stateTitle={stateToTitle(status?.state)} />}
+            {!job || !status ? null : <JobHeader job={job} effectiveState={status.state} status={status} stateTitle={stateToTitle(status.state)}>
+                <RunningButtonGroup status={status} job={job} interfaceLinks={interfaceTargets} defaultInterfaceName={targetRequests.defaultName} />
+                <CancelButton job={job} state={status.state} />
+                <RunAgainButton job={job} state={status.state} />
+            </JobHeader>}
             <div className={VmContentGrid}>
                 {!job || !status ? null : (<>
+                    <SystemInformation job={job} streamProperties={{}} />
                     {(status.state === "IN_QUEUE" || status.state === "SUSPENDED") && !isVirtualMachine ? (
-                    <TabbedCard>
-                        <TabbedCardTab icon={"id"} name={""}>
-                            <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                                <div className={"fake-logo"} />
-                                <div className={"header-text"}>
-                                    <InQueueText job={job} state={status.state ?? "IN_QUEUE"} />
-                                </div>
-                            </Flex>
+                        <TabbedCard>
+                            <TabbedCardTab icon={"id"} name={""}>
+                                <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                                    <div className={"fake-logo"} />
+                                    <div className={"header-text"}>
+                                        <InQueueText job={job} state={status.state ?? "IN_QUEUE"} />
+                                    </div>
+                                </Flex>
 
-                            <div className={Content}>
-                                <Box width={"100%"} maxWidth={"1572px"} margin={"0 auto"}>
+                                <div className={Content}>
                                     <TitledCard>
                                         <ProviderUpdates key={job.id} job={job} state={jobUpdateState} addOverflow={true} />
                                     </TitledCard>
-                                </Box>
-                            </div>
-                        </TabbedCardTab>
-                    </TabbedCard>) : null}
+                                </div>
+                            </TabbedCardTab>
+                        </TabbedCard>) : null}
 
-                {status.state === "RUNNING" || (isVirtualMachine && !isJobStateTerminal(status.state)) ?
-                    <div>
-                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"} />
-                            <div className={"header-text"}>
-                                <RunningText job={job} interfaceLinks={interfaceTargets} defaultInterfaceName={targetRequests.defaultName} />
-                            </div>
-                        </Flex>
-
+                    {status.state === "RUNNING" || (isVirtualMachine && !isJobStateTerminal(status.state)) ?
                         <RunningContent
                             job={job}
                             state={jobUpdateState}
                             status={status}
-                        />
-                    </div> : null}
-                {isJobStateTerminal(status.state) ?
-                    <div>
-                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"} />
-                            <div className={"header-text"}>
-                                <CompletedText job={job} state={status.state} />
-                            </div>
-                        </Flex>
-
-                        <CompletedContent job={job} state={jobUpdateState} />
-                    </div>
-                    : null}
+                    /> : null}
+                    {isJobStateTerminal(status.state) ?
+                            <CompletedContent job={job} state={jobUpdateState} />
+                        : null}
                 </>)}
             </div>
             {status && isJobStateTerminal(status.state) && job ? <OutputFiles key={job.id} job={job} /> : null}
@@ -445,36 +414,11 @@ const CompletedContent: React.FunctionComponent<{
     job: Job;
     state: React.RefObject<JobUpdates>;
 }> = ({job, state}) => {
-    const project = useProject();
-    const workspaceTitle = Client.hasActiveProject ? project.fetch().id === job?.owner?.project ? project.fetch().specification.title :
-        "My workspace" : "My workspace";
-
-    return <div className={Content}>
-        <TabbedCard style={{flexBasis: "300px"}}>
-            <TabbedCardTab icon={"heroServerStack"} name={"Job info"}>
-                <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
-                    {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
-                    <Box><b>ID:</b> {shortUUID(job.id)}</Box>
-                    <Box>
-                        <b>Reservation:</b>{" "}
-                        <ProviderTitle providerId={job.specification.product.provider} />
-                        {" "}/{" "}
-                        {job.specification.product.id}{" "}
-                        (x{job.specification.replicas})
-                    </Box>
-                    <Box><b>Launched by:</b> {job.owner.createdBy} in {workspaceTitle}</Box>
-                </Flex>
-            </TabbedCardTab>
-        </TabbedCard>
-
-        <TabbedCard style={{flexBasis: "600px"}}>
-            <StandardPanelBody>
-                <TabbedCardTab icon={"heroChatBubbleBottomCenter"} name={"Messages"}>
-                    <ProviderUpdates key={job.id} job={job} state={state} addOverflow={false} />
-                </TabbedCardTab>
-            </StandardPanelBody>
-        </TabbedCard>
-    </div>
+    return <TabbedCard>
+        <TabbedCardTab icon={"heroChatBubbleBottomCenter"} name={"Messages"}>
+            <ProviderUpdates key={job.id} job={job} state={state} addOverflow={false} />
+        </TabbedCardTab>
+    </TabbedCard>
 };
 
 const Content = injectStyle("content", k => `
@@ -600,7 +544,6 @@ const Busy: React.FunctionComponent<{
         }
 
         <Box flexGrow={1} />
-        <Box><CancelButton job={job} state={"IN_QUEUE"} /></Box>
     </Box>;
 };
 
@@ -624,28 +567,6 @@ function isSupported(jobBackend: string | undefined, support: ComputeSupport | u
         }
     }
 }
-
-const RunningText: React.FunctionComponent<{
-    job: Job;
-    interfaceLinks: InterfaceTarget[];
-    defaultInterfaceName?: string;
-}> = ({job, interfaceLinks, defaultInterfaceName}) => {
-    return <>
-        <Flex justifyContent={"space-between"} height={"var(--logoSize)"}>
-            <Flex flexDirection={"column"}>
-                <Heading.h2>
-                    {job.specification?.name ?? jobApplicationTitle(job)} is now
-                    running
-                    {" "}
-                    <Box style={{display: "inline"}} color={"textSecondary"}>(ID: {job.id})</Box>
-                </Heading.h2>
-                <Box flexGrow={1} />
-                <div><CancelButton job={job} state={"RUNNING"} /></div>
-            </Flex>
-            <RunningButtonGroup job={job} interfaceLinks={interfaceLinks} defaultInterfaceName={defaultInterfaceName} />
-        </Flex>
-    </>;
-};
 
 
 const InterfaceSelectorTrigger = injectStyle("interface-selector-trigger", k => `
@@ -1005,7 +926,6 @@ const RunningContent: React.FunctionComponent<{
     const sshUrl = React.useMemo(() => transformToSSHUrl(sshAccess?.command), [sshAccess?.command]);
 
     return <>
-        <div className={RunningInfoWrapper}>
             <TabbedCard style={{flexBasis: "300px"}}>
                 <TabbedCardTab icon={"heroClock"} name={"Time allocation"}>
                     <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
@@ -1127,7 +1047,6 @@ const RunningContent: React.FunctionComponent<{
                     </TabbedCardTab>
                 </StandardPanelBody>
             </TabbedCard>
-        </div>
 
         {!supportsLogs ? null :
             <TabbedCard>
@@ -1360,11 +1279,6 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
             {" "}(ID: {shortUUID(job.id)})
         </Heading.h3>
         <Box flexGrow={1} />
-        {isUnknownApp || isSyncthingApp(job) ? null :
-            <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version, import: job.id})}>
-                <Button>Run again</Button>
-            </Link>
-        }
     </Flex>;
 };
 
@@ -1451,7 +1365,8 @@ const RunningButtonGroup: React.FunctionComponent<{
     job: Job;
     interfaceLinks: InterfaceTarget[];
     defaultInterfaceName?: string;
-}> = ({job, interfaceLinks, defaultInterfaceName}) => {
+    status: JobStatus;
+}> = ({job, interfaceLinks, defaultInterfaceName, status}) => {
     const hasMultipleNodes = job.specification.replicas > 1;
     const jobAuditLogIsEnabled = job.status.resolvedApplication?.invocation.jobAuditLogIsEnabled
     const terminalLinks: TerminalTarget[] = Array.from(Array(job.specification.replicas).keys()).map(rank => ({
@@ -1463,9 +1378,6 @@ const RunningButtonGroup: React.FunctionComponent<{
     const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
     const supportTerminal = !jobAuditLogIsEnabled && isSupported(backendType, support, "terminal");
-    const supportVariants = backendType === "DOCKER" &&
-        support?.docker.applicationVariants === true && support?.docker.containerSnapshots === true &&
-        (job.owner.project != null || job.owner.createdBy === Client.username) && job.permissions.myself.includes("EDIT");
 
     let defaultInterfaceId = interfaceLinks.findIndex(link => !link.target && link.rank === 0);
 
@@ -1504,17 +1416,11 @@ const RunningButtonGroup: React.FunctionComponent<{
         window.open(`/applications/shell/${target.jobId}/${target.rank}?hide-frame`, "_blank");
     }, []);
 
-    return <div className={"top-buttons"}>
-        {!supportVariants ? null : <Button onClick={() => openCreateApplicationVariant(
-            job,
-            request => callAPI<BackgroundTask>({
-                ...JobsApi.createApplicationVariant(request),
-                projectOverride: job.owner.project ?? "",
-            }),
-        )}>
-            <Icon name="heroSquare3Stack3D" />
-            <div style={{minWidth: "130px", maxWidth: "164px"}}><Truncate>Save as flavor</Truncate></div>
-        </Button>}
+    // TODO(Jonas): Unreachable case?
+    const isVirtualMachine = status?.resolvedApplication?.invocation.tool?.tool?.description.backend === "VIRTUAL_MACHINE";
+    if (!(status.state === "RUNNING" || (isVirtualMachine && !isJobStateTerminal(status.state)))) return null;
+    return <Flex gap="8px">
+        <SaveAsFlavorButton job={job} state={status.state} />
         {!supportTerminal ? null : (
             <Flex>
                 <Link to={`/applications/shell/${job.id}/0?hide-frame`} target={"_blank"}>
@@ -1563,7 +1469,7 @@ const RunningButtonGroup: React.FunctionComponent<{
                 }
             </Flex>
         )}
-    </div>
+    </Flex>
 };
 
 const CancelButton: React.FunctionComponent<{
@@ -1577,8 +1483,10 @@ const CancelButton: React.FunctionComponent<{
         }
     }, [loading, job.id]);
 
+    if (isJobStateTerminal(state)) return null;
+
     return <ConfirmationButton
-        color={"errorMain"} icon={"trash"} align="left" width={"250px"} onAction={onCancel} fullWidth={false}
+        color={"errorMain"} icon={"trash"} align="left" width={"125px"} onAction={onCancel} fullWidth={false}
         actionText={state !== "IN_QUEUE" ? "Stop application" : "Cancel reservation"}
     />;
 };
@@ -1673,5 +1581,40 @@ const ProviderUpdates: React.FunctionComponent<{
         return <LogOutput updates={updates} />;
     }
 };
+
+function SaveAsFlavorButton({job, state}: {job: Job, state: JobState}): React.ReactNode {
+    const backendType = getBackend(job);
+    const support = job.status.resolvedSupport ?
+        (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
+    const supportVariants = backendType === "DOCKER" &&
+        support?.docker.applicationVariants === true && support?.docker.containerSnapshots === true &&
+        (job.owner.project != null || job.owner.createdBy === Client.username) && job.permissions.myself.includes("EDIT");
+
+    if (state !== "RUNNING" || !supportVariants) return null;
+
+    return <Button onClick={() => openCreateApplicationVariant(
+        job,
+        request => callAPI<BackgroundTask>({
+            ...JobsApi.createApplicationVariant(request),
+            projectOverride: job.owner.project ?? "",
+        }),
+    )}>
+        <Icon name="heroSquare3Stack3D" />
+        <div style={{minWidth: "130px", maxWidth: "164px"}}><Truncate>Save as flavor</Truncate></div>
+    </Button>
+}
+
+function RunAgainButton({job, state}: { job: Job; state: JobState }): React.ReactNode {
+    const app = job.specification.application;
+    const isUnknownApp = app.name === UNKNOWN_APP_NAME;
+
+    if (isUnknownApp || isSyncthingApp(job) || !isJobStateTerminal(state)) return null;
+    return <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version, import: job.id})}>
+        <Button>
+            <Icon mr="8px" name="activity" rotation={-35} />
+            Run again
+        </Button>
+    </Link>
+}
 
 export default View;

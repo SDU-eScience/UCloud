@@ -726,57 +726,55 @@ export const VirtualMachineStatus: React.FunctionComponent<{
             }
         </ReactModal>
         <JobHeader job={job} effectiveState={effectiveState} status={status} isPowerTransitioning={isPowerTransitioning} stateTitle={stateToTitle(effectiveState)}>
-            <Flex flexDirection="row" alignItems="center" gap="10px">
-                {!showInterfaceControls ? null : (
-                    <Flex>
-                        <Link to={supportsTerminal ? terminalLink : (desktopTarget?.link ?? "")} target="_blank" aria-disabled={interfaceDisabled}>
-                            <Button disabled={interfaceDisabled} attachedLeft={hasLaunchMenu}>
-                                <Icon name={supportsTerminal ? "heroCommandLine" : "heroComputerDesktop"} mr="8px" />
-                                {supportsTerminal
-                                    ? "Open terminal"
-                                    : `Open ${desktopTarget?.target ?? defaultInterfaceName ?? (supportsVnc ? "desktop" : "interface")}`
-                                }
-                            </Button>
-                        </Link>
+            {!showInterfaceControls ? null : (
+                <Flex>
+                    <Link to={supportsTerminal ? terminalLink : (desktopTarget?.link ?? "")} target="_blank" aria-disabled={interfaceDisabled}>
+                        <Button disabled={interfaceDisabled} attachedLeft={hasLaunchMenu}>
+                            <Icon name={supportsTerminal ? "heroCommandLine" : "heroComputerDesktop"} mr="8px" />
+                            {supportsTerminal
+                                ? "Open terminal"
+                                : `Open ${desktopTarget?.target ?? defaultInterfaceName ?? (supportsVnc ? "desktop" : "interface")}`
+                            }
+                        </Button>
+                    </Link>
 
-                        {!hasLaunchMenu ? null : (
-                            <RichSelect
-                                items={launchMenuItems}
-                                keys={["value"]}
-                                RenderRow={VmActionRow}
-                                onSelect={onSelectLaunchMenuItem}
-                                showSearchField={false}
-                                dropdownWidth="300px"
-                                matchTriggerWidth={false}
-                                trigger={
-                                    <div className={PrimarySplitDropdownTrigger} data-disabled={interfaceDisabled}>
-                                        <Icon name="heroChevronDown"/>
-                                    </div>
-                                }
-                            />
-                        )}
-                    </Flex>
-                )}
+                    {!hasLaunchMenu ? null : (
+                        <RichSelect
+                            items={launchMenuItems}
+                            keys={["value"]}
+                            RenderRow={VmActionRow}
+                            onSelect={onSelectLaunchMenuItem}
+                            showSearchField={false}
+                            dropdownWidth="300px"
+                            matchTriggerWidth={false}
+                            trigger={
+                                <div className={PrimarySplitDropdownTrigger} data-disabled={interfaceDisabled}>
+                                    <Icon name="heroChevronDown"/>
+                                </div>
+                            }
+                        />
+                    )}
+                </Flex>
+            )}
 
-                <VmActionSplitButton
-                    tone={powerTone}
-                    disabled={powerActionDisabled}
-                    buttonColor={supportsSuspension && !isTerminalState ? powerButtonColor : "primaryMain"}
-                    buttonIcon={supportsSuspension && !isTerminalState ? "heroPower" : "heroCog6Tooth"}
-                    buttonText={supportsSuspension && !isTerminalState
-                        ? (isSuspended
-                            ? (optimisticPowerState === "POWERING_ON" ? "Powering on..." : "Power on")
-                            : (optimisticPowerState === "POWERING_OFF" ? "Powering off..." : "Power off"))
-                        : "Actions"
-                    }
-                    onButtonClick={supportsSuspension && !isTerminalState
-                        ? (isSuspended ? unsuspend : confirmSuspend)
-                        : doNothing
-                    }
-                    menuItems={dangerMenuItems}
-                    onSelectMenuItem={onSelectDangerMenuItem}
-                />
-            </Flex>
+            <VmActionSplitButton
+                tone={powerTone}
+                disabled={powerActionDisabled}
+                buttonColor={supportsSuspension && !isTerminalState ? powerButtonColor : "primaryMain"}
+                buttonIcon={supportsSuspension && !isTerminalState ? "heroPower" : "heroCog6Tooth"}
+                buttonText={supportsSuspension && !isTerminalState
+                    ? (isSuspended
+                        ? (optimisticPowerState === "POWERING_ON" ? "Powering on..." : "Power on")
+                        : (optimisticPowerState === "POWERING_OFF" ? "Powering off..." : "Power off"))
+                    : "Actions"
+                }
+                onButtonClick={supportsSuspension && !isTerminalState
+                    ? (isSuspended ? unsuspend : confirmSuspend)
+                    : doNothing
+                }
+                menuItems={dangerMenuItems}
+                onSelectMenuItem={onSelectDangerMenuItem}
+            />
         </JobHeader>
 
         <div className={VmContentGrid}>
@@ -1372,19 +1370,21 @@ export function JobHeader<T extends string>({
     stateTitle: string; isPowerTransitioning?: boolean;
 }>): React.ReactNode {
     return <Card className={classConcat(HeroHeaderCard, effectiveState)} p="24px">
-            <Flex alignItems="center" gap="16px" flexWrap="wrap">
-                <AppLogo job={job} />
+        <Flex alignItems="center" gap="16px" flexWrap="wrap">
+            <AppLogo job={job} />
 
-                <Box flexGrow={1} />
+            <Box flexGrow={1} />
 
+            <Flex flexDirection="row" alignItems="center" gap="10px">
                 {children}
+            </Flex>
 
             <JobStatus
-                    effectiveState={effectiveState}
-                    stateTitle={stateTitle}
-                    isPowerTransitioning={isPowerTransitioning}
-                />
-            </Flex>
+                effectiveState={effectiveState}
+                stateTitle={stateTitle}
+                isPowerTransitioning={isPowerTransitioning}
+            />
+        </Flex>
 
         <div className={HeroHeaderGrid}>
             <HeroMetric title={"ID"}>{shortUUID(job.id)}</HeroMetric>
@@ -1416,7 +1416,7 @@ function AppLogo({ job }: { job: Job }) {
     </Box>
 }
 
-function SystemInformation({ job, streamProperties }: { job: Job;  streamProperties: Record<string, string>}) {
+export function SystemInformation({job, streamProperties}: {job: Job;  streamProperties: Record<string, string>}) {
     const resolvedProduct = job.status.resolvedProduct as {
         cpu?: number;
         memoryInGigs?: number;
