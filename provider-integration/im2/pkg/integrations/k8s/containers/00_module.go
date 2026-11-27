@@ -62,6 +62,8 @@ func Init() controller.JobsService {
 		RetrieveProducts:         nil, // handled by main instance
 		Follow:                   follow,
 		HandleShell:              handleShell,
+		AttachPersistentPane:     containersAttachPersistentPane,
+		KillPersistentPanes:      containersKillPersistentPanes,
 		OpenWebSession:           openWebSession,
 		InspectWebSession:        containersInspectWebSession,
 		RequestDynamicParameters: requestDynamicParameters,

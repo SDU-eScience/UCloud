@@ -34,6 +34,7 @@ func InitExecutables() {
 	exeCopy("ucx-demo", dirPath, false)
 	exeCopy("ucx-syncthing", dirPath, true)
 	exeCopy("ucloud-inference-tools", dirPath, true)
+	exeCopy("ucloud-pty", dirPath, true)
 
 	providerHostnamePath := filepath.Join(dirPath, "provider-hostname.txt")
 	if util.DevelopmentModeEnabled() {

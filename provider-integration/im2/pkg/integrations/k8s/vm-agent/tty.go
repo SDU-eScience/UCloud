@@ -63,6 +63,15 @@ func handleTtySession(s *vmaTtySession, terminate <-chan struct{}) {
 	}
 	_ = s.Conn.SetReadDeadline(time.Time{})
 
+	firstType, firstMsg, firstErr := s.Conn.ReadMessage()
+	if firstErr != nil {
+		return
+	}
+	if firstType == ws.BinaryMessage {
+		vmaHandlePersistentMux(s, firstMsg, terminate)
+		return
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -75,7 +84,8 @@ func handleTtySession(s *vmaTtySession, terminate <-chan struct{}) {
 	}()
 
 	ptyOutput := make(chan []byte, 32)
-	socketMessages := make(chan []byte, 1)
+	socketMessages := make(chan []byte, 2)
+	socketMessages <- firstMsg
 	go func() {
 		defer close(socketMessages)
 
@@ -160,7 +170,17 @@ func handleTtySession(s *vmaTtySession, terminate <-chan struct{}) {
 			}
 
 			switch message.Type {
+			case ShellEventTypeKill:
+				if message.Handle != "" {
+					vmaHandlePersistentTty(s, message, socketMessages, terminate)
+					return
+				}
+
 			case ShellEventTypeInit:
+				if message.Handle != "" {
+					vmaHandlePersistentTty(s, message, socketMessages, terminate)
+					return
+				}
 				if cmd != nil {
 					continue
 				}
@@ -243,4 +263,8 @@ func handleTtySession(s *vmaTtySession, terminate <-chan struct{}) {
 			// Do nothing (for now)
 		}
 	}
+}
+
+func unmarshalShellEvent(raw []byte, out *ShellEvent) error {
+	return json.Unmarshal(raw, out)
 }

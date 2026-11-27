@@ -904,7 +904,17 @@ function ProjectSubLinksV1({canApply, isPersonalWorkspace, projectId}: {
 }
 
 function ComputeSubLinks(): React.ReactNode {
-    return ComputeSubLinksEntries.map(it => <SidebarEntry key={it.text} {...it} />);
+    useBackendFeatures();
+    const entries: LinkInfo[] = [...ComputeSubLinksEntries];
+    if (hasFeature(Feature.TERMINAL_V2)) {
+        entries.push({
+            to: AppRoutes.compute.terminals(),
+            text: "Terminals",
+            icon: "heroCommandLine",
+            tab: SidebarTabId.COMPUTE,
+        });
+    }
+    return entries.map(it => <SidebarEntry key={it.text} {...it} />);
 }
 
 const ComputeSubLinksEntries: LinkInfo[] = [{

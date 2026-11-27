@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useXTerm} from "@/Applications/Jobs/XTermLib";
+import {TerminalEngineHandle, useTerminalEngine} from "@/TerminalEngine/engine";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {useCallback, useEffect, useState} from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
@@ -12,10 +12,12 @@ import {default as JobsApi, InteractiveSession, isJobStateFinal, JobState} from 
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {BulkResponse} from "@/UCloud";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {Terminal} from "@xterm/xterm";
 import {callAPI} from "@/Authentication/DataHook";
 import Icon from "@/ui-components/Icon";
 import {UcxSpinner} from "@/UCX/UcxView";
+import {Feature, hasFeature} from "@/Features";
+import {useBackendFeatures} from "@/Features/backend";
+import TerminalWorkspace from "@/TerminalWorkspace/Workspace";
 
 export const INTEGRATED_TERMINAL_RECONNECT_ATTEMPTS = 5;
 const JOB_RECONNECT_ATTEMPTS = 1;
@@ -25,6 +27,25 @@ export const Shell: React.FunctionComponent = () => {
     const params = useParams<{jobId: string, rank: string}>();
     const jobId = params.jobId!;
     const rank = params.rank!;
+    const {ready: featuresReady} = useBackendFeatures();
+    const terminalV2Enabled = hasFeature(Feature.TERMINAL_V2);
+
+    if (!featuresReady) {
+        return null;
+    }
+
+    if (terminalV2Enabled) {
+        const parsedRank = Number.parseInt(rank, 10);
+        return <TerminalWorkspace
+            initialJobId={jobId}
+            initialRank={Number.isFinite(parsedRank) ? parsedRank : 0}
+        />;
+    }
+
+    return <LegacyJobShell jobId={jobId} rank={rank} />;
+};
+
+const LegacyJobShell: React.FunctionComponent<{jobId: string; rank: string}> = ({jobId, rank}) => {
     const [sessionResp, openSession] = useCloudAPI<BulkResponse<InteractiveSession>>(
         {noop: true},
         bulkResponseOf()
@@ -56,8 +77,8 @@ export const Shell: React.FunctionComponent = () => {
 export const ShellWithSession: React.FunctionComponent<{
     sessionWithProvider: InteractiveSession | null;
     autofit?: boolean;
-    xtermRef?: React.RefObject<Terminal | null>;
-    focusedTerminalRef?: React.RefObject<Terminal | null>;
+    xtermRef?: React.RefObject<TerminalEngineHandle | null>;
+    focusedTerminalRef?: React.RefObject<TerminalEngineHandle | null>;
     reconnect: () => void | Promise<void>;
     connectionError?: string;
     maxReconnectAttempts?: number;
@@ -68,7 +89,7 @@ export const ShellWithSession: React.FunctionComponent<{
     clearAfter?: boolean;
     suppressUntil?: string;
 }> = ({sessionWithProvider, connectionError, autofit, xtermRef, focusedTerminalRef, reconnect, maxReconnectAttempts = 0, jobId, onTitleChange, onRequestClose, initialCommand, clearAfter, suppressUntil}) => {
-    const {termRef, terminal, fitAddon} = useXTerm({autofit});
+    const {termRef, handle: terminal} = useTerminalEngine({autofit});
     const [closed, setClosed] = useState<boolean>(false);
     const [reconnecting, setReconnecting] = useState(false);
     const [jobEndedMessage, setJobEndedMessage] = useState<string | null>(null);
@@ -186,17 +207,7 @@ export const ShellWithSession: React.FunctionComponent<{
 
     useEffect(() => {
         if (!onTitleChange) return;
-
-        const titleChange = terminal.onTitleChange(onTitleChange);
-        const iconTitleChange = terminal.parser.registerOscHandler(1, title => {
-            onTitleChange(title);
-            return true;
-        });
-
-        return () => {
-            titleChange.dispose();
-            iconTitleChange.dispose();
-        };
+        return terminal.onTitleChange(onTitleChange);
     }, [terminal, onTitleChange]);
 
     useEffect(() => {
@@ -278,9 +289,9 @@ export const ShellWithSession: React.FunctionComponent<{
                 },
             });
 
-        const shellExitListener = terminal.parser.registerOscHandler(777, data => {
-            if (!initialCommand || !data.startsWith(SHELL_EXIT_OSC_PREFIX)) return false;
-            if (shellExitedRef.current) return true;
+        const unsubOsc777 = terminal.onOsc777(data => {
+            if (!initialCommand || !data.startsWith(SHELL_EXIT_OSC_PREFIX)) return;
+            if (shellExitedRef.current) return;
 
             const parsed = Number.parseInt(data.slice(SHELL_EXIT_OSC_PREFIX.length), 10);
             const exitCode = Number.isFinite(parsed) ? parsed : 1;
@@ -298,10 +309,9 @@ export const ShellWithSession: React.FunctionComponent<{
             if (exitCode === 0) {
                 onRequestCloseRef.current?.();
             }
-            return true;
         });
 
-        const dataListener = terminal.onData((data) => {
+        const unsubData = terminal.onData((data) => {
             wsConnection.call({
                 call: `jobs.compute.${sessionWithProvider.providerId}.shell.open`,
                 payload: {
@@ -311,7 +321,7 @@ export const ShellWithSession: React.FunctionComponent<{
             });
         });
 
-        const resizeListener = terminal.onResize((dims) => {
+        const unsubResize = terminal.onResize((dims) => {
             wsConnection.call({
                 call: `jobs.compute.${sessionWithProvider.providerId}.shell.open`,
                 payload: {
@@ -321,22 +331,26 @@ export const ShellWithSession: React.FunctionComponent<{
             });
         });
 
-        fitAddon.fit();
+        if (autofit !== false) {
+            terminal.fit();
+        }
 
         const windowResizeListener = (): void => {
-            fitAddon.fit();
+            if (autofit !== false) {
+                terminal.fit();
+            }
         };
         window.addEventListener("resize", windowResizeListener);
 
         return () => {
             disposed = true;
             wsConnection.close();
-            shellExitListener.dispose();
-            dataListener.dispose();
-            resizeListener.dispose();
+            unsubOsc777();
+            unsubData();
+            unsubResize();
             window.removeEventListener("resize", windowResizeListener);
         };
-    }, [sessionIdentifier, sessionWithProvider, terminal, initialCommand, clearAfter, suppressUntil]);
+    }, [sessionIdentifier, sessionWithProvider, terminal, autofit, initialCommand, clearAfter, suppressUntil]);
 
     return <TermAndShellWrapper addPadding>
         {closed || reconnecting ? (

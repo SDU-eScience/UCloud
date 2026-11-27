@@ -2,7 +2,8 @@ import * as React from "react";
 import {useLayoutEffect, useRef} from "react";
 import {StreamProcessor} from "@/Applications/Jobs/JobViz";
 import {WidgetLabel, WidgetProgressBar, WidgetType} from "@/Applications/Jobs/JobViz";
-import {appendToXterm, useXTerm, xtermThemes} from "@/Applications/Jobs/XTermLib";
+import {xtermThemes} from "@/Applications/Jobs/XTermLib";
+import {useTerminalEngine} from "@/TerminalEngine/engine";
 import {injectStyle} from "@/Unstyled";
 
 export interface JobsFollowResponse {
@@ -103,7 +104,7 @@ export const InitTerminal: React.FunctionComponent<{
     state: JobInitState;
     height?: number;
 }> = ({state, height}) => {
-    const {termRef, terminal} = useXTerm({autofit: true, readOnly: true});
+    const {termRef, handle: terminal} = useTerminalEngine({autofit: true, readOnly: true});
     const logLengthRef = useRef(0);
     const lastStateRef = useRef<JobInitState | null>(null);
     const lastGenerationRef = useRef(0);
@@ -126,7 +127,7 @@ export const InitTerminal: React.FunctionComponent<{
         if (pending.length === 0) return;
         logLengthRef.current = state.log.length;
         for (const chunk of pending) {
-            appendToXterm(terminal, chunk);
+            terminal.appendText(chunk);
         }
     });
 

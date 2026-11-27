@@ -79,7 +79,8 @@ import {getProviderTitle, getShortProviderTitle} from "@/Providers/ProviderTitle
 import {useIsLightThemeStored} from "@/ui-components/theme";
 import {WSFactory} from "@/Authentication/HttpClientInstance";
 import {applyJobFollowResponse, InitTerminal, JobInitState, JobInitTracker, JobsFollowResponse} from "@/Stacks/JobInitTracking";
-import {appendToXterm, useXTerm, xtermThemes} from "@/Applications/Jobs/XTermLib";
+import {xtermThemes} from "@/Applications/Jobs/XTermLib";
+import {useTerminalEngine} from "@/TerminalEngine/engine";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {TutorialWizard} from "@/ui-components/TutorialWizard";
 import Warning from "@/ui-components/Warning";
@@ -1897,7 +1898,7 @@ const ContainerLogsNode: React.FunctionComponent<{
     logs: string;
     style?: React.CSSProperties;
 }> = ({logs, style}) => {
-    const {termRef, terminal} = useXTerm({autofit: true, readOnly: true});
+    const {termRef, handle: terminal} = useTerminalEngine({autofit: true, readOnly: true});
     const writtenRef = useRef("");
 
     useLayoutEffect(() => {
@@ -1909,7 +1910,7 @@ const ContainerLogsNode: React.FunctionComponent<{
         }
 
         if (logs.length > writtenRef.current.length) {
-            appendToXterm(terminal, logs.slice(writtenRef.current.length));
+            terminal.appendText(logs.slice(writtenRef.current.length));
             writtenRef.current = logs;
         }
     }, [logs, terminal]);

@@ -559,8 +559,13 @@ const TabStripClass = injectStyle("tab-strip", k => `
         color: var(--textPrimary);
     }
 
+    html.dark ${k} .tab-strip-item:hover {
+        background: #15181c;
+    }
+
     html.dark ${k} .tab-strip-item[data-active="true"] {
-        background: #233558;
+        background: #1a1e23;
+        border-color: var(--borderColorHover);
     }
 
     ${k} .tab-strip-item:focus-visible,

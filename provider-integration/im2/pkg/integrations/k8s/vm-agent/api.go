@@ -29,7 +29,9 @@ var VmaTty = rpc.Call[util.Empty, util.Empty]{
 }
 
 type ShellEvent struct {
-	Type ShellEventType
+	Type   ShellEventType
+	Handle string
+	Replay bool
 	ShellEventInput
 	ShellEventResize
 	ShellEventTerminate
@@ -53,4 +55,5 @@ const (
 	ShellEventTypeInput     ShellEventType = "input"
 	ShellEventTypeResize    ShellEventType = "resize"
 	ShellEventTypeTerminate ShellEventType = "terminate"
+	ShellEventTypeKill      ShellEventType = "kill"
 )

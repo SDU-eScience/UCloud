@@ -2644,6 +2644,9 @@ func jobPersist(b *db.Batch, r *resource) {
 					"hostname":        info.Hostname.Sql(),
 				},
 			)
+			if info.State.IsFinal() {
+				terminalSessionDeleteByJobIdBatch(b, r.Id)
+			}
 		}
 
 		if !isPartial || info.ChangeFlags&internalJobChangeParameters != 0 {

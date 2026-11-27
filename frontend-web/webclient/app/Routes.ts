@@ -114,6 +114,8 @@ const stacks = {
 const compute = {
     jobs: () => jobs.list(),
     stacks: () => stacks.list(),
+    terminals: () => "/terminals",
+    terminalSession: (sessionId: string) => `/terminals/${sessionId}`,
 };
 
 const login = {

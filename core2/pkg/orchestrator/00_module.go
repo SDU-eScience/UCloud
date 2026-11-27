@@ -80,6 +80,9 @@ func Init() {
 	initJobUcx()
 	times["JobUcx"] = t.Mark()
 
+	initTerminalSessions()
+	times["TerminalSessions"] = t.Mark()
+
 	initLicenses()
 	times["Licenses"] = t.Mark()
 

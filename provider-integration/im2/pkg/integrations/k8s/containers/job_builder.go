@@ -455,7 +455,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string, cpuMillis int) *util
 
 	exeCopyCommand := &strings.Builder{}
 	{
-		executables := []string{"ucmetrics", "ucviz"}
+		executables := []string{"ucmetrics", "ucviz", "ucloud-pty"}
 		if util.DevelopmentModeEnabled() {
 			executables = append(executables, "ucx-demo")
 		}

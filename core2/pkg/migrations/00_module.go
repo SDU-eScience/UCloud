@@ -74,5 +74,6 @@ func migrationScripts() []db.MigrationScript {
 		accountingModelV1(),
 		jobsV2(),
 		featuresV2(),
+		terminalSessionsV1(),
 	}
 }

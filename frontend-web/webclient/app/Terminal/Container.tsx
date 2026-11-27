@@ -12,7 +12,10 @@ import {bulkRequestOf, bulkResponseOf, createKeyboardShortcut} from "@/UtilityFu
 import {INTEGRATED_TERMINAL_RECONNECT_ATTEMPTS, ShellWithSession} from "@/Applications/Jobs/Shell";
 import {xtermThemes} from "@/Applications/Jobs/XTermLib";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import {Terminal} from "@xterm/xterm";
+import {TerminalEngineHandle} from "@/TerminalEngine/engine";
+import {Feature, hasFeature} from "@/Features";
+import {useBackendFeatures} from "@/Features/backend";
+import {terminalThemes} from "@/TerminalEngine/themes";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
 import {Operation, Operations} from "@/ui-components/Operation";
@@ -211,7 +214,7 @@ export const TerminalContainer: React.FunctionComponent = () => {
 
     const termSizeSaved = useRef<number>(400);
     const isResizing = useRef(false);
-    const activeTerminalRef = useRef<Terminal | null>(null);
+    const activeTerminalRef = useRef<TerminalEngineHandle | null>(null);
     const terminalRoot = useRef<HTMLDivElement | null>(null);
     const creatingTerminal = useRef(false);
     const activeTabId = state.tabs[state.activeTab]?.uniqueId;
@@ -465,9 +468,11 @@ function tabOperations(dispatch: Dispatch, tabIdx: number, state: TerminalState)
     ];
 }
 
-const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, tabIdx: number, hidden: boolean, focusedTerminalRef?: React.RefObject<Terminal | null>}> = props => {
+const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, tabIdx: number, hidden: boolean, focusedTerminalRef?: React.RefObject<TerminalEngineHandle | null>}> = props => {
+    useBackendFeatures();
+    const useV2 = hasFeature(Feature.TERMINAL_V2);
     const [size, setSize] = useState<[number, number]>([80, 40]);
-    const terminal = useRef<Terminal | null>(null);
+    const terminal = useRef<TerminalEngineHandle | null>(null);
     const dispatch = useDispatch();
     const [sessionResp, openSession] = useCloudAPI<BulkResponse<InteractiveSession>>(
         {noop: true},
@@ -504,6 +509,7 @@ const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, tabIdx: num
     }, [doReconnect]);
 
     useEffect(() => {
+        if (useV2) return;
         const i = window.setInterval(() => {
             let cssPropertyValue = getCssPropertyValue(CSSVarCurrentSidebarStickyWidth);
             let stickySidebar = parseInt(cssPropertyValue);
@@ -523,20 +529,28 @@ const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, tabIdx: num
         return () => {
             window.clearInterval(i);
         }
-    }, []);
+    }, [useV2]);
 
     useEffect(() => {
+        if (useV2) return;
         const [cols, rows] = size;
         terminal.current?.resize(cols, rows);
-    }, [size[0], size[1]]);
+    }, [useV2, size[0], size[1]]);
 
-    return <div style={{display: props.hidden ? "none" : "block"}}>
+    return <div
+        style={{
+            display: props.hidden ? "none" : "block",
+            height: useV2 ? "calc(100% - var(--tc-controls-height) - 8px)" : undefined,
+            background: useV2 ? undefined : undefined,
+        }}
+        data-terminal-theme-light={terminalThemes.light.background}
+    >
         <ShellWithSession
             sessionWithProvider={sessionWithProvider}
             connectionError={sessionResp.error?.why}
             xtermRef={terminal}
             focusedTerminalRef={props.focusedTerminalRef}
-            autofit={false}
+            autofit={useV2}
             reconnect={doReconnect}
             maxReconnectAttempts={INTEGRATED_TERMINAL_RECONNECT_ATTEMPTS}
             onTitleChange={updateTitle}

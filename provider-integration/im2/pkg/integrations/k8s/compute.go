@@ -45,6 +45,8 @@ func InitCompute() controller.JobsService {
 		RetrieveProducts:         retrieveProducts,
 		Follow:                   follow,
 		HandleShell:              handleShell,
+		AttachPersistentPane:     attachPersistentPane,
+		KillPersistentPanes:      killPersistentPanes,
 		OpenWebSession:           openWebSession,
 		InspectWebSession:        inspectWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
@@ -484,6 +486,22 @@ func handleShell(session *controller.ShellSession, cols int, rows int) {
 	} else {
 		backend(session.Job).HandleShell(session, cols, rows)
 	}
+}
+
+func attachPersistentPane(req *controller.PersistentPaneRequest) {
+	svc := backend(req.Job)
+	if svc == nil || svc.AttachPersistentPane == nil {
+		return
+	}
+	svc.AttachPersistentPane(req)
+}
+
+func killPersistentPanes(job *orc.Job, handles []orc.TerminalSessionProviderHandleTarget) *util.HttpError {
+	svc := backend(job)
+	if svc == nil || svc.KillPersistentPanes == nil {
+		return nil
+	}
+	return svc.KillPersistentPanes(job, handles)
 }
 
 func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank int, target util.Option[string]) (controller.ConfiguredWebSessionResult, *util.HttpError) {

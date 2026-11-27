@@ -13,6 +13,7 @@ const (
 	FeatureCustomApplications    = "custom-applications"
 	FeatureUsageV2               = "usage-v2"
 	FeatureAllocationsV2         = "allocations-v2"
+	FeatureTerminalV2            = "terminal-v2"
 )
 
 type FeatureDefinition struct {
@@ -48,6 +49,12 @@ var FeatureDefinitions = []FeatureDefinition{
 		Feature:     FeatureAllocationsV2,
 		Title:       "New allocation pages",
 		Description: "Use the new allocation pages, including the updated received and sub-allocated allocation views.",
+		Toggleable:  true,
+	},
+	{
+		Feature:     FeatureTerminalV2,
+		Title:       "New terminal experience",
+		Description: "Use the redesigned multi-tab, split-pane terminal workspace with persistent sessions powered by libghostty.",
 		Toggleable:  true,
 	},
 }

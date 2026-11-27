@@ -23,6 +23,8 @@ export enum Feature {
     USAGE_V2,
 
     ALLOCATIONS_V2,
+
+    TERMINAL_V2,
 }
 
 enum Environment {
@@ -118,6 +120,11 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "allocations-v2": {
         feature: Feature.ALLOCATIONS_V2,
+        useBackend: true,
+    },
+
+    "terminal-v2": {
+        feature: Feature.TERMINAL_V2,
         useBackend: true,
     }
 };

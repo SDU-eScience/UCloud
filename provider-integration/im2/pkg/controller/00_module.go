@@ -33,6 +33,7 @@ func Init(mux *http.ServeMux) {
 	initFiles()
 	initIdManagement()
 	initJobs()
+	initTerminalSessions()
 	initTasks()
 	initSshKeys()
 	initProviderBranding()

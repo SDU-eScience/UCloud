@@ -40,6 +40,8 @@ type JobsService struct {
 	RetrieveProducts         func() []orcapi.JobSupport
 	Follow                   func(session *FollowJobSession)
 	HandleShell              func(session *ShellSession, cols, rows int)
+	AttachPersistentPane     func(req *PersistentPaneRequest)
+	KillPersistentPanes      func(job *orcapi.Job, handles []orcapi.TerminalSessionProviderHandleTarget) *util.HttpError
 	OpenWebSession           func(job *orcapi.Job, sessionType orcapi.InteractiveSessionType, rank int, target util.Option[string]) (ConfiguredWebSessionResult, *util.HttpError)
 	InspectWebSession        func(job *orcapi.Job, rank int, suffix string, target cfg.HostInfo, tls bool) WebSessionDiagnostics
 	RequestDynamicParameters func(owner orcapi.ResourceOwner, app *orcapi.Application) []orcapi.ApplicationParameter
@@ -141,6 +143,7 @@ type ShellEvent struct {
 	Type ShellEventType
 	ShellEventInput
 	ShellEventResize
+	ShellEventCredit
 	ShellEventTerminate
 }
 
@@ -153,6 +156,10 @@ type ShellEventResize struct {
 	Rows int
 }
 
+type ShellEventCredit struct {
+	Delta uint32
+}
+
 type ShellEventTerminate struct{}
 
 type ShellEventType string
@@ -161,6 +168,7 @@ const (
 	ShellEventTypeInit      ShellEventType = "initialize"
 	ShellEventTypeInput     ShellEventType = "input"
 	ShellEventTypeResize    ShellEventType = "resize"
+	ShellEventTypeCredit    ShellEventType = "credit"
 	ShellEventTypeTerminate ShellEventType = "terminate"
 )
 

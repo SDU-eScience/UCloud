@@ -20,6 +20,7 @@ import DetailedNews from "@/NewsPost/DetailedNews";
 import ProviderRouter from "@/Admin/Providers/Router";
 import SharesAcceptLink from "@/Files/SharesAcceptLink";
 import JobShell from "@/Applications/Jobs/Shell";
+import TerminalWorkspace from "@/TerminalWorkspace/Workspace";
 import JobVnc from "@/Applications/Jobs/Vnc";
 import LoginPage from "@/Login/Login";
 import Registration from "@/Login/Registration";
@@ -169,6 +170,10 @@ const Core = (): React.ReactNode => {
 
                     <Route path={AppRoutes.apps.shell(":jobId", ":rank")}
                            element={React.createElement(requireAuth(JobShell))} />
+                    <Route path={AppRoutes.compute.terminals()}
+                           element={React.createElement(requireAuth(TerminalWorkspace))} />
+                    <Route path={AppRoutes.compute.terminalSession(":sessionId")}
+                           element={React.createElement(requireAuth(TerminalWorkspace))} />
                     <Route path={AppRoutes.apps.vnc(":jobId", ":rank")}
                            element={React.createElement(requireAuth(JobVnc))} />
 

@@ -97,6 +97,8 @@ func Init() ctrl.JobsService {
 		RetrieveProducts:         nil, // handled by main instance
 		Follow:                   follow,
 		HandleShell:              handleShell,
+		AttachPersistentPane:     kubevirtAttachPersistentPane,
+		KillPersistentPanes:      kubevirtKillPersistentPanes,
 		OpenWebSession:           openWebSession,
 		InspectWebSession:        kubevirtInspectWebSession,
 		RequestDynamicParameters: requestDynamicParameters,

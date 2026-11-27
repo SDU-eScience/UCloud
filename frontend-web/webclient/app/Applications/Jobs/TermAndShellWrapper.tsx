@@ -1,12 +1,21 @@
 import {classConcat, injectStyle} from "@/Unstyled";
 import {isLightThemeStored} from "@/UtilityFunctions";
 import {xtermThemes} from "@/Applications/Jobs/XTermLib";
+import {Feature, hasFeature} from "@/Features";
+import {useBackendFeatures} from "@/Features/backend";
+import {terminalThemes} from "@/TerminalEngine/themes";
 import * as React from "react";
 
 export function TermAndShellWrapper(props: React.PropsWithChildren<{addPadding: boolean}>) {
-    return <div className={classConcat(TermAndShellWrapperClass, isLightThemeStored() ? "light" : "dark")} data-add-padding={props.addPadding}>
+    useBackendFeatures();
+    const isV2 = hasFeature(Feature.TERMINAL_V2);
+    return <div
+        className={classConcat(TermAndShellWrapperClass, isLightThemeStored() ? "light" : "dark")}
+        data-add-padding={props.addPadding}
+        data-terminal-v2={isV2}
+    >
         {props.children}
-    </div>
+    </div>;
 }
 
 
@@ -33,6 +42,16 @@ const TermAndShellWrapperClass = injectStyle("term-and-wrapper", k => `
 
     html.dark ${k} {
         background: ${xtermThemes.dark.background};
+    }
+
+    ${k}[data-terminal-v2="true"].light,
+    html.light ${k}[data-terminal-v2="true"] {
+        background: ${terminalThemes.light.background};
+    }
+
+    ${k}[data-terminal-v2="true"].dark,
+    html.dark ${k}[data-terminal-v2="true"] {
+        background: ${terminalThemes.dark.background};
     }
 
     ${k} > .contents {

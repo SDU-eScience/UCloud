@@ -49,7 +49,7 @@ import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {useScrollToBottom} from "@/ui-components/ScrollToBottom";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
-import {appendToXterm, useXTerm} from "./XTermLib";
+import {useTerminalEngine} from "@/TerminalEngine/engine";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {WebSession} from "./Web";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
@@ -1483,7 +1483,7 @@ const RunningJobRank: React.FunctionComponent<{
     rank: number,
     state: React.RefObject<JobUpdates>,
 }> = ({job, rank, state}) => {
-    const {termRef, terminal} = useXTerm({autofit: true});
+    const {termRef, handle: terminal} = useTerminalEngine({autofit: true, readOnly: true});
 
     useEffect(() => {
         const listener = () => {
@@ -1493,8 +1493,8 @@ const RunningJobRank: React.FunctionComponent<{
             const newLogQueue: LogMessage[] = [];
             for (const l of s.logQueue) {
                 if (l.channel == null && l.rank === rank) {
-                    if (l.stderr != null) appendToXterm(terminal, l.stderr);
-                    if (l.stdout != null) appendToXterm(terminal, l.stdout);
+                    if (l.stderr != null) terminal.appendText(l.stderr);
+                    if (l.stdout != null) terminal.appendText(l.stdout);
                 } else {
                     newLogQueue.push(l);
                 }
@@ -1504,7 +1504,7 @@ const RunningJobRank: React.FunctionComponent<{
         };
         state.current?.subscriptions?.push(listener);
         listener();
-    }, [job.id, rank]);
+    }, [job.id, rank, terminal]);
 
     const hasMultipleNodes = job.specification.replicas > 1;
 
