@@ -381,7 +381,7 @@ function JobView(props: {id: string; embedded?: boolean;}): React.ReactNode {
 
     const main = (
         <div className={VmLayout}>
-            {!job || !status ? null : <JobHeader job={job} effectiveState={status?.state ?? "IN_QUEUE"} status={status} />}
+            {!job || !status ? null : <JobHeader job={job} effectiveState={status?.state ?? "IN_QUEUE"} status={status} stateTitle={stateToTitle(status?.state)} />}
             <div className={VmContentGrid}>
                 {!job || !status ? null : (<>
                     {(status.state === "IN_QUEUE" || status.state === "SUSPENDED") && !isVirtualMachine ? (

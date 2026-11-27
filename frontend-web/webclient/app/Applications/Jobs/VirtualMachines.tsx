@@ -43,7 +43,6 @@ import {CardClass} from "@/ui-components/Card";
 import {ResourceBrowseHeaderControls} from "@/ui-components/ResourceBrowser";
 import AppParameterValue = compute.AppParameterValue;
 import {RefreshButton} from "@/Navigation/UtilityBar";
-import * as StackApi from "@/Stacks/api";
 import Warning from "@/ui-components/Warning";
 import {sendFailureNotification} from "@/Notifications";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -123,7 +122,6 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     const [loading, invokeCommand] = useCloudCommand();
     const [, invokeBackgroundCommand] = useCloudCommand();
     const [optimisticPowerState, setOptimisticPowerState] = useState<OptimisticPowerState | null>(null);
-    const [statusDotCount, setStatusDotCount] = useState(0);
     const [publicLinkTargets, setPublicLinkTargets] = useState<InterfaceTarget[]>([]);
     const restartObservedNonRunningState = useRef(false);
     const [hasPendingFolderRestart, setHasPendingFolderRestart] = useState(false);
@@ -192,24 +190,6 @@ export const VirtualMachineStatus: React.FunctionComponent<{
         }
         return combinedInterfaceTargets[defaultInterfaceId];
     }, [combinedInterfaceTargets]);
-
-    const resolvedProduct = job.status.resolvedProduct as {
-        cpu?: number;
-        memoryInGigs?: number;
-        gpu?: number;
-        cpuModel?: string;
-        memoryModel?: string;
-        gpuModel?: string;
-    } | undefined;
-
-    const hardware = {
-        cpu: resolvedProduct?.cpu ?? 1,
-        memoryInGigs: resolvedProduct?.memoryInGigs ?? 1,
-        gpu: resolvedProduct?.gpu ?? 0,
-        cpuModel: resolvedProduct?.cpuModel,
-        memoryModel: resolvedProduct?.memoryModel,
-        gpuModel: resolvedProduct?.gpuModel,
-    };
 
     const activity = useMemo(() => {
         return updates
@@ -626,21 +606,6 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     }, [status.state, job.id, ingresses, invokeBackgroundCommand]);
 
     useEffect(() => {
-        if (!isPowerTransitioning) {
-            setStatusDotCount(0);
-            return;
-        }
-
-        const timer = window.setInterval(() => {
-            setStatusDotCount(prev => ((prev + 1) % 4));
-        }, 450);
-
-        return () => {
-            window.clearInterval(timer);
-        };
-    }, [isPowerTransitioning]);
-
-    useEffect(() => {
         if (optimisticPowerState === "POWERING_ON" && status.state === "RUNNING") {
             setOptimisticPowerState(null);
             return;
@@ -760,7 +725,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                 />
             }
         </ReactModal>
-        <JobHeader job={job} effectiveState={effectiveState} status={status}>
+        <JobHeader job={job} effectiveState={effectiveState} status={status} isPowerTransitioning={isPowerTransitioning} stateTitle={stateToTitle(effectiveState)}>
             <Flex flexDirection="row" alignItems="center" gap="10px">
                 {!showInterfaceControls ? null : (
                     <Flex>
@@ -812,17 +777,10 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                     onSelectMenuItem={onSelectDangerMenuItem}
                 />
             </Flex>
-
-            <div className={StatusBadge} data-state={effectiveState}>
-                <span>{stateToTitle(effectiveState)}</span>
-                {!isPowerTransitioning ? null : (
-                    <span className={StatusDots}>{".".repeat(statusDotCount)}</span>
-                )}
-            </div>
         </JobHeader>
 
         <div className={VmContentGrid}>
-            {!showRuntimePanels ? null : (
+            {!showRuntimePanels ? null : (<>
                 <TabbedCard
                     style={{minHeight: "240px"}}
                     rightControls={!hasPendingAccessRestart ? undefined : (
@@ -873,37 +831,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                         </div>
                     </TabbedCardTab>
                 </TabbedCard>
-            )}
-
-            {!showRuntimePanels ? null : (
-                <TabbedCard style={{minHeight: "240px"}}>
-                    <TabbedCardTab icon="heroCpuChip" name="System information">
-                        <div className={VmTabBody}>
-                            <div className={VmDetails}>
-                                <dt>Specs</dt>
-                                <dd>
-                                    {hardware.cpu}x {hardware.cpuModel ?? "vCPU"}
-                                    {" | "}{hardware.memoryInGigs} GB {hardware.memoryModel ?? "RAM"}
-                                    {hardware.gpu === 0 ? null : <>
-                                        {" | "}{hardware.gpu}x {hardware.gpuModel ?? "GPUs"}
-                                    </>}
-                                </dd>
-
-                                <dt>Private IP</dt>
-                                <dd>{streamProperties["PrivateIPAddress"] ?? "Unknown"}</dd>
-
-                                <dt>Operating system</dt>
-                                <dd>{streamProperties["OperatingSystem"] ?? "Unknown"}</dd>
-
-                                <dt>Kernel</dt>
-                                <dd>{streamProperties["KernelVersion"] ?? "Unknown"}</dd>
-                            </div>
-                        </div>
-                    </TabbedCardTab>
-                </TabbedCard>
-            )}
-
-            {!showRuntimePanels ? null :
+                <SystemInformation job={job} streamProperties={streamProperties} />
                 <VirtualMachineFolders
                     jobId={job.id}
                     providerId={job.specification.product.provider}
@@ -914,7 +842,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                     showRestartIndicator={hasPendingFolderRestart}
                     onRestartRequested={confirmRestart}
                 />
-            }
+            </>)}
 
             <TabbedCard style={{minHeight: "240px"}}>
                 <TabbedCardTab icon="heroClock" name="Lifecycle">
@@ -1290,6 +1218,7 @@ const StatusBadge = injectStyle("vm-status-badge", k => `
         background: color-mix(in srgb, var(--warningMain) 24%, transparent);
     }
 
+    /* TODO: Success intentional here? */
     ${k}[data-state="SUCCESS"],
     ${k}[data-state="EXPIRED"],
     ${k}[data-state="FAILURE"] {
@@ -1436,7 +1365,12 @@ const VmTimelineRow = injectStyle("vm-timeline-row", k => `
     }
 `);
 
-export function JobHeader<T extends string>({ job, effectiveState, children, status }: React.PropsWithChildren<{ job: Job; effectiveState: T; status: JobStatus; }>): React.ReactNode {
+export function JobHeader<T extends string>({
+    job, effectiveState, children, status, stateTitle, isPowerTransitioning
+}: React.PropsWithChildren<{
+    job: Job; effectiveState: T; status: JobStatus;
+    stateTitle: string; isPowerTransitioning?: boolean;
+}>): React.ReactNode {
     return <Card className={classConcat(HeroHeaderCard, effectiveState)} p="24px">
             <Flex alignItems="center" gap="16px" flexWrap="wrap">
                 <AppLogo job={job} />
@@ -1445,6 +1379,11 @@ export function JobHeader<T extends string>({ job, effectiveState, children, sta
 
                 {children}
 
+            <JobStatus
+                    effectiveState={effectiveState}
+                    stateTitle={stateTitle}
+                    isPowerTransitioning={isPowerTransitioning}
+                />
             </Flex>
 
         <div className={HeroHeaderGrid}>
@@ -1475,4 +1414,78 @@ function AppLogo({ job }: { job: Job }) {
             <Heading.h2>{appTitle} {appVersion}</Heading.h2>
         </Flex>
     </Box>
+}
+
+function SystemInformation({ job, streamProperties }: { job: Job;  streamProperties: Record<string, string>}) {
+    const resolvedProduct = job.status.resolvedProduct as {
+        cpu?: number;
+        memoryInGigs?: number;
+        gpu?: number;
+        cpuModel?: string;
+        memoryModel?: string;
+        gpuModel?: string;
+    } | undefined;
+
+    const hardware = {
+        cpu: resolvedProduct?.cpu ?? 1,
+        memoryInGigs: resolvedProduct?.memoryInGigs ?? 1,
+        gpu: resolvedProduct?.gpu ?? 0,
+        cpuModel: resolvedProduct?.cpuModel,
+        memoryModel: resolvedProduct?.memoryModel,
+        gpuModel: resolvedProduct?.gpuModel,
+    };
+
+    return <TabbedCard style={{minHeight: "240px"}}>
+        <TabbedCardTab icon="heroCpuChip" name="System information">
+            <div className={VmTabBody}>
+                <div className={VmDetails}>
+                    <dt>Specs</dt>
+                    <dd>
+                        {hardware.cpu}x {hardware.cpuModel ?? "vCPU"}
+                        {" | "}{hardware.memoryInGigs} GB {hardware.memoryModel ?? "RAM"}
+                        {hardware.gpu === 0 ? null : <>
+                            {" | "}{hardware.gpu}x {hardware.gpuModel ?? "GPUs"}
+                        </>}
+                    </dd>
+
+                    <dt>Private IP</dt>
+                    <dd>{streamProperties["PrivateIPAddress"] ?? "Unknown"}</dd>
+
+                    <dt>Operating system</dt>
+                    <dd>{streamProperties["OperatingSystem"] ?? "Unknown"}</dd>
+
+                    <dt>Kernel</dt>
+                    <dd>{streamProperties["KernelVersion"] ?? "Unknown"}</dd>
+                </div>
+            </div>
+        </TabbedCardTab>
+    </TabbedCard>
+}
+
+
+export function JobStatus({stateTitle, effectiveState, isPowerTransitioning = false}: {
+    effectiveState: string, stateTitle: string; isPowerTransitioning?: boolean;
+}) {
+    const [statusDotCount, setStatusDotCount] = useState(0);
+    useEffect(() => {
+        if (!isPowerTransitioning) {
+            setStatusDotCount(0);
+            return;
+        }
+
+        const timer = window.setInterval(() => {
+            setStatusDotCount(prev => ((prev + 1) % 4));
+        }, 450);
+
+        return () => {
+            window.clearInterval(timer);
+        };
+    }, [isPowerTransitioning]);
+
+    return <div className={StatusBadge} data-state={effectiveState}>
+        <span>{stateTitle}</span>
+        {!isPowerTransitioning ? null : (
+            <span className={StatusDots}>{".".repeat(statusDotCount)}</span>
+        )}
+    </div>
 }
