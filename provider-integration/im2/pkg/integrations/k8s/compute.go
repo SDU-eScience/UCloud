@@ -46,6 +46,7 @@ func InitCompute() controller.JobsService {
 		Follow:                   follow,
 		HandleShell:              handleShell,
 		OpenWebSession:           openWebSession,
+		InspectWebSession:        inspectWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
 		RenderInvocation:         renderInvocation,
 		Suspend:                  suspend,
@@ -487,6 +488,14 @@ func handleShell(session *controller.ShellSession, cols int, rows int) {
 
 func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank int, target util.Option[string]) (controller.ConfiguredWebSessionResult, *util.HttpError) {
 	return backend(job).OpenWebSession(job, sessionType, rank, target)
+}
+
+func inspectWebSession(job *orc.Job, rank int, suffix string, target cfg.HostInfo, tls bool) controller.WebSessionDiagnostics {
+	fn := backend(job).InspectWebSession
+	if fn == nil {
+		return controller.WebSessionDiagnostics{}
+	}
+	return fn(job, rank, suffix, target, tls)
 }
 
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {

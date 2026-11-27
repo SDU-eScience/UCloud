@@ -119,6 +119,21 @@ func Initialize(config Config, channel chan []byte) {
 		EnvoySecretKey: cfg.OwnEnvoySecret,
 	}] = true
 
+	routes[&EnvoyRoute{
+		Type:           RouteTypeSessionStatus,
+		Cluster:        ServerClusterName,
+		EnvoySecretKey: cfg.OwnEnvoySecret,
+	}] = true
+
+	webPrefix, webSuffix, webEnabled := cfg.WebHostnameConfig()
+	if webEnabled && (webPrefix != "" || webSuffix != "") {
+		routes[&EnvoyRoute{
+			Type:           RouteTypeJobUnavailable,
+			Cluster:        ServerClusterName,
+			EnvoySecretKey: cfg.OwnEnvoySecret,
+		}] = true
+	}
+
 	clusters[ServerClusterName] = &EnvoyCluster{
 		Name:    ServerClusterName,
 		Address: internalAddress,
@@ -451,6 +466,8 @@ const (
 	RouteTypeIngress
 	RouteTypeAuthorize
 	RouteTypeVnc
+	RouteTypeSessionStatus
+	RouteTypeJobUnavailable
 )
 
 type EnvoyRoute struct {
@@ -469,9 +486,13 @@ func (r *EnvoyRoute) weight() int {
 			return 11
 		}
 		return 10
+	case RouteTypeJobUnavailable:
+		return 8
 	case RouteTypeIngress:
 		return 6
 	case RouteTypeAuthorize:
+		return 5
+	case RouteTypeSessionStatus:
 		return 5
 	case RouteTypeVnc:
 		return 5

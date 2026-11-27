@@ -9,7 +9,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
+	"sync"
 
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/cfgutil"
@@ -595,6 +598,62 @@ func (cfg *ServicesConfiguration) Kubernetes() *ServicesConfigurationKubernetes 
 		return cfg.Configuration.(*ServicesConfigurationKubernetes)
 	}
 	return nil
+}
+
+func WebHostnameConfig() (string, string, bool) {
+	if Services == nil {
+		return "", "", false
+	}
+
+	if k8s := Services.Kubernetes(); k8s != nil {
+		return k8s.Compute.Web.Prefix, k8s.Compute.Web.Suffix, k8s.Compute.Web.Enabled
+	}
+
+	if slurm := Services.Slurm(); slurm != nil {
+		return slurm.Compute.Web.Prefix, slurm.Compute.Web.Suffix, slurm.Compute.Web.Enabled
+	}
+
+	return "", "", false
+}
+
+var webJobHostRegexMutex sync.Mutex
+var webJobHostRegexPattern string
+var webJobHostRegexCompiled *regexp.Regexp
+
+func WebJobHostnameRegex() (string, bool) {
+	prefix, suffix, enabled := WebHostnameConfig()
+	if !enabled || (prefix == "" && suffix == "") {
+		return "", false
+	}
+	pattern := "(?i)^" + regexp.QuoteMeta(prefix) + "([0-9]+)-([0-9]+)(?:-([a-z0-9-]+))?" + regexp.QuoteMeta(suffix) + "(:[0-9]+)?$"
+	return pattern, true
+}
+
+func WebParseJobHostname(host string) (string, int, string, bool) {
+	pattern, ok := WebJobHostnameRegex()
+	if !ok {
+		return "", 0, "", false
+	}
+
+	webJobHostRegexMutex.Lock()
+	if webJobHostRegexCompiled == nil || webJobHostRegexPattern != pattern {
+		webJobHostRegexCompiled = regexp.MustCompile(pattern)
+		webJobHostRegexPattern = pattern
+	}
+	re := webJobHostRegexCompiled
+	webJobHostRegexMutex.Unlock()
+
+	matches := re.FindStringSubmatch(host)
+	if len(matches) < 4 {
+		return "", 0, "", false
+	}
+
+	rank, err := strconv.Atoi(matches[2])
+	if err != nil || rank < 0 {
+		return "", 0, "", false
+	}
+
+	return matches[1], rank, strings.ToLower(matches[3]), true
 }
 
 type MachineResourceType = string

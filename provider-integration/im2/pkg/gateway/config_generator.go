@@ -121,13 +121,39 @@ func createListener(listenAddress string, port int) *listener.Listener {
 			Mappers: []*hcm.ResponseMapper{
 				{
 					Filter: &accesslogv3.AccessLogFilter{
-						FilterSpecifier: &accesslogv3.AccessLogFilter_StatusCodeFilter{
-							StatusCodeFilter: &accesslogv3.StatusCodeFilter{
-								Comparison: &accesslogv3.ComparisonFilter{
-									Op: accesslogv3.ComparisonFilter_EQ,
-									Value: &core.RuntimeUInt32{
-										DefaultValue: 503,
-										RuntimeKey:   "key_bad_gateway",
+						FilterSpecifier: &accesslogv3.AccessLogFilter_AndFilter{
+							AndFilter: &accesslogv3.AndFilter{
+								Filters: []*accesslogv3.AccessLogFilter{
+									{
+										FilterSpecifier: &accesslogv3.AccessLogFilter_StatusCodeFilter{
+											StatusCodeFilter: &accesslogv3.StatusCodeFilter{
+												Comparison: &accesslogv3.ComparisonFilter{
+													Op: accesslogv3.ComparisonFilter_EQ,
+													Value: &core.RuntimeUInt32{
+														DefaultValue: 503,
+														RuntimeKey:   "key_bad_gateway",
+													},
+												},
+											},
+										},
+									},
+									{
+										FilterSpecifier: &accesslogv3.AccessLogFilter_HeaderFilter{
+											HeaderFilter: &accesslogv3.HeaderFilter{
+												Header: &route.HeaderMatcher{
+													Name: "accept",
+													HeaderMatchSpecifier: &route.HeaderMatcher_StringMatch{
+														StringMatch: &matcher.StringMatcher{
+															MatchPattern: &matcher.StringMatcher_SafeRegex{
+																SafeRegex: &matcher.RegexMatcher{
+																	Regex: "(?i).*text/html.*",
+																},
+															},
+														},
+													},
+												},
+											},
+										},
 									},
 								},
 							},
@@ -135,7 +161,7 @@ func createListener(listenAddress string, port int) *listener.Listener {
 					},
 					Body: &core.DataSource{
 						Specifier: &core.DataSource_InlineString{
-							InlineString: string(badGatewayHtml),
+							InlineString: RenderBadGatewayHtml(),
 						},
 					},
 					BodyFormatOverride: &core.SubstitutionFormatString{
@@ -674,6 +700,51 @@ func formatRoute(r *EnvoyRoute) []*route.Route {
 			PathSpecifier: &route.RouteMatch_Prefix{
 				Prefix: fmt.Sprintf("/ucloud/%v/authorize-app", cfg.Provider.Id),
 			},
+		}
+
+	case RouteTypeSessionStatus:
+		result.RequestHeadersToRemove = nil
+		disableJwtFilter(result)
+		result.Match = &route.RouteMatch{
+			PathSpecifier: &route.RouteMatch_Prefix{
+				Prefix: fmt.Sprintf("/ucloud/%v/session-status", cfg.Provider.Id),
+			},
+		}
+
+	case RouteTypeJobUnavailable:
+		jobHostRegex, ok := cfg.WebJobHostnameRegex()
+		if !ok {
+			return nil
+		}
+		result.RequestHeadersToRemove = nil
+		disableJwtFilter(result)
+		result.Action = &route.Route_Route{
+			Route: &route.RouteAction{
+				ClusterSpecifier: &route.RouteAction_Cluster{
+					Cluster: r.Cluster,
+				},
+				Timeout: &duration.Duration{
+					Seconds: 0,
+				},
+				PrefixRewrite: fmt.Sprintf("/ucloud/%v/session-unavailable/", cfg.Provider.Id),
+			},
+		}
+		result.Match = &route.RouteMatch{
+			PathSpecifier: &route.RouteMatch_Prefix{
+				Prefix: "/",
+			},
+			Headers: []*route.HeaderMatcher{{
+				Name: ":authority",
+				HeaderMatchSpecifier: &route.HeaderMatcher_StringMatch{
+					StringMatch: &matcher.StringMatcher{
+						MatchPattern: &matcher.StringMatcher_SafeRegex{
+							SafeRegex: &matcher.RegexMatcher{
+								Regex: jobHostRegex,
+							},
+						},
+					},
+				},
+			}},
 		}
 
 	case RouteTypeIngress:

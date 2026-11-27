@@ -41,6 +41,7 @@ type JobsService struct {
 	Follow                   func(session *FollowJobSession)
 	HandleShell              func(session *ShellSession, cols, rows int)
 	OpenWebSession           func(job *orcapi.Job, sessionType orcapi.InteractiveSessionType, rank int, target util.Option[string]) (ConfiguredWebSessionResult, *util.HttpError)
+	InspectWebSession        func(job *orcapi.Job, rank int, suffix string, target cfg.HostInfo, tls bool) WebSessionDiagnostics
 	RequestDynamicParameters func(owner orcapi.ResourceOwner, app *orcapi.Application) []orcapi.ApplicationParameter
 	RenderInvocation         func(job *orcapi.Job) (string, *util.HttpError)
 	HandleBuiltInVnc         func(job *orcapi.Job, rank int, conn *ws.Conn)
@@ -1379,10 +1380,19 @@ func initJobs() {
 				webSessionsMutex.RUnlock()
 
 				if !found {
-					writer.WriteHeader(http.StatusNotFound)
-					_, _ = writer.Write([]byte("Unknown application requested. Please try again!"))
+					jobServeAuthorizeAppNotFound(writer, request, token)
 				}
 			},
+		)
+
+		rpc.DefaultServer.Mux.HandleFunc(
+			fmt.Sprintf("/ucloud/%v/session-status", cfg.Provider.Id),
+			jobHandleSessionStatus,
+		)
+
+		rpc.DefaultServer.Mux.HandleFunc(
+			fmt.Sprintf("/ucloud/%v/session-unavailable/", cfg.Provider.Id),
+			jobHandleSessionUnavailable,
 		)
 
 		orcapi.JobsProviderRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (fnd.BulkResponse[orcapi.JobSupport], *util.HttpError) {
@@ -2094,6 +2104,7 @@ func IngressAutoRegister(job *orcapi.Job) {
 }
 
 func jobsLoadSessions() {
+	cutoff := time.Now().Add(-jobFinishedSessionRetention)
 	webSessionsMutex.Lock()
 	db.NewTx0(func(tx *db.Transaction) {
 		rows := db.Select[struct {
@@ -2106,16 +2117,48 @@ func jobsLoadSessions() {
 			AuthToken     sql.NullString
 			Flags         int
 			Address       string
+			FinishedAt    sql.NullTime
 		}](
 			tx,
 			`
-				select job_id, rank, target_address, target_port, address, suffix, auth_token, flags, tls
-				from web_sessions
+				select
+					job_id,
+					rank,
+					target_address,
+					target_port,
+					address,
+					suffix,
+					auth_token,
+					flags,
+					tls,
+					finished_at
+				from
+					web_sessions
+				where
+					finished_at is null
+					or finished_at >= :cutoff
 		    `,
-			db.Params{},
+			db.Params{
+				"cutoff": cutoff,
+			},
 		)
 
 		for _, row := range rows {
+			if row.FinishedAt.Valid {
+				isWeb := (RegisteredIngressFlags(row.Flags) & RegisteredIngressFlagsWeb) != 0
+				if isWeb && row.AuthToken.Valid {
+					jobStoreFinishedSessionLocked(jobFinishedSession{
+						JobId:      row.JobId,
+						Rank:       row.Rank,
+						Suffix:     row.Suffix.String,
+						Address:    row.Address,
+						AuthToken:  row.AuthToken.String,
+						FinishedAt: row.FinishedAt.Time,
+					})
+				}
+				continue
+			}
+
 			key := jobIdAndRank{
 				JobId: row.JobId,
 				Rank:  row.Rank,
@@ -2159,6 +2202,19 @@ func jobsLoadSessions() {
 	webSessionsMutex.Unlock()
 
 	jobRoutesRefresh()
+	jobPruneExpiredWebSessions()
+
+	go func() {
+		ticker := time.NewTicker(30 * time.Minute)
+		defer ticker.Stop()
+		for util.IsAlive {
+			<-ticker.C
+			if !util.IsAlive {
+				return
+			}
+			jobPruneExpiredWebSessions()
+		}
+	}()
 }
 
 func jobRoutesRefresh() {
@@ -2218,9 +2274,11 @@ func jobRoutesRefresh() {
 	}
 
 	var jobIds []string
+	finishedAt := time.Now()
 	for _, toDeleteKey := range sessionsToDelete {
 		jobIds = append(jobIds, toDeleteKey.JobId)
 		session := webSessions[toDeleteKey]
+		jobRecordFinishedSessionsLocked(session, finishedAt)
 		delete(webSessions, toDeleteKey)
 
 		clustersToDelete := map[string]util.Empty{}
@@ -2243,11 +2301,54 @@ func jobRoutesRefresh() {
 	}
 
 	if len(jobIds) > 0 {
+		cutoff := finishedAt.Add(-jobFinishedSessionRetention)
+		jobPruneFinishedSessionsLocked(cutoff)
 		db.NewTx0(func(tx *db.Transaction) {
 			db.Exec(
 				tx,
-				`delete from web_sessions where job_id = some(:job_ids)`,
-				db.Params{"job_ids": jobIds},
+				`
+					update web_sessions
+					set
+						finished_at = :finished_at
+					where
+						job_id = some(:job_ids)
+						and auth_token is not null
+						and (flags & :web_flag) != 0
+						and finished_at is null
+				`,
+				db.Params{
+					"finished_at": finishedAt,
+					"job_ids":     jobIds,
+					"web_flag":    int(RegisteredIngressFlagsWeb),
+				},
+			)
+			db.Exec(
+				tx,
+				`
+					delete from web_sessions
+					where
+						job_id = some(:job_ids)
+						and (
+							auth_token is null
+							or (flags & :web_flag) = 0
+						)
+				`,
+				db.Params{
+					"job_ids":  jobIds,
+					"web_flag": int(RegisteredIngressFlagsWeb),
+				},
+			)
+			db.Exec(
+				tx,
+				`
+					delete from web_sessions
+					where
+						finished_at is not null
+						and finished_at < :cutoff
+				`,
+				db.Params{
+					"cutoff": cutoff,
+				},
 			)
 		})
 	}

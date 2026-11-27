@@ -63,6 +63,7 @@ func Init() controller.JobsService {
 		Follow:                   follow,
 		HandleShell:              handleShell,
 		OpenWebSession:           openWebSession,
+		InspectWebSession:        containersInspectWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
 		RenderInvocation:         containersRenderInvocation,
 	}

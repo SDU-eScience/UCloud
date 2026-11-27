@@ -356,6 +356,51 @@ func JobRetrieve(jobId string) (*orc.Job, bool) {
 	}
 }
 
+func jobRetrieveLocal(jobId string) (*orc.Job, bool) {
+	if !RunsServerCode() {
+		return nil, false
+	}
+
+	activeJobsMutex.RLock()
+	job, ok := activeJobs[jobId]
+	activeJobsMutex.RUnlock()
+	if ok {
+		copied := *job
+		return &copied, true
+	}
+
+	row, found := db.NewTx2(func(tx *db.Transaction) (struct {
+		Resource string
+	}, bool) {
+		return db.Get[struct {
+			Resource string
+		}](
+			tx,
+			`
+				select
+					resource
+				from
+					tracked_jobs
+				where
+					job_id = :job_id
+			`,
+			db.Params{
+				"job_id": jobId,
+			},
+		)
+	})
+	if !found {
+		return nil, false
+	}
+
+	var parsed orc.Job
+	err := json.Unmarshal([]byte(row.Resource), &parsed)
+	if err != nil {
+		return nil, false
+	}
+	return &parsed, true
+}
+
 func JobRetrieveAll() map[string]*orc.Job {
 	result := map[string]*orc.Job{}
 	activeJobsMutex.RLock()
@@ -523,6 +568,7 @@ func (b *JobUpdateBatch) flush() {
 
 	var nodeAllocJobIds []string
 	var nodeAllocNodeIds []string
+	refreshRoutes := false
 
 	jobCleanupMutex.Lock()
 	activeJobsMutex.Lock()
@@ -549,6 +595,9 @@ func (b *JobUpdateBatch) flush() {
 		if ok && expectationsMet {
 			if u.State.IsSet() {
 				job.Status.State = u.State.Get()
+				if job.Status.State.IsFinal() {
+					refreshRoutes = true
+				}
 
 				if job.Status.State != orc.JobStateInQueue {
 					// NOTE(Dan): API servers are needed until it has started, after that we can delete them
@@ -604,6 +653,10 @@ func (b *JobUpdateBatch) flush() {
 	}
 	activeJobsMutex.Unlock()
 	jobCleanupMutex.Unlock()
+
+	if refreshRoutes {
+		jobRoutesRefresh()
+	}
 
 	if len(nodeAllocJobIds) > 0 {
 		db.NewTx0(func(tx *db.Transaction) {
@@ -784,17 +837,41 @@ func jobConfirmMissingFromCore(entries []orc.ResourceUpdateAndId[orc.JobUpdate])
 
 func jobPurgeTracked(jobId string) {
 	delete(activeJobs, jobId)
+	jobPurgeFinishedSessionsInMemory(jobId)
 
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
-			`delete from job_api_server_secrets where job_id = :job_id`,
-			db.Params{"job_id": jobId},
+			`
+				delete from web_sessions
+				where
+					job_id = :job_id
+			`,
+			db.Params{
+				"job_id": jobId,
+			},
 		)
 		db.Exec(
 			tx,
-			`delete from tracked_jobs where job_id = :job_id`,
-			db.Params{"job_id": jobId},
+			`
+				delete from job_api_server_secrets
+				where
+					job_id = :job_id
+			`,
+			db.Params{
+				"job_id": jobId,
+			},
+		)
+		db.Exec(
+			tx,
+			`
+				delete from tracked_jobs
+				where
+					job_id = :job_id
+			`,
+			db.Params{
+				"job_id": jobId,
+			},
 		)
 	})
 	go jobRoutesRefresh()

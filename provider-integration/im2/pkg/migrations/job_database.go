@@ -98,3 +98,27 @@ func jobDatabaseV5() db.MigrationScript {
 		},
 	}
 }
+
+func jobDatabaseV6() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "jobDatabaseV6",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table web_sessions add column if not exists finished_at timestamptz default null
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create index if not exists idx_web_sessions_finished_at
+					on web_sessions (finished_at)
+					where finished_at is not null
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

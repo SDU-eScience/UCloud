@@ -98,6 +98,7 @@ func Init() ctrl.JobsService {
 		Follow:                   follow,
 		HandleShell:              handleShell,
 		OpenWebSession:           openWebSession,
+		InspectWebSession:        kubevirtInspectWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
 		Suspend:                  suspend,
 		Unsuspend:                unsuspend,
